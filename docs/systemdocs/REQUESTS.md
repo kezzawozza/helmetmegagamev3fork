@@ -223,8 +223,8 @@ Three notes on deliberate choices:
 - **A dead target's notice is swallowed once its player has moved on.**
   `LOOT_CHARACTER`, a corpse Mutilate, Butcher, Bury and Engrave can all act on
   a character who is no longer ALIVE. If that Discord user already controls a
-  different living character — a Metempsychosis reroll, or an ordinary Cursed
-  one — `notifyCharacter` no-ops instead of DMing them about their old body,
+  different living character — a Metempsychosis reroll, or an ordinary one made
+  after somebody buried them — `notifyCharacter` no-ops instead of DMing them about their old body,
   using the same `stillAlive` check `db/lib/reincarnate.js` and the death
   teardown already rely on. A corpse whose player hasn't come back yet still
   gets the DM as before.

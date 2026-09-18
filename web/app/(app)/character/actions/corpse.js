@@ -9,10 +9,6 @@ import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
-  requireFreeMove,
-  fileAutoRoutine,
-} from "@/lib/moveSpend";
-import {
   addToStack,
   debitResources,
   dropCharacterTag,
@@ -52,7 +48,22 @@ import {
   requireCharacter,
   revalidateAll,
   speakAtSite,
+  resolveCraftMove,
+  spendCraftMove,
 } from "./shared.js";
+
+// Half a turn's Routine each, on the same ledger crafting uses
+// (CRAFTING.md §2a): laying somebody to rest is an afternoon's work, not a
+// whole day's, and it shares the Move with whatever else is done at the bench.
+// `family` only has to be non-medical — craftLedgerDescription groups these
+// with the turn's crafting.
+const BURIAL_MOVE = { num: 1, den: 2, family: "burial" };
+
+// One ledger entry, built by hand: these verbs have no recipe tag behind them,
+// so craftLedgerEntry has nothing to read.
+function burialLedgerEntry(name) {
+  return { tagId: null, name, family: "burial", qty: 1, num: 1, den: 2 };
+}
 
 // --- Bodies: Butcher, Bury, Engrave --------------------------------------
 // All three act on a CORPSE TAG rather than a typed name (docs/systemdocs/CORPSES.md): a body is an object you hold
@@ -404,7 +415,7 @@ async function speakHere(character, text) {
   speakAtSite(location?.discordChannelId, ambientLine(text));
 }
 
-// Burying. Takes the body — you have to actually have it, or be able to reach it — and spends your Move.
+// Burying. Takes the body — you have to actually have it, or be able to reach it — and spends half your Move.
 export async function buryCharacterRequestImpl({
   tagId,
   sourceKey,
@@ -422,19 +433,20 @@ export async function buryCharacterRequestImpl({
   if (target.buriedAt) throw new UserError("They're already in the ground.");
 
   const openTurn = await getOpenTurn();
-  await requireFreeMove(character, openTurn);
+  // The fast fail; spendCraftMove below re-asks under the row lock.
+  await resolveCraftMove(character, openTurn, BURIAL_MOVE);
   const buriedAt = new Date();
 
   await prisma.$transaction(async (tx) => {
     await takeCorpse(tx, corpse);
     await tx.character.update({ where: { id: target.id }, data: { buriedAt } });
-    const action = await fileAutoRoutine(
-      tx,
+    await spendCraftMove(tx, {
       character,
       openTurn,
-      `Buried ${target.name}.`,
-      "auto:bury",
-    );
+      need: BURIAL_MOVE,
+      entry: burialLedgerEntry(`Buried ${target.name}`),
+      notes: "auto:craft auto:bury",
+    });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_bury_character",
@@ -443,13 +455,19 @@ export async function buryCharacterRequestImpl({
     });
   });
 
-  // NOTHING to revoke here. Burial lifts the CURSE — the re-roll penalty, which db/lib/curse.js
-  // derives from `buriedAt` with no write of its own — and leaves the watching seat alone.
+  // NOTHING to revoke here. Burial lifts the CURSE — which is now the whole
+  // right to make a new character, and which db/lib/curse.js derives from
+  // `buriedAt` with no write of its own — and leaves the watching seat alone.
   // db/lib/ghost.js ends that only when a living character is theirs again. The two used to be one
   // predicate, so burying somebody also threw them out of the game they were still watching.
   await afterInventoryChange([character.id]);
 
-  notifyCharacter(target, "Your body was buried. The curse has lifted. You are still watching.");
+  // PLACEHOLDER — Bascinet's wording pending. "The curse has lifted" now means
+  // they may make a new character at all, which it did not before.
+  notifyCharacter(
+    target,
+    "Your body was buried. The curse has lifted — you may make a new character. You are still watching.",
+  );
   if (corpse.source.kind === "room") {
     after(() => announceInRoom(corpse.source, character, "takes a body away."));
   }
@@ -492,7 +510,8 @@ export async function engraveHeadstoneRequestImpl({
   }
 
   const openTurn = await getOpenTurn();
-  await requireFreeMove(character, openTurn);
+  // The fast fail; spendCraftMove below re-asks under the row lock.
+  await resolveCraftMove(character, openTurn, BURIAL_MOVE);
   const buriedAt = new Date();
 
   const result = await prisma.$transaction(async (tx) => {
@@ -510,13 +529,13 @@ export async function engraveHeadstoneRequestImpl({
       expiresTurn: null,
       stackable: false,
     });
-    const action = await fileAutoRoutine(
-      tx,
+    await spendCraftMove(tx, {
       character,
       openTurn,
-      `Engraved a headstone for ${target.name}.`,
-      "auto:engrave",
-    );
+      need: BURIAL_MOVE,
+      entry: burialLedgerEntry(`Engraved a headstone for ${target.name}`),
+      notes: "auto:craft auto:engrave",
+    });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_engrave_headstone",
@@ -529,9 +548,10 @@ export async function engraveHeadstoneRequestImpl({
   // Same as Bury above: the curse lifts, the seat does not. See db/lib/ghost.js.
   await afterInventoryChange([character.id]);
 
+  // PLACEHOLDER — Bascinet's wording pending, same as Bury's above.
   notifyCharacter(
     target,
-    "Somebody carved your name in stone. The curse has lifted. You are still watching.",
+    "Somebody carved your name in stone. The curse has lifted — you may make a new character. You are still watching.",
   );
   await speakHere(character, `A headstone was engraved for ${target.name}.`);
 

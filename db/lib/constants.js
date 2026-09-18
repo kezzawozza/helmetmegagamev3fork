@@ -113,7 +113,7 @@ const HATCH_IN = 30;
 // chosen difficulty for db/lib/arelitz.js's break-in Gambit.
 const BREAK_IN_TARGET = 5;
 const HUMAN_FLESH_SLUG = "human-flesh";
-const ENGRAVE_RESOURCE_COST = 4;
+const ENGRAVE_RESOURCE_COST = 3;
 // Turns a person's corpse stays fresh. Monster corpses never rot.
 const CORPSE_ROT_TURNS = 3;
 

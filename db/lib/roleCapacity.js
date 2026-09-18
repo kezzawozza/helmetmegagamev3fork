@@ -7,26 +7,15 @@ function roleCapacity(role, playerCount) {
   return Math.max(1, Math.round((role.weight * playerCount) / 100));
 }
 
-// Seats that never reopen — stay taken for the rest of the run, dead holder or not (CHARACTERS.md "Seat caps"). Keyed on Role.slug.
-const PERMANENT_SEAT_ROLE_SLUGS = [
-  "baron",
-  "baroness",
-  "heir",
-  "successor",
-  "hand",
-  "meister",
-  "arbiter",
-  "censor",
-  "incarn",
-  "bishop",
-  "esculap",
-  "inquisitor",
-  "headman",
-  "sheriff",
-  "innkeeper",
-  "brigand-leader",
-  "brigand",
-];
+// The only two seats that reopen when their holder dies. Every OTHER role is
+// spent for the rest of the run — a death costs the roster a seat, and nobody
+// inherits it (CHARACTERS.md "Seat caps"). Keyed on Role.slug.
+//
+// This list used to run the other way, naming the seventeen seats that stayed
+// shut while everything else refilled itself. Inverted 2026-09-18: a Merchant
+// who dies takes the Merchant's chair with him, and a player who gets buried
+// comes back into whatever is actually left — in a full game, these two.
+const REOPENING_SEAT_ROLE_SLUGS = ["bum", "migrant"];
 
 // Roles that exist ONLY as a GM spawn — kept here so the roll (db/lib/roleAssignment.js) and the picker read one list.
 const SPAWN_ONLY_ROLE_SLUGS = ["tribunal-ordinator", "tribune"];
@@ -36,17 +25,18 @@ function isSpawnOnly(role) {
 }
 
 function isPermanentSeat(role) {
-  return PERMANENT_SEAT_ROLE_SLUGS.includes(role?.slug);
+  return !REOPENING_SEAT_ROLE_SLUGS.includes(role?.slug);
 }
 
 // Which Character.status values occupy a seat — the one definition behind every `taken` count.
+// DEAD counts almost everywhere now, so a seat is only handed back by the two roles above.
 function seatHolderStatuses(role) {
   return isPermanentSeat(role) ? ["ALIVE", "DEAD"] : ["ALIVE"];
 }
 
 module.exports = {
   roleCapacity,
-  PERMANENT_SEAT_ROLE_SLUGS,
+  REOPENING_SEAT_ROLE_SLUGS,
   SPAWN_ONLY_ROLE_SLUGS,
   isSpawnOnly,
   isPermanentSeat,

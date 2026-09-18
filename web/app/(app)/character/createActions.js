@@ -58,7 +58,7 @@ import {
   exclusiveConflict,
   conflictingTag,
   roleExcluded,
-  CURSED_ROLE_SLUGS,
+  CURSED_REFUSAL,
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
@@ -118,8 +118,8 @@ export async function createCharacter(formData) {
   }
 
   // A seat from the roll, inside its window, is the role regardless of what
-  // was posted (LOBBY.md §4). Whitelist and Cursed gates are skipped for
-  // it. An entry whose role has since left the catalog is no assignment at
+  // was posted (LOBBY.md §4). The whitelist gate is skipped for it. The curse
+  // is NOT — see below. An entry whose role has since left the catalog is no assignment at
   // all — treating it as one would lift the gates below for the form's role.
   const assignedEntry = await prisma.lobbyEntry
     .findFirst({
@@ -170,8 +170,16 @@ export async function createCharacter(formData) {
     return { error: "That role isn't available to you." };
   }
 
-  if (!assignedEntry && !isRoleSelectable({ role, cursed, leaderWhitelisted })) {
-    return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
+  // An unburied body is a full stop, not a narrowed menu (db/lib/curse.js). It
+  // used to leave Migrant and Bum open at six fewer points; now nobody gets
+  // made until the corpse is dealt with. A roll seat is no exemption — that
+  // window belongs to the lobby, long before anybody has died.
+  if (!bypass && cursed) {
+    return { error: CURSED_REFUSAL };
+  }
+
+  if (!assignedEntry && !isRoleSelectable({ role, leaderWhitelisted })) {
+    return { error: "That role isn't available to you." };
   }
 
   const antagonistOptIns = normalizeAntagonistSlugs(postedOptIns, { whitelisted: leaderWhitelisted });
@@ -293,7 +301,7 @@ export async function createCharacter(formData) {
     };
   }
 
-  const budget = computeBudget({ startingTagPoints: config?.startingTagPoints ?? 0, role, cursed });
+  const budget = computeBudget({ startingTagPoints: config?.startingTagPoints ?? 0, role });
   const spent = effectiveTotalCost(selected, byId, grantedIds);
   if (spent > budget) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
@@ -562,9 +570,13 @@ export async function reserveRoleAction(roleId) {
   if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
-  const cursed = await isPlayerCursed(prisma, discordUserId);
-  if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
-    return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
+  // Same full stop as createCharacter: a cursed player must not hold a seat
+  // they can never fill.
+  if (!bypass && (await isPlayerCursed(prisma, discordUserId))) {
+    return { error: CURSED_REFUSAL };
+  }
+  if (!isRoleSelectable({ role, leaderWhitelisted })) {
+    return { error: "That role isn't available to you." };
   }
 
   const result = await reserveRole(prisma, discordUserId, roleId, effectivePlayerCount(config, state));

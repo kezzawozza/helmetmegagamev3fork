@@ -1,6 +1,7 @@
-// db/lib/curse.js decides who may only come back as a Migrant or a Bum, at
-// six fewer points. A wrong answer here is a player handed a free
-// unrestricted re-roll. Pure over rows, so no database and no stub.
+// db/lib/curse.js decides who may not come back at all until their body is
+// buried or their name carved. A wrong answer here is either a player locked
+// out of the game or one handed a free re-roll over an unburied corpse. Pure
+// over rows, so no database and no stub.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { isCursedIn, cursedUserIds, isPlayerCursed, CURSE_SELECT } = require("../lib/curse");

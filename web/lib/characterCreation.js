@@ -2,8 +2,6 @@
 // and the GM panel, so budgets never disagree. Pure functions only.
 import { roleCapacity, SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
 
-export const CURSED_POINT_PENALTY = 6;
-
 // Defaults for the two drawback ceilings (GameConfig.maxDrawbackTags/
 // maxDrawbackPoints, editable on /gm/dev); a build stops at whichever it reaches first — TAGS.md §4a.
 export const DEFAULT_MAX_DRAWBACK_TAGS = 6;
@@ -20,21 +18,22 @@ export function negativeTagPoints(tags) {
   return tags.reduce((sum, t) => ((t.pointCost ?? 0) < 0 ? sum - t.pointCost : sum), 0);
 }
 
-export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
-
 // Spawn-only seats are HIDDEN, unlike a whitelisted seat, which greys itself.
 export { SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly };
 
-// The curse REPLACES a role's bonus rather than netting against it: both
-// cursed-eligible roles carry a bonus, and netting would leave a cursed
-// character better off than most of the roster.
-export function computeBudget({ startingTagPoints, role, cursed }) {
+// PLACEHOLDER — Bascinet's wording pending. The one sentence a player with an
+// unburied body reads, on the creation page and from both server actions. An
+// unburied death now stops you making anybody at all, not just anybody good.
+export const CURSED_REFUSAL =
+  "Your body is still lying where it fell. Until somebody buries it or carves your name in stone, you cannot make a new character.";
+
+// One budget for everybody who reaches the wizard. The curse used to dock six
+// points here and cancel the role's bonus; it now refuses creation outright
+// (createActions.js), so there is no discounted character left to price.
+export function computeBudget({ startingTagPoints, role }) {
   const base = startingTagPoints ?? 0;
   const modifier = role?.extraStartingPoints ?? 0;
-  // Cancels the BONUS but never the penalty, or a cursed Bum would beat an uncursed one.
-  const bonus = cursed ? Math.min(0, modifier) : modifier;
-  const penalty = cursed ? CURSED_POINT_PENALTY : 0;
-  return Math.max(0, base + bonus - penalty);
+  return Math.max(0, base + modifier);
 }
 
 function totalCost(tags) {
@@ -164,10 +163,10 @@ export function effectiveTotalCost(tags, tagsById, heldIds = []) {
   return tags.reduce((sum, tag) => sum + effectiveCost(tag, tagsById, heldIds), 0);
 }
 
-export function isRoleSelectable({ role, cursed, leaderWhitelisted }) {
-  if (role.requiresWhitelist && !leaderWhitelisted) return false;
-  if (!cursed) return true;
-  return CURSED_ROLE_SLUGS.includes(role.slug);
+// The whitelist is the only thing left that greys a role out for WHO you are.
+// Whether the seat is free is asked separately, against roleCapacity.
+export function isRoleSelectable({ role, leaderWhitelisted }) {
+  return !(role.requiresWhitelist && !leaderWhitelisted);
 }
 
 // A mastery tag is bought with points earned in play, so the wizard never offers one.

@@ -135,7 +135,7 @@ export function checkCraftMove(action, need) {
   return ledger;
 }
 
-// The fast fail, outside the transaction. Replaces requireFreeMove on the craft path only — Bury, Engrave, Extract and the build sites still take a whole clean Move.
+// The fast fail, outside the transaction. Replaces requireFreeMove wherever a verb costs a FRACTION of the Move: every craft, plus Bury and Engrave at a half each. Extract and the build sites still take a whole clean Move.
 export async function resolveCraftMove(character, openTurn, need) {
   if (!openTurn) throw new UserError("No turn is open.");
   // One gate, one sentence — db/lib/turnGate.js. It asks about the session BEFORE the lock window, because a frozen clock
@@ -151,9 +151,13 @@ export async function resolveCraftMove(character, openTurn, need) {
 
 // Claims the Move (or slice) this craft needs, inside the caller's transaction, re-checked under the Character row lock since two tabs can both have passed the cheap check a moment ago (`@@unique([characterId, turnId])` P2002 catch in fileAutoRoutine is the backstop under even that).
 // `description`: a project passes its own "(2/3)" line and keeps it; a fractional craft passes none and gets the running made-this-turn list.
+// `notes`: what lands in Action.gmNotes. It must CONTAIN "auto:craft" — that
+// string is what checkCraftMove above recognises as a shareable ledger — so a
+// non-craft verb on this budget appends its own marker rather than replacing
+// it ("auto:craft auto:bury").
 export async function spendCraftMove(
   tx,
-  { character, openTurn, need, entry, description = null },
+  { character, openTurn, need, entry, description = null, notes = "auto:craft" },
 ) {
   await lockCharacter(tx, character.id);
   const existing = await tx.action.findFirst({
@@ -169,7 +173,7 @@ export async function spendCraftMove(
         character,
         openTurn,
         description,
-        "auto:craft",
+        notes,
       ),
       budget: null,
     };
@@ -190,7 +194,7 @@ export async function spendCraftMove(
         character,
         openTurn,
         line,
-        "auto:craft",
+        notes,
         budget,
       ),
       budget,

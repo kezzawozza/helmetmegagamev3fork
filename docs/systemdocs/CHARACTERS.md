@@ -19,7 +19,7 @@ redirect bounce.
   rolls those into seats.
 - **Assigned a seat**, the wizard below opens on step 2 with the role fixed
   and a deadline banner (`LOBBY.md` §4).
-- **Otherwise** — never readied, a Cursed re-roll, a respawn — it is the
+- **Otherwise** — never readied, a respawn after a burial — it is the
   wizard as described here: late join, picking from open seats.
 
 The wizard has five steps:
@@ -394,7 +394,7 @@ takes a flat role list and files it.
 
 **The slugs are in the YAML; the display names are in code.** `ROLE_GROUPS` in
 `db/lib/roleGroups.js` holds the order and the labels, for the same reason
-`roleCapacity.js#PERMANENT_SEAT_ROLE_SLUGS` does: a typo in a label must not be
+`roleCapacity.js#REOPENING_SEAT_ROLE_SLUGS` does: a typo in a label must not be
 able to throw `db:sync-roles` mid-pass with rows already written. A group *key*
 in the YAML that names no bucket is a different matter — `syncRoles` validates
 every one against `isRoleGroupSlug()` in its up-front pass and throws before it
@@ -459,16 +459,21 @@ live dial: set it to 120 on `/gm/dev` and every weighted role widens by 1.2×.
 `multiple: false` is deliberately **not** "1 per 100" — the Baron stays one
 Baron in a 300-player game.
 
-**Who occupies a seat** is `roleCapacity.js#seatHolderStatuses(role)`: a
-living character, normally — the holder dies and the role is offered again,
-which is right for a Bum or a Cerberus. The roles in
-`PERMANENT_SEAT_ROLE_SLUGS` — Gunboat's list: Baron, Baroness, Heir,
-Successor, Hand, Meister, Arbiter, Censor, Incarn, Bishop, Esculap,
-Inquisitor, Headman, Sheriff, Innkeeper and both Brigand roles — count DEAD
-holders too, so once taken they stay taken for the run. It is neither "the unique roles" (Sheriff is weighted; Pusher and
-Merchant are unique and deliberately absent) nor a picker bucket — read the
-constant, not a rule about any one kind of seat. A single-seat role on the list (Sheriff,
-Ranger, Master of Parties at 100 players) is one-and-done for the run. "Taken"
+**Who occupies a seat** is `roleCapacity.js#seatHolderStatuses(role)`, and
+the answer is normally *a living or a dead one*: a seat is spent for the run
+the moment somebody takes it, and their death does not hand it back. A
+Cerberus who dies takes the Cerberus's chair with him.
+
+The exception is `REOPENING_SEAT_ROLE_SLUGS`, which is two names long — **Bum
+and Migrant**. Those two count only their ALIVE holders, so they are the seats
+a dead player can come back into. That is the point of them: with the curse
+now stopping a new character entirely until the body is buried
+(`db/lib/curse.js`), the roster needs a floor nobody can be locked out of, and
+those two are it. Migrant is `weight: unlimited` besides, so it can never be
+full at all.
+
+This list used to run the other way — seventeen named seats stayed shut and
+everything else refilled itself. Inverted 2026-09-18. "Taken"
 means "a Character row still points at this Role": a GM deleting the dead
 row from the dev panel, or moving the dead holder to another role, frees the
 seat. The GM panel never checks capacity at all, so a GM can always seat
@@ -600,8 +605,11 @@ kits and the fallback are all gone.
 ```
 budget = GameConfig.startingTagPoints      (default 8, live on /gm/dev)
        + role.extra_starting_points        (Outsider +4; no other role sets it)
-       - 6 if the player is Cursed
 ```
+
+There is no Cursed discount any more. It used to take 6 off and cancel the
+role's bonus; a cursed player now makes no character at all (§4), so there is
+no cheap character left to price.
 
 `web/lib/characterCreation.js` holds this arithmetic, and is imported by the
 wizard, the server action, and the GM panel so the number a player is shown
@@ -687,17 +695,31 @@ The channel doctor reconciles it one-directionally, database → role, so a
 disagreement costs a dead player some channels until the next pass rather than
 costing them points.
 
-While cursed, a player may still roll a new character — but only as a
-**Migrant** or a **Bum**, and with **6 fewer points**
-(`web/lib/characterCreation.js`'s `CURSED_ROLE_SLUGS`/`CURSED_POINT_PENALTY`,
-enforced by `isRoleSelectable`/`computeBudget`).
+**While cursed, a player makes no character at all.** `/character` shows them
+the refusal instead of the wizard, and both `createCharacter` and
+`reserveRoleAction` refuse independently — a server action is a public
+endpoint. Only a superadmin is exempt.
+
+This got much sharper on 2026-09-18. It used to be a discount in reverse: a
+cursed player could still roll, restricted to **Migrant** or **Bum** at **6
+fewer points**. Death now stops you playing until somebody does something
+about your body, which is also what makes the burial verbs worth a player's
+half-turn.
+
+**Metempsychosis is the one way past it** (`db/lib/reincarnate.js`,
+`TAGS.md` §4a). It leaves no body to bury and rolls the holder straight into a
+new character on death, into whatever seat is open — in a full game Bum or
+Migrant, since those are the only two that reopen (§"Who occupies a seat"),
+but a role nobody ever took is fair game. That, rather than the +4 points it
+also carries, is what the tag buys.
 
 **Players lift it themselves, by burying the body — or, failing that, by
 carving a stone.** Two requests do it (`REQUESTS.md` §5d,
 [`CORPSES.md`](CORPSES.md)). `BURY_CHARACTER` needs the dead character's actual
-**corpse tag**, held or lying in a room the filer can reach, and spends their
-Move; `ENGRAVE_HEADSTONE` is the answer to a body nobody can find, costing 4 ⬢
-and a Move and matching a **typed** first name game-wide. Either one stamps
+**corpse tag**, held or lying in a room the filer can reach, and spends **half**
+their Move; `ENGRAVE_HEADSTONE` is the answer to a body nobody can find,
+costing 3 ⬢ and the same half a Move, and matching a **typed** first name
+game-wide. Either one stamps
 `buriedAt`, which is the whole of it — no Discord round trip is involved in
 lifting a curse any more. That is the fiction the setting has always carried —
 `docs/documents.yaml`'s Respawning entry says to wait until your body is
@@ -924,9 +946,15 @@ See `docs/systemdocs/DEPOT.md` §0g.
 ## Metempsychosis
 
 A `mastery` tag (`TAGS.md` §4a). A character holding it who dies is rolled
-straight into a new one instead of going back through the wizard as a Cursed
-re-roll: **a random role with a free seat, `startingTagPoints + 4`, and no
-Curse.** `db/lib/reincarnate.js`.
+straight into a new one: **a random role with a free seat,
+`startingTagPoints + 4`, and no Curse.** `db/lib/reincarnate.js`.
+
+**What it buys is the burial.** Everybody else who dies is stopped from making
+a character at all until somebody puts the body in the ground or carves the
+name in stone (§4). This one leaves no body to bury and waits on no mourner.
+The seat it lands in is whatever is actually open, same as anyone else's — in
+a full game Bum or Migrant, those being the only two that reopen on a death,
+but a role nobody ever took is fair game.
 
 It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
 wizard, because **nine** callers kill people — the dying, catatonic,
@@ -996,8 +1024,7 @@ Four things worth knowing before changing it:
   adjective at all.
 
 `db/lib/curse.js` is untouched: the new character is `ALIVE`, so `isCursedIn`
-already returns not-cursed and the −6 and the Migrant/Bum restriction never
-apply. The personal character role is deliberately not minted here — it is a
+already returns not-cursed and the refusal never fires. The personal character role is deliberately not minted here — it is a
 mentionable name token that grants nothing (`PROXYING.md` §6), the placeholder
 name is about to change anyway, and the channel doctor mints any missing one on
 the next bot start.

@@ -232,6 +232,14 @@ own family and fraction, in lowest terms (a straddling order's free half is
 `qty` minus the billed `num`). All of it is integer arithmetic
 (`web/lib/craftBudget.js`) — four quarters have to be exactly one Move.
 
+**The ledger is not craft-only any more.** Bury and Engrave cost half a Move
+each and take it from here (`CORPSES.md` §7), with `family: "burial"` and a
+null `tagId`, so a burial and a piece of work share one turn. They pass their
+own marker in `gmNotes` — `"auto:craft auto:bury"` — because `checkCraftMove`
+recognises a shareable ledger by the `auto:craft` substring. Anything else
+joining this budget does the same; every other verb still takes a whole clean
+Move through `requireFreeMove`.
+
 Nothing is derived and nothing is cached: **the row is the record.** Every
 budget-consuming craft takes the Character `FOR UPDATE` row lock, re-reads the
 Action inside the transaction, re-runs the remainder check there, and

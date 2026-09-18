@@ -251,19 +251,34 @@ and every livestock row carries `human: false`. The room announcement reads
 
 ## 7. Bury and Engrave
 
-Both spend the filer's Move, via `fileAutoRoutine` — the generalized
-`fileCraftAction`, now taking its `gmNotes` as a parameter because three
-callers use it.
+**Both cost half a Move**, and they take it off the same ledger crafting uses
+(`Action.craftBudget`, `CRAFTING.md` §2a) rather than the whole-Move
+`fileAutoRoutine` path they used to file. So a burial and an afternoon at the
+anvil fit in one turn, and so do two burials. They go through
+`resolveCraftMove` outside the transaction and `spendCraftMove` inside it,
+exactly like a 0.5-turn recipe, and pass `notes: "auto:craft auto:bury"` — the
+`auto:craft` half is what `checkCraftMove` recognises as a shareable ledger,
+the other half is the marker saying which button filed it.
+
+They are the only two non-craft verbs on that ledger. Extract, Mine, Farm and
+the build sites still take a whole clean Move through `requireFreeMove`.
+
+Their ledger entries carry `family: "burial"` and no `tagId`, since neither has
+a recipe behind it. `craftLedgerDescription` groups everything non-medical
+together, so the desk reads `Crafting this turn: Buried Ada.`
 
 **Bury needs the actual body.** It used to match a typed first name against the
 dead in your zone; now you pick a corpse you hold or can reach, which is
 strictly tighter (Location-grain, and you have to have it). It consumes the
-corpse tag and stamps `buriedAt`, which is what lifts the curse (`db/lib/curse.js`). A monster
+corpse tag and stamps `buriedAt`, which is what lifts the curse
+(`db/lib/curse.js`) — and the curse is now the whole right to make a new
+character, not the old Migrant/Bum discount, so a mourner is handing somebody
+their game back. A monster
 corpse is refused — "There's no soul in that one."
 
 **Engrave is the answer to a body nobody can find**, so it is the one action
 here with no corpse and no reach check, and it searches **every zone**. It costs
-**4 ⬢** and a Move, frees the soul the way burying does, and leaves a
+**3 ⬢** and half a Move, frees the soul the way burying does, and leaves a
 `{name}'s Headstone` tag on the engraver.
 
 Engrave inherited Bury's **typed** first name, and the reasoning that kept it

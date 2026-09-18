@@ -1,4 +1,4 @@
-// How many of a role's seats are spoken for: characters sitting in them (ALIVE, plus DEAD on a seat that never reopens), a live wizard hold (RoleReservation), and a live lobby assignment (LobbyEntry ASSIGNED with a future expiresAt — LOBBY.md §4). One function so every caller agrees what "full" means.
+// How many of a role's seats are spoken for: characters sitting in them (ALIVE, plus DEAD on every seat but the two that reopen — db/lib/roleCapacity.js), a live wizard hold (RoleReservation), and a live lobby assignment (LobbyEntry ASSIGNED with a future expiresAt — LOBBY.md §4). One function so every caller agrees what "full" means.
 // `excludeDiscordUserId` leaves out the caller's OWN hold and assignment, so re-reserving to slide an expiry never fails against itself.
 
 const { seatHolderStatuses, isPermanentSeat } = require("./roleCapacity");

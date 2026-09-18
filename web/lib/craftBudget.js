@@ -63,6 +63,10 @@ const FAMILY_LABELS = {
   blessing: "blessing",
   // medical is hardcoded (M2, TAGS.md §5c), kept off craftFamily's guess by craftMoveCost's override.
   medical: "medical",
+  // Not a craft at all: Bury and Engrave sit on this ledger so half a turn's
+  // work at the grave can share a Move with half a turn's at the bench
+  // (CORPSES.md). No recipe tag ever carries this family.
+  burial: "burial",
 };
 
 export function craftFamilyLabel(family) {

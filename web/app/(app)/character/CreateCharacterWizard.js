@@ -145,7 +145,6 @@ export default function CreateCharacterWizard({
   maxDrawbackTags,
   maxDrawbackPoints,
   playerCount,
-  cursed,
   // The living Baron's surname, or null if nobody holds the seat yet. Only
   // read for a role whose `lastNameLocked` is set — see db/lib/dynasty.js.
   dynastyName = null,
@@ -199,7 +198,7 @@ export default function CreateCharacterWizard({
   const role = allRoles.find((r) => r.id === roleId) ?? null;
 
   const byId = useMemo(() => buildTagsById(tags), [tags]);
-  const budget = computeBudget({ startingTagPoints, role, cursed });
+  const budget = computeBudget({ startingTagPoints, role });
   const selectedTags = tags.filter((t) => selectedIds.includes(t.id));
   const grantedTags = useMemo(
     () => (role ? tags.filter((t) => role.startingTagSlugs.includes(t.slug)) : []),
@@ -412,12 +411,6 @@ export default function CreateCharacterWizard({
         <p className="text-sm text-muted">
           Held for you until{" "}
           {new Date(heldUntil).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.
-        </p>
-      )}
-
-      {cursed && (
-        <p className="panel p-3 text-sm text-accent">
-          You&apos;re <strong>Cursed</strong>! Until someone buries your body or immortalizes your name, you can only be a Bum or a Migrant. You suffer -6 to starting points.
         </p>
       )}
 

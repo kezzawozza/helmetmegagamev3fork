@@ -6,7 +6,7 @@
 //
 // The slugs are also the top-level keys of docs/roles.yaml's `groups:`, but
 // the NAMES live here rather than in the YAML for the reason
-// PERMANENT_SEAT_ROLE_SLUGS (db/lib/roleCapacity.js) does: a typo here must
+// REOPENING_SEAT_ROLE_SLUGS (db/lib/roleCapacity.js) does: a typo here must
 // never be able to throw db:sync-roles mid-pass with rows already written.
 // The sync validates every key in the YAML against isRoleGroupSlug() up
 // front, before it writes anything.

@@ -1,6 +1,13 @@
 // Metempsychosis (a mastery, TAGS.md 4a): a character holding the tag who
 // dies is rolled straight into a new one — random role with a free seat, the
-// ordinary budget plus 6, no Curse — instead of the Cursed Migrant/Bum re-roll.
+// ordinary budget plus 4.
+//
+// What the tag BUYS is the burial. Everybody else who dies is Cursed until
+// somebody puts the body in the ground or carves the name in stone, and a
+// cursed player makes no character at all (db/lib/curse.js). This one leaves
+// no body to bury and never waits on a mourner. The seat is whatever is
+// actually open, same as everyone else gets — in a full game Bum or Migrant,
+// since those are the only two that reopen on a death (db/lib/roleCapacity.js).
 // Lives in db/lib because EIGHT callers kill people, all through
 // db/lib/characterDeath.js#applyDeathToRow. Takes `prisma` as a parameter and
 // stays off the @lifeweb/db barrel, the db/lib/dm.js convention; require it by path.
@@ -120,8 +127,8 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   if (candidates.length === 0) return null;
   const role = candidates[Math.floor(Math.random() * candidates.length)];
 
-  // Seat's own bonus counts (web/lib/characterCreation.js#computeBudget); the
-  // Cursed penalty does NOT apply since the soul found a body.
+  // Seat's own bonus counts (web/lib/characterCreation.js#computeBudget), plus
+  // the tag's own 4 on top.
   const budget =
     (config?.startingTagPoints ?? 8) + (role.extraStartingPoints ?? 0) + REINCARNATION_BONUS_POINTS;
 

@@ -130,7 +130,7 @@ async function loadCreationData(discordUserId) {
     prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
   ]);
 
-  // Seated (ALIVE, plus DEAD on a seat that never reopens) plus anyone
+  // Seated (ALIVE, plus DEAD on every seat but Bum and Migrant) plus anyone
   // else's live wizard-in-progress hold; excludes the viewer's own hold.
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
@@ -200,7 +200,7 @@ async function loadCreationData(discordUserId) {
             // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
             cap: cap === Infinity ? null : cap,
             taken: takenByRole.get(role.id) ?? 0,
-            selectable: isRoleSelectable({ role, cursed, leaderWhitelisted }),
+            selectable: isRoleSelectable({ role, leaderWhitelisted }),
             // Resolved server-side so a client component never drags
             // PrismaClient into the browser bundle.
             lastNameLocked: isDynastyMember(role.slug),
@@ -309,6 +309,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     }
     if (!gate.open || !gate.approved)
       return fresh({ kind: "closed", open: gate.masked ? false : gate.open });
+    // An unburied body stops creation dead (db/lib/curse.js). Shown here so a
+    // player isn't handed a wizard that refuses on Confirm; createActions.js
+    // re-checks it, since a server action is a public endpoint.
+    if (creation.cursed && !gate.superadmin) return fresh({ kind: "cursed" });
     // A seat from the roll, still inside its window — wizard opens on Tags with the role fixed. createCharacter enforces the same lock.
     const assigned = await prisma.lobbyEntry.findFirst({
       where: { discordUserId: session.discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() } },

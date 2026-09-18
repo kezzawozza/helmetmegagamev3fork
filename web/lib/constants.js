@@ -29,7 +29,7 @@ export const JOURNAL_LABEL_MAX_LENGTH = 24;
 export const JOURNAL_MAX_LABELS = 8;
 
 // Mirrors db/lib/constants.js#ENGRAVE_RESOURCE_COST — this "use client" module never reaches into @lifeweb/db. Change both together.
-export const ENGRAVE_RESOURCE_COST = 4;
+export const ENGRAVE_RESOURCE_COST = 3;
 
 // One AdminNote. A moderation note is a line or two about what somebody did,
 // not a report -- and it is append-only, so a long one cannot be trimmed later.

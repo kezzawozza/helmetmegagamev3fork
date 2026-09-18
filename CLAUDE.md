@@ -657,15 +657,15 @@ penalty — also threw that player out of the game they were still watching.
 
 | | `db/lib/curse.js` | `db/lib/ghost.js` |
 |---|---|---|
-| Asks | who pays the re-roll penalty | who gets the watching seat |
+| Asks | who may not make a new character at all | who gets the watching seat |
 | Rule | most recent body still unburied, **and** no living character | a body, **and** no living character |
 | Reads `buriedAt` | yes | **no** |
 | Ends when | the body is buried or the name engraved, or they live again | they live again, and nothing else |
-| Decides | Migrant/Bum only, six fewer points | `/chat` over every zone, and a voice in Deadchat |
+| Decides | no new character until the body is dealt with | `/chat` over every zone, and a voice in Deadchat |
 
 Keep them apart. A `cursed` check standing in for a ghost check hands a buried
-player's seat away; a `ghost` check standing in for a curse check hands out free
-full-points re-rolls.
+player's seat away; a `ghost` check standing in for a curse check lets somebody
+walk past the one thing their death was supposed to cost them.
 
 **The trap in `ghost.js` fails open, so it is worth knowing.** The rule has to
 see the rows that are *not* dead. A caller who narrows the query —
