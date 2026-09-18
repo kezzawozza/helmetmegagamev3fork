@@ -556,13 +556,13 @@ like everything else.
   makes the row read as one line: 26px under a fine pointer, `--tap` under a
   coarse one. The row is `align-items: flex-end`, so the controls stay level
   with the LAST line as the box grows — which only looks right if they all
-  start equal. Two need saying so explicitly: the Speak picker, because
-  `.control` brings its own `padding: 8px 10px` and a border, and the textarea,
-  which is `box-sizing: border-box` here so a height means what it means on the
-  buttons beside it (a textarea's `scrollHeight` already includes its padding,
-  so a content-box height counted it twice). The coarse-pointer floor for both
-  lives in the `.chat-shell` touch block rather than the 720px one, or a tablet
-  in landscape draws a 34px box between two 44px buttons.
+  start equal. The textarea needs saying so explicitly: it is
+  `box-sizing: border-box` here so a height means what it means on the buttons
+  beside it (a textarea's `scrollHeight` already includes its padding, so a
+  content-box height counted it twice). The voice picker beside the box takes the
+  same two heights, `align-self: flex-end`. The coarse-pointer floor for all of
+  them lives in the `.chat-shell` touch block rather than the 720px one, or a
+  tablet in landscape draws a 34px box between two 44px buttons.
 - **The box is one line at rest and grows to about six.** `rows={1}` is only
   the floor; `useComposerAutosize` sets the height off `scrollHeight` — but
   **only once something is typed**. An empty box clears the inline height and
@@ -893,6 +893,19 @@ a 48px head and a one-line composer:
   grouped the remembered key is scoped per zone — folding Rooms under Town
   leaves Rooms under Fortress open. Ungrouped, the key is the bare title, so a
   player's existing folds carried over.
+- **The column's own bar and its section names.** The places column opens with a
+  `.chat-bar` reading PLACES, so all three columns start on the same line — it
+  used to open straight onto its first section heading, which left two bars
+  between three columns. Its sections are the mockup's: **Mail**, then a zone
+  divider, then Summary, **Here** (or **Locations**, when the group holds more
+  than one — a player stands in exactly one, a GM watches every one), Rooms,
+  Conversations, Elsewhere. The fold key for that section is a literal, NOT its
+  title, or a walk that changed the count would forget the fold.
+
+  `.chat-head` is the one bar deliberately **without** the metal strip on a phone.
+  There it is the whole top of the screen and the place's own words sit under its
+  name, so a strip would land between the two; above 720px it takes the strip like
+  every other bar.
 - **Two levels, Discord's shape** (REDESIGN.md §6), and they are two because one
   is a watermark and the other is a count.
 

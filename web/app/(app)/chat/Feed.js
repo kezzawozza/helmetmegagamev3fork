@@ -5,6 +5,7 @@ import { useRefresh } from "@/app/components/useRefresh";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import TranscriptLine from "@/app/components/TranscriptLine";
+import nameHue from "@/app/components/nameHue";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
@@ -313,6 +314,11 @@ const FeedRow = memo(function FeedRow({
       // parentheses and nowhere else — no tooltip, no second element.
       name={startsRun ? (realName ? `${row.name} (${realName})` : row.name) : null}
       alias={Boolean(row.alias)}
+      // The speaker's own colour out of the six (REDESIGN.md §3). Hashed off the
+      // character id, or off the hood token when the row carries no id — either
+      // way it is the same colour every session, which is what makes it worth
+      // reading. The alias tint wins in the CSS for a hooded line.
+      hue={nameHue(row.characterId ?? row.speakerKey ?? null)}
       time={timeLabel(row.sentAt)}
       edited={Boolean(row.editedAt)}
       // The bar FLOATS over the row's top-right corner (.tline-actions), so it

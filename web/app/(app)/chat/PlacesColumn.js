@@ -9,7 +9,7 @@ import { useFolded } from "./sectionFold";
 
 // The left column of Chat: everywhere this character may read.
 //
-// The top of the column belongs to no zone — MESSAGES the DM pseudo-place,
+// The top of the column belongs to no zone — MAIL the DM pseudo-place,
 // DEADCHAT the room the dead talk in, RADIO the frequencies carried, FACTION
 // the roster pseudo-place. Everything under that is grouped BY ZONE, the way
 // Discord groups channels by category,
@@ -202,9 +202,21 @@ export default function PlacesColumn({
   // player's column stays exactly as tall as it was.
   const divided = groups.length > 1;
 
+  // The one Location a living character stands in, against a GM's or a ghost's
+  // list of every Location in the game. The mockup heads the first "Here" and the
+  // rest "Locations" (docs/design/mockups/chat/index.html), and for a player that
+  // is exactly the same list under the truer of the two words.
+  const hereTitle = (list) => (list.length === 1 ? "Here" : "Locations");
+
   return (
     <nav className="chat-places" aria-label="Places">
-      <Section title="Messages" places={messages} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
+      {/* The column's own bar, the way the feed and the right column have one
+          (REDESIGN.md §5, "One header strip"). The mockup draws it; the column
+          used to open straight onto its first section heading, which left the
+          three columns with two bars between them and a gap where the third
+          should be. */}
+      <p className="panel-header chat-bar">Places</p>
+      <Section title="Mail" places={messages} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
       <Section title="Deadchat" places={deadchat} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
       <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
       <Section title="Faction" places={faction} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
@@ -238,8 +250,11 @@ export default function PlacesColumn({
               onSelect={onSelect}
             />
             <Section
-              title="Location"
-              foldKey={foldKey("Here")}
+              title={hereTitle(here)}
+              // A LITERAL fallback, not the title: the title now changes with
+              // how many Locations are in the group, and a fold key that moves
+              // with it would forget the fold every time somebody walked.
+              foldKey={foldKey("Here") ?? "Here"}
               places={here}
               selected={selected}
               seen={seen}

@@ -65,6 +65,11 @@
  * @param {import("react").ReactNode} [p.name=null]
  *   The shown speaker. Null hides the head.
  * @param {boolean} [p.alias=false] tints the name (data-alias)
+ * @param {number|null} [p.hue=null]
+ *   1–6, the speaker's colour from the fixed name palette (REDESIGN.md §3).
+ *   Lands on data-hue on the name. Assigned per character and stable across
+ *   sessions — see web/app/components/nameHue.js. A hooded line keeps its alias
+ *   tint instead; the hood is the more important thing to say.
  * @param {import("react").ReactNode} [p.meta=null]
  *   Extra head children, printed after the name — a source chip, a place, a
  *   turn number.
@@ -99,6 +104,7 @@ export default function TranscriptLine({
   gutterAside = null,
   name = null,
   alias = false,
+  hue = null,
   meta = null,
   time = null,
   timeTitle = null,
@@ -174,7 +180,11 @@ export default function TranscriptLine({
       <div className="tline-body">
         {name != null ? (
           <div className="tline-head">
-            <span className="tline-name" data-alias={alias ? "true" : undefined}>
+            <span
+              className="tline-name"
+              data-alias={alias ? "true" : undefined}
+              data-hue={hue ?? undefined}
+            >
               {name}
             </span>
             {meta}
