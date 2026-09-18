@@ -5,8 +5,6 @@ import { useSelection } from "./selection";
 import { applyDelta, getCursorMs } from "./liveInbox";
 import { noteDeskVersion } from "@/app/components/useDeskVersion";
 import { noteInboxStreamUp, noteInboxStreamDown, noteInboxStreamFatal } from "./inboxStreamStore";
-import { playChime } from "@/app/components/chime";
-import useChimeMuted from "@/app/components/useChimeMuted";
 
 // The fast path of the player desk, pushed rather than polled. Replaces a
 // setTimeout chain hitting /api/gm/inbox-delta every three seconds. Payload
@@ -27,17 +25,13 @@ const FATAL_AFTER = 4;
 
 export default function InboxStream({ deployVersion }) {
   const segment = useSelection();
-  const [muted] = useChimeMuted();
 
-  // BOTH read at fire time through refs — as an effect dependency, a click on
-  // a different person would tear the EventSource down and reconnect,
-  // suppressing the chime. Only used to decide whether to ring.
-  const mutedRef = useRef(muted);
+  // Read at fire time through a ref — as an effect dependency, a click on a
+  // different person would tear the EventSource down and reconnect.
   const segmentRef = useRef(segment);
   useEffect(() => {
-    mutedRef.current = muted;
     segmentRef.current = segment;
-  }, [muted, segment]);
+  }, [segment]);
 
   useEffect(() => {
     let source = null;
@@ -47,21 +41,11 @@ export default function InboxStream({ deployVersion }) {
     let reconnectTimer = null;
     let backstopTimer = null;
     let backstopInFlight = null;
-    // Suppress the chime for the FIRST frame of a cold desk only — that frame
-    // is the two-minute lookback of what was already on screen. Must NOT be
-    // re-armed on reconnect or wake — swallowing the ping for a stream blip
-    // is the exact failure this desk was fixed for.
-    let firstFrame = getCursorMs() <= 0;
 
-    // One delta in, folded and announced. Shared by the stream and backstop so the two can't drift.
-    function fold(data, { announce }) {
+    // One delta in, folded. Shared by the stream and backstop so the two can't drift.
+    function fold(data) {
       if (data?.version) noteDeskVersion(data.version, deployVersion);
-      const cursor = getCursorMs();
-      const { inbound } = applyDelta(data, { sinceMs: cursor, announce });
-      if (inbound.length === 0) return;
-      const hidden = document.visibilityState !== "visible";
-      const ring = inbound.some((m) => hidden || m.discordUserId !== segmentRef.current);
-      if (ring && !mutedRef.current) playChime();
+      applyDelta(data);
     }
 
     // ---- the stream -------------------------------------------------------
@@ -88,8 +72,7 @@ export default function InboxStream({ deployVersion }) {
         } catch {
           return;
         }
-        fold(data, { announce: !firstFrame });
-        firstFrame = false;
+        fold(data);
       });
 
       es.addEventListener("error", () => {
@@ -143,8 +126,7 @@ export default function InboxStream({ deployVersion }) {
         }
         if (!res.ok) return;
         const data = await res.json();
-        // Announce from the backstop too — a GM whose stream died should still hear their mail.
-        fold(data, { announce: true });
+        fold(data);
       } catch {
         // Offline, timing out, mid-switchover — all "try again later"; cursor stays put.
       } finally {

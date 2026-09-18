@@ -3,7 +3,7 @@
 import { memo, useMemo } from "react";
 import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
-import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, MailIcon, SendIcon } from "@/app/components/icons";
+import { BellRingIcon, CheckIcon, MailIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
 // The left column of Chat: everywhere this character may read, in the
@@ -130,8 +130,6 @@ export default function PlacesColumn({
   // second seat, and a GM with no character is in the GM seat with nothing to
   // switch to (web/lib/feedAccess.js#loadFeedViewer).
   viewAs = null,
-  chimeMuted = false,
-  onToggleChime = null,
   // Null on a browser with no PushManager or no VAPID keys set (CHAT.md §5a).
   push = null,
   onMarkAllSeen = null,
@@ -272,9 +270,8 @@ export default function PlacesColumn({
           </div>
         );
       })}
-      {/* Foot: the seat switch, then the chime pref (useChatChimeMuted.js).
-          Tail: pinned to the bottom, never below the fold of a GM's
-          every-room list. */}
+      {/* Foot: the seat switch, then push. Tail: pinned to the bottom, never
+          below the fold of a GM's every-room list. */}
       <div className="chat-places-tail">
         {viewAs && (
           <div className="chat-view-as">
@@ -298,14 +295,6 @@ export default function PlacesColumn({
           </div>
         )}
       <div className="chat-places-foot">
-        {onToggleChime && (
-          <IconButton
-            icon={chimeMuted ? BellOffIcon : BellIcon}
-            label={chimeMuted ? "Mentions are silent" : "Mentions chime"}
-            aria-pressed={!chimeMuted}
-            onClick={() => onToggleChime(!chimeMuted)}
-          />
-        )}
         {push && (
           <IconButton
             icon={push.on ? BellRingIcon : SendIcon}

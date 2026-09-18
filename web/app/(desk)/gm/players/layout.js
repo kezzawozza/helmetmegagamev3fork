@@ -86,8 +86,7 @@ export default async function PlayerDeskLayout({ children }) {
   // strictly later. Read alongside the queries, the stamp could land AFTER a
   // message the queries had already missed — so the rows lacked the message,
   // the watermark claimed to be newer than it, and the patch carrying it was
-  // discarded. The desk chimed and showed nothing until a reload, which is
-  // half of what GMs meant by "I heard the ping but there's nothing there".
+  // discarded. The desk showed nothing new until a reload.
   //
   // Reading it first makes the stamp a floor rather than a ceiling: never
   // later than the data it describes. The cost is that an almost-simultaneous

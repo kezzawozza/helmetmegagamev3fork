@@ -94,7 +94,7 @@ function textNamesCharacter(text, name) {
 //   real name said aloud must not ping them — it would confirm the hood.
 //
 //   THE SPEAKER is never named. Saying your own name is not a mention of you,
-//   and a chime for your own line is the one notification nobody wants. Matched
+//   and a notification for your own line is the one thing nobody wants. Matched
 //   on id and on hood token, since a hooded row carries the token and no id.
 function charactersNamedIn(text, candidates, { speakerId = null, speakerKey = null } = {}) {
   if (!Array.isArray(candidates) || candidates.length === 0) return [];

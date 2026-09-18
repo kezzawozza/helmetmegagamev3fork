@@ -3,9 +3,9 @@
 // WHAT A FAILURE HERE MEANS. `{char:<id>|<Name>}` is the one shape a mention
 // is written in, on both faces, and it is now the record of who a line named —
 // not a live lookup. Break the grammar and three separate things go wrong
-// quietly: the unread dot and the chime stop matching (they scan the text),
-// the outbox stops rewriting mentions into Discord role pings, and a name a
-// player typed can escape into a payload the parser cannot read back.
+// quietly: the unread dot stops matching (it scans the text), the outbox
+// stops rewriting mentions into Discord role pings, and a name a player
+// typed can escape into a payload the parser cannot read back.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 

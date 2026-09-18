@@ -363,7 +363,7 @@ logged as a `DirectMessage` — about 21 a day — and a long in-character post
 sitting in the GM inbox reads exactly like mail. A first fix tagged them
 `source: "prompt_reply"` via a `pendingPrompts` map so the desks could skip
 them; the tagging worked, but the rail badge in `web/lib/navItems.js` had no
-noise predicate at all, so the chime still rang on every edit. The map and its
+noise predicate at all, so it still counted every edit. The map and its
 source are gone now that the flow produces no DM to tag, and `prompt_reply`
 is not read by anything either: the `dm_kind` migration reclassified those
 historical rows as `kind: QUIET`, so they stay off every GM surface without a
@@ -831,9 +831,9 @@ On the way out, a token whose character has no role falls back to printing the
 frozen **name** as plain text rather than the raw braces. Braces were the best
 answer available while the token held nothing a human could read.
 
-Three things scan a row for a mention — the unread dot (`feedStore.js`), the
-chime (`Chat.js`) and the feed's own mention gate (`web/lib/feedAccess.js`) —
-and each used to build the string itself. They go through `mentionsCharacter`
+Two things scan a row for a mention — the unread dot (`feedStore.js`) and the
+feed's own mention gate (`web/lib/feedAccess.js`) — and each used to build
+the string itself. They go through `mentionsCharacter`
 now (`db/lib/characterMentions.js`, and a client twin in `richTokens.js`),
 which knows both spellings: a widened grammar otherwise stops matching at one
 call site and not the others, and the failure is silent.

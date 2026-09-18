@@ -793,7 +793,7 @@ clock BEFORE the queries it stamps, so a stamp is a floor rather than a
 ceiling — never later than the data it describes. Read the other way round, a
 layout's watermark could land after a message its own queries had missed, and
 then `mergeRailRows` discarded the patch carrying that message as "older than
-the rows". The desk chimed and showed nothing until a reload.
+the rows". The desk showed nothing new until a reload.
 
 **A patch that is older than what is held is dropped.** Two paths feed this
 store, and the 30s `full=1` backstop builds its answer from a read that can
@@ -838,8 +838,8 @@ argue against a stream outright: "a dropped stream that looks alive is exactly
 the failure class this desk has already been burned by." That objection was
 right about the risk and wrong about the alternative — the failure it feared
 had already happened inside the poll, which latched itself off after a deploy
-and stopped rescheduling while the chime went on ringing. So the stream is
-carried by two independent things:
+and stopped rescheduling while the desk sat there believing it was current.
+So the stream is carried by two independent things:
 
 - **`resyncDm`.** When the hub's pg client drops and reconnects, rows written
   in the gap were fanned out to nobody. Every open stream is handed a
@@ -848,8 +848,7 @@ carried by two independent things:
   missed is above it.
 - **A 30s poll**, the old fast path demoted. It hits the same
   `/api/gm/inbox-delta` with `full=1`, so the open thread (which has no other
-  backstop) is repaired outright rather than from a cursor. It rings the chime
-  too: a GM whose stream died should still hear their mail.
+  backstop) is repaired outright rather than from a cursor.
 
 And the desk **says** when it is running on the backstop. `InboxStreamChip.js`
 over `inboxStreamStore.js` puts "Catching up" in the header after two
@@ -864,13 +863,6 @@ second attempt. `InboxStream.js` closes and reopens from wherever this tab
 actually got to, backing off 1s to 30s with jitter so five GMs who dropped
 together do not return in the same millisecond. `visibilitychange`, `online`
 and `pageshow` each retry at once rather than waiting out a backoff.
-
-**The chime** rings for an inbound message on any conversation but the open
-one, or on any conversation while the tab is hidden. The first frame of a
-connection is never announced — it reports what was already there, and a
-reconnect is not news. `chime.js` remembers when it last rang, so
-`InboxChime.js` (fed by the 30s refresh's badge count) does not ring a second
-time for the same arrival.
 
 **Deploys.** Every frame carries the build version; a mismatch latches the
 same `stale` flag (`useDeskVersion.js#noteDeskVersion`) and the header offers

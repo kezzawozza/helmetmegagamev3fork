@@ -2773,13 +2773,13 @@
   margin-bottom: var(--sp-1);
 }
 
-/* The foot of the places column: the chime toggle and the web-only chip. The
+/* The foot of the places column: the push toggle and the web-only chip. The
    column's rows draw their own side padding and the column has none, so the
    foot supplies its own or the button clips against the border. */
 /* PINNED, because the column it sits in is the scroller. A GM reads every
    place in the game — 278 of them on a full map — so the foot was landing
-   8,000px below the fold and the chime, the push toggle and the mark-all tick
-   were all unreachable without scrolling past every room in Ravenheart.
+   8,000px below the fold and the push toggle and the mark-all tick were both
+   unreachable without scrolling past every room in Ravenheart.
 
    position: sticky rather than restructuring the column into a scrolling body
    plus a fixed foot: the same result, no markup change, and margin-top: auto

@@ -8,7 +8,7 @@ import { useRefresh } from "@/app/components/useRefresh";
 import { noteDeskStreamUp, noteDeskStreamDown, noteDeskStreamFatal } from "./deskStreamStore";
 
 // The other GMs' half of the adjudication desk. Payload is the same patch shape a mutation returns (web/lib/deskRows.js#deskPatchFor), folded by the same applyDeskPatch(), so a stream frame and a button frame are indistinguishable.
-// THE BACKSTOP POLL STAYS at 120s (Workspace.js) — a dead stream that still looks alive is the worst failure mode. No chime here: a staged effect is not mail.
+// THE BACKSTOP POLL STAYS at 120s (Workspace.js) — a dead stream that still looks alive is the worst failure mode.
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 // A stream that never once opened is not a blip. After this many failures with no `open` in between, say so rather than retrying behind a silent desk.

@@ -21,7 +21,6 @@ import {
   Eye,
   Pencil,
   Volume2,
-  VolumeX,
   Ellipsis,
   Mail,
   Skull,
@@ -51,9 +50,7 @@ import {
   Feather,
   Package,
   DoorOpen,
-  Bell,
   BellRing,
-  BellOff,
   Camera,
   Search,
   OctagonMinus,
@@ -123,17 +120,10 @@ export const CloseIcon = lucide(X, "CloseIcon");
 export const CheckIcon = lucide(Check, "CheckIcon");
 // The Chat page: a doorway you speak through. A plain speech bubble would read as MessageIcon (the GM's inbox).
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
-// Chat's mention chime. Two glyphs so the state reads at a glance; aria-pressed carries it for everyone else.
-export const BellIcon = lucide(Bell, "BellIcon");
-export const BellOffIcon = lucide(BellOff, "BellOffIcon");
-// Web Push is ON for this browser. A ringing bell so the push toggle and chime toggle are told apart (CHAT.md §5a).
 export const BellRingIcon = lucide(BellRing, "BellRingIcon");
 
-// GM inbox chime mute toggle (NavRail.js). One name, two glyphs.
-export function SpeakerIcon({ muted, ...props }) {
-  const Glyph = muted ? VolumeX : Volume2;
-  return <Glyph strokeWidth={STROKE} {...props} />;
-}
+// Teach skill, Recall comrades, Send a message — a speaking-out glyph.
+export const SpeakerIcon = lucide(Volume2, "SpeakerIcon");
 
 // ── Dev Character Panel action bar (docs/systemdocs/DEV-PANEL.md) — one icon per microaction, 15px inside .icon-btn.
 

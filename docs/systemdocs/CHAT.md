@@ -295,8 +295,8 @@ a minute, since every other composer in Chat is throttled.
 "newest seq" of the pseudo-place is the newest outbound row's **epoch ms** —
 `isUnread` compares BigInt strings, and epoch ms is one — seeded by `page.js`
 before the pane has ever opened and moved by the store from the first `dm`
-frame on. The mention chime rings for an outbound row while the pane is not
-the open place: a DM is always about you.
+frame on. An outbound row notifies while the pane is not the open place: a DM
+is always about you.
 
 **What it replaced.** `Yesterday.js` and `yesterday()` are gone — the same
 `staged_push` / notice rows are in the thread, every day rather than only
@@ -842,7 +842,7 @@ a 48px head and a one-line composer:
 ```
 
 - **≡ opens the places as a drawer from the left** — the SAME `PlacesColumn`
-  the desktop draws, sections, folds, unread dots and the chime/push/mark-all
+  the desktop draws, sections, folds, unread dots and the push/mark-all
   foot included, so nothing forks. The dot on ≡ means some other place has
   something unread (the column's own `isUnread` test). The drawer's title is
   `Town · DAY 6 · DUSK`: the app header is hidden on this route under 720px
@@ -991,8 +991,8 @@ a 48px head and a one-line composer:
 
   **NOTIFIED** is a count of things said **to you**: your name (either spelling —
   the `{char:…}` token or a bare name, `db/lib/mentions.js`), a line in your
-  Bascinet mail, or a DM. A red `.chat-unread` block with the number in it, the
-  chime, and — only while the tab is **hidden** — a browser notification.
+  Bascinet mail, or a DM. A red `.chat-unread` block with the number in it,
+  and — only while the tab is **hidden** — a browser notification.
   `notifiedStore.js` owns it: per place, per browser, in localStorage, read
   through `useSyncExternalStore`. A watermark cannot say "three people said your
   name", which is why this one accumulates as the events arrive instead.
@@ -1078,13 +1078,9 @@ a 48px head and a one-line composer:
   is the newest seq **overall** — so reading a place to the bottom clears its
   dot however the dot was lit.
 
-  **Mark all read** is the tick in the column's foot, beside the chime and
-  notify icons: `seenStore.js#markAllSeen` over every place's own `newest`,
+  **Mark all read** is the tick in the column's foot, beside the notify
+  icon: `seenStore.js#markAllSeen` over every place's own `newest`,
   forward-only per place and one repaint for the lot.
-
-  The **chime** is deliberately narrower than the mark and did **not** widen
-  with it: `Chat.js` rings on the mention half only. A busy conversation ringing on every line is a reason to
-  mute Chat rather than to look at it — a dot is patient, a sound is not.
 - **A ping in a conversation adds them to it**, the way Discord does when you
   @ a stranger in a thread. `POST /api/feed/say` calls
   `db/lib/conversations.js#pullMentionedIntoConversation` after the row is
@@ -1283,9 +1279,7 @@ a 48px head and a one-line composer:
   the chip renders back. What crosses to Discord is `<@&roleId>`, rewritten by
   the outbox; what comes back from Discord is rewritten to the token in
   `prepareSpeech`. See PROXYING.md §6 and `db/lib/characterMentions.js`.
-  Being named rings the shared `chime.js`, muted per browser by
-  `hall-chime-muted` (`useChatChimeMuted.js`) with the toggle at the foot of
-  the places column.
+  Being named notifies (§5a).
 - **Slash commands in the composer** (`commands.js`, `CommandMenu.js`). Typing
   `/` at the START of the box opens a popover — the sibling of `MentionMenu`,
   same ↑↓ / Enter / Tab / Escape wiring — listing the commands the OPEN PLACE
@@ -1989,16 +1983,10 @@ instead, because an anchor cannot know who is reading it.
 Adding an affordance is one entry in the catalog, one dialog in
 Chat's right column and one server action. It is not two lists to keep in step.
 
-## 5a. Notifications: the chime, and Web Push
+## 5a. Notifications: the DM, and Web Push
 
-Three things can tell a player something happened, and they are deliberately
+Two things can tell a player something happened, and they are deliberately
 different sizes.
-
-**The chime** is for a tab that is already open. A row landing on the stream
-with `{char:<your id>}` in it plays a short tone (`playChime`), per browser
-rather than per character, muted with the bell at the foot of the places
-column (`web/app/components/useChatChimeMuted.js`). Never for your own words,
-and rate-limited by `chimedRecently()` so a busy room is not a bell tower.
 
 **The DM** is unchanged and is still the record: every mention relay writes a
 `DirectMessage` row, on both faces (`bot/src/lib/mentions.js` for a
@@ -2014,7 +2002,7 @@ the push service minted, and the two keys. Per BROWSER, not per character: one
 player may hold a laptop's row and a phone's, and a character dying does not
 end them.
 
-- **The toggle** sits beside the chime bell in the places column: `Notify me`
+- **The toggle** sits in the foot of the places column: `Notify me`
   / `Notifications on`, `aria-pressed`. Pressing it registers `/sw.js`, asks
   for permission, subscribes and posts the subscription; pressing it again
   unsubscribes. It draws only when the browser has a `PushManager` **and**
@@ -2038,9 +2026,9 @@ end them.
 - **Unconfigured is the normal case.** Without `VAPID_PUBLIC_KEY`,
   `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT`, `pushToUser` returns
   `{ sent: 0, reason: "unconfigured" }` before it touches the database, the key
-  route answers 404, and the toggle never draws. The chime and the DM are
-  unaffected. The three go on **both** Railway services, since the bot sends
-  the mention pushes and the web app serves the key.
+  route answers 404, and the toggle never draws. The DM is unaffected. The
+  three go on **both** Railway services, since the bot sends the mention
+  pushes and the web app serves the key.
 
 ### 5b. Switching places paints from cache
 

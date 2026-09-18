@@ -63,11 +63,9 @@ function byTimeThenId(a, b) {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-// Folds one poll result in. `sinceMs` is the request's cursor (0 on first tick); `announce` says whether anything
-// found is news — the first tick's two-minute lookback must not ring. Returns INBOUND arrivals worth announcing.
-export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
+// Folds one poll result in.
+export function applyDelta(delta) {
   let changed = false;
-  const inbound = [];
 
   if (Number.isFinite(delta?.cursorMs)) state.cursorMs = delta.cursorMs;
 
@@ -91,18 +89,12 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     ...(thread?.discordUserId ? [thread] : []),
     ...(Array.isArray(delta?.threads) ? delta.threads : []),
   ];
-  const openThreadIds = new Set(threadList.map((t) => t.discordUserId));
 
   for (const t of threadList) {
     if (!t?.discordUserId || !Array.isArray(t.messages) || t.messages.length === 0) continue;
     const fresh = t.messages.filter((m) => m?.id && !state.seen.has(m.id));
     if (fresh.length === 0) continue;
-    for (const m of fresh) {
-      state.seen.add(m.id);
-      if (announce && m.direction === "INBOUND") {
-        inbound.push({ id: m.id, discordUserId: t.discordUserId });
-      }
-    }
+    for (const m of fresh) state.seen.add(m.id);
     const current = state.feeds.get(t.discordUserId) ?? EMPTY_FEED;
     const merged = Object.freeze([...current, ...fresh].sort(byTimeThenId));
     const feeds = new Map(state.feeds);
@@ -111,26 +103,11 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     changed = true;
   }
 
-  // Inbound rows on conversations that are NOT open never reach `feeds`, so the chime hears about them from the
-  // rail patch instead — but "inbound" alone isn't news, only a last message newer than the asked-for cursor is.
-  if (announce && Array.isArray(delta?.rail)) {
-    for (const patch of delta.rail) {
-      if (patch?.lastDirection !== "INBOUND") continue;
-      if (openThreadIds.has(patch.discordUserId)) continue; // already announced above, as a row
-      if (!(patch.lastAtMs > sinceMs)) continue;
-      const key = `rail:${patch.discordUserId}:${patch.lastAtMs}`;
-      if (state.seen.has(key)) continue;
-      state.seen.add(key);
-      inbound.push({ id: key, discordUserId: patch.discordUserId });
-    }
-  }
-
   if (state.seen.size > SEEN_CAP) {
     state.seen = new Set([...state.seen].slice(-SEEN_CAP));
   }
 
   if (changed) emit();
-  return { inbound };
 }
 
 // The GM read this conversation, said here before the server answered; mergeRailRows lays it over the row last so

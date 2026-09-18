@@ -22,8 +22,6 @@ import GmAside from "./GmAside";
 import { ConverseDialog } from "./PlacePanel";
 import { addMember, setChatViewAs } from "./actions";
 import { mentionsCharacter } from "@/app/components/richTokens";
-import { playChime, chimedRecently } from "@/app/components/chime";
-import useChatChimeMuted, { chatChimeMuted } from "@/app/components/useChatChimeMuted";
 import { useSeen, markSeen, markAllSeen, seedSeenIfFresh, isUnread } from "./seenStore";
 import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
@@ -279,8 +277,6 @@ export default function Chat({
   // of its own, which is what lets it live in an effect
   // (react-hooks/set-state-in-effect is an error here).
   useEffect(() => startRowCache(self?.discordUserId ?? null), [self?.discordUserId]);
-
-  const [chimeMuted, setChimeMuted] = useChatChimeMuted();
 
   // The two drawers, Discord's way round. Under 900px (useAsideFolded.js)
   // the right column has nowhere to stand, so it comes in from the right
@@ -633,7 +629,6 @@ export default function Chat({
                 body: row.name ? `${row.name} said your name` : "Somebody said your name",
               });
             }
-            if (!chatChimeMuted() && !chimedRecently()) playChime(0.35);
           }
         } catch {
           // A malformed frame is not worth tearing the stream down over.
@@ -695,8 +690,6 @@ export default function Chat({
       });
       // A DM for this account — Bascinet's turn result, a GM's reply, or the
       // line this tab just sent, coming back round (dmStore.js dedupes by id).
-      // Rings the mention chime for something Bascinet said while the pane is
-      // not the open place: a DM is always about you.
       source.addEventListener("dm", (event) => {
         try {
           const row = JSON.parse(event.data);
@@ -713,7 +706,6 @@ export default function Chat({
             // A line in your Bascinet mail is a notified event by definition —
             // it was written to you and to nobody else (REDESIGN.md §6).
             noteNotified(DM_PLACE_KEY, { title: "Bascinet wrote to you", body: "Open Chat to read it" });
-            if (!chatChimeMuted() && !chimedRecently()) playChime(0.35);
           }
         } catch {
           // Same.
@@ -915,8 +907,6 @@ export default function Chat({
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
       viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}
-      chimeMuted={chimeMuted}
-      onToggleChime={setChimeMuted}
       push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
       onMarkAllSeen={onMarkAllSeen}
       foot={placesFoot}

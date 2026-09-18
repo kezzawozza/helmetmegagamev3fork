@@ -8,8 +8,8 @@ import { useSyncExternalStore } from "react";
 //             bottom of. The place's name brightens. No number. ./seenStore.js
 //             owns this, and has always owned it.
 //   NOTIFIED  something was said TO YOU: your name, a line in your Bascinet
-//             mail, a DM. A red count, the chime, and a browser notification
-//             while the tab is hidden. This file owns that.
+//             mail, a DM. A red count, and a browser notification while the
+//             tab is hidden. This file owns that.
 //
 // Kept apart on purpose. Unread is a watermark and answers itself — the newest
 // notable seq against the mark. Notified is a COUNT of events, so it has to be
@@ -116,7 +116,7 @@ export function noteNotified(placeKey, notice = null) {
   try {
     window.localStorage.setItem(`${PREFIX}${placeKey}`, String(next));
   } catch {
-    // The count is lost; the chime and the notification below are not.
+    // The count is lost; the notification below is not.
   }
   emit();
   if (notice) showNotification(placeKey, notice);
@@ -154,9 +154,9 @@ export function clearAllNotified() {
   if (wrote) emit();
 }
 
-// A notification only while the tab is HIDDEN. Onscreen, the count, the chime
-// and the line itself have already said it three times over, and an OS banner
-// over a page you are looking at is the thing everybody turns off.
+// A notification only while the tab is HIDDEN. Onscreen, the count and the
+// line itself have already said it twice over, and an OS banner over a page
+// you are looking at is the thing everybody turns off.
 //
 // Permission is never ASKED for here. Web Push already asks, once, behind the
 // bell in the places column (./pushStore.js), and a page that prompts on its own
