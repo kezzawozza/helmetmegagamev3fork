@@ -93,7 +93,7 @@ function Section({ title, places, selected, seen, newest, onSelect, foldKey = nu
     <div className="chat-section">
       <button
         type="button"
-        className="chat-section-title chat-section-fold"
+        className="group-label chat-section-title chat-section-fold"
         aria-expanded={!folded}
         onClick={toggleFolded}
       >

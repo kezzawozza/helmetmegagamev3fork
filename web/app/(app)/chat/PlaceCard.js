@@ -68,7 +68,7 @@ export default function PlaceCard({
 
   return (
     <div className="chat-card">
-      <p className="chat-section-title">{place?.name ?? "Here"}</p>
+      <p className="group-label chat-section-title">{place?.name ?? "Here"}</p>
       {zone?.name && <p className="chat-quiet-line">{zone.name}</p>}
 
       <div className="chip-row" role="radiogroup" aria-label="What you are reading">

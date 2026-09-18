@@ -43,7 +43,7 @@ function GmHereList({ people, onOpen }) {
   if (!people?.length) return <EmptyState>Nobody is standing here.</EmptyState>;
   return (
     <div className="chat-here">
-      <p className="chat-section-title">Here · {people.length}</p>
+      <p className="group-label chat-section-title">Here · {people.length}</p>
       {people.map((person) => (
         <div key={person.characterId} className="chat-person-row">
           <button
@@ -146,13 +146,13 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
         {openTab === "place" && fresh?.ok && kind === "zone" && (
           <>
             <div className="chat-card">
-              <p className="chat-section-title">{fresh.zone.name}</p>
+              <p className="group-label chat-section-title">{fresh.zone.name}</p>
               <div className="chat-card-text">
                 <p>{fresh.zone.description || "Nothing is written about this part of the world."}</p>
               </div>
             </div>
             <div className="chat-card">
-              <p className="chat-section-title">Locations · {fresh.locations.length}</p>
+              <p className="group-label chat-section-title">Locations · {fresh.locations.length}</p>
               <div className="chip-row">
                 {fresh.locations.map((location) => (
                   <span key={location.id} className="chip">
@@ -172,7 +172,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
 
             {fresh.members && (
               <div className="chat-card">
-                <p className="chat-section-title">In this conversation · {fresh.members.length}</p>
+                <p className="group-label chat-section-title">In this conversation · {fresh.members.length}</p>
                 <div className="chip-row">
                   {fresh.members.map((member) => (
                     <span key={member.characterId} className="chip">
@@ -186,7 +186,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
 
             {fresh.structures.length > 0 && (
               <div className="chat-card">
-                <p className="chat-section-title">Standing here</p>
+                <p className="group-label chat-section-title">Standing here</p>
                 {fresh.structures.map((structure) => (
                   <p key={structure.id} className="chat-quiet-line">
                     {structure.name} — {structure.status === "COMPLETE" ? "finished" : structure.status === "RUINED" ? "ruined" : `${structure.turnsDone}/${structure.turnsNeeded} built`}
@@ -197,7 +197,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
 
             {fresh.rooms.length > 0 && (
               <div className="chat-room">
-                <p className="chat-section-title">Rooms · {fresh.rooms.length}</p>
+                <p className="group-label chat-section-title">Rooms · {fresh.rooms.length}</p>
                 {fresh.rooms.map((room) => (
                   <div key={room.id} className="chat-card-text">
                     <p>
@@ -217,7 +217,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
 
         {openTab === "room" && fresh?.ok && fresh.openRoom && (
           <div className="chat-room">
-            <p className="chat-section-title">{fresh.openRoom.name}</p>
+            <p className="group-label chat-section-title">{fresh.openRoom.name}</p>
             {fresh.openRoom.keys.length > 0 && (
               <p className="chat-quiet-line">opened by {fresh.openRoom.keys.join(", ")}</p>
             )}
@@ -232,7 +232,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
 
         {openTab === "travel" && fresh?.ok && (
           <div className="chat-travel">
-            <p className="chat-section-title">Ways out · {fresh.ways.length}</p>
+            <p className="group-label chat-section-title">Ways out · {fresh.ways.length}</p>
             {fresh.ways.length === 0 ? (
               <EmptyState>Nowhere from here.</EmptyState>
             ) : (

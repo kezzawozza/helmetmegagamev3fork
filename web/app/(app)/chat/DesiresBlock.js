@@ -85,7 +85,7 @@ export default function DesiresBlock({ view }) {
     <div className="chat-details chat-desires">
       <button
         type="button"
-        className="chat-section-title chat-section-fold"
+        className="group-label chat-section-title chat-section-fold"
         aria-expanded={open}
         onClick={() => setOpen((was) => !was)}
       >

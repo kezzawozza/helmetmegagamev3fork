@@ -6336,13 +6336,10 @@ label.chip {
 
 .depot-totals dt { color: var(--muted); }
 
+/* .group-label plus the space a subhead stands off by. */
 .depot-subhead {
   margin-top: var(--sp-5);
   margin-bottom: var(--sp-2);
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 .depot-meter {
@@ -6561,11 +6558,10 @@ label.chip {
   min-width: 0;
 }
 
+/* The quiet label over one of Chat's sections. The recipe is .group-label,
+   which every call site wears beside this; what is left here is the column's
+   own inset and the space under it. */
 .chat-section-title {
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
   padding: 0 var(--sp-3);
   margin-bottom: var(--sp-1);
 }
@@ -6579,10 +6575,10 @@ label.chip {
   background: none;
   border: 0;
   font: inherit;
-  /* `font: inherit` would also reset the size .chat-section-title set, and
-     did: Things and Desires stood a size taller than YOU beside them. */
+  /* `font: inherit` would also reset the size .group-label sets, and did:
+     Things and Desires stood a size taller than YOU beside them. */
   font-size: var(--fs-2xs);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-wide);
   cursor: pointer;
   display: flex;
   align-items: center;

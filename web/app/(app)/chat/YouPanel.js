@@ -38,7 +38,7 @@ function WaitingList({ rows, onAnswered }) {
   if (rows.length === 0) return null;
   return (
     <div className="chat-waiting">
-      <p className="chat-section-title">Waiting on you · {rows.length}</p>
+      <p className="group-label chat-section-title">Waiting on you · {rows.length}</p>
       {rows.map((row) => (
         <div key={row.key} className="chat-waiting-row">
           <span className="chat-person-name">{row.label}</span>
@@ -130,7 +130,7 @@ export default function YouPanel({
 
   return (
     <div className="chat-you">
-      <p className="chat-section-title">You</p>
+      <p className="group-label chat-section-title">You</p>
 
       <TurnCard
         turn={moveState.turn}

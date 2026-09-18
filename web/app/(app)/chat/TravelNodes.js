@@ -68,7 +68,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (!data) {
     return (
       <div className="chat-travel">
-        <p className="chat-section-title">Travel</p>
+        <p className="group-label chat-section-title">Travel</p>
         <p className="chat-quiet-line">Reading the road…</p>
       </div>
     );
@@ -76,7 +76,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (!data.ok) {
     return (
       <div className="chat-travel">
-        <p className="chat-section-title">Travel</p>
+        <p className="group-label chat-section-title">Travel</p>
         <FormError>{data.error}</FormError>
       </div>
     );
@@ -119,7 +119,7 @@ export default function TravelNodes({ onDone, pick = null }) {
 
   return (
     <div className="chat-travel">
-      <p className="chat-section-title" title={data.freeReason ?? undefined}>
+      <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
         Travel · {data.freeLeft} available
       </p>
 
@@ -172,7 +172,7 @@ export default function TravelNodes({ onDone, pick = null }) {
           the surface a stray tap landed on last time. */}
       {walks.length > 0 && (
         <>
-          <p className="chat-section-title">Further in {data.zoneName ?? "this zone"}</p>
+          <p className="group-label chat-section-title">Further in {data.zoneName ?? "this zone"}</p>
           <div className="chat-nodes">
             {walks.map((option) => (
               <button

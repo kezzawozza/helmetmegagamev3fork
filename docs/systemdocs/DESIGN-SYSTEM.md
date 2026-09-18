@@ -148,7 +148,7 @@ Use these instead of rolling one-off markup.
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
 | `.icon-btn` | The one framed icon button — via `IconButton`, whose `size` is `sm` (26, default) or `lg` (44), the desktop size; a coarse pointer inside `/chat` floors every one of these at 44 regardless. |
 | `.chat-buttons` | Chat's only action row. A `.btn-quiet` inside one gets the padded, aligned treatment `.modal-actions` gives one, so a Cancel lines up with the button beside it. |
-| `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="chat-section-title">` instead. |
+| `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="group-label chat-section-title">` instead. `.group-label` is the shared recipe — quiet, uppercase, --fs-2xs — and `.chat-section-title` is only Chat's own inset and spacing on top of it. |
 | `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. |
 | `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
 | `.chip-row` | A wrapping row of chips. The house form for a **multi**-select: each chip is a `<button className="chip">` keyed on `data-active` (plus `aria-pressed`), and `.chip[data-active]` gives it the accent border and label. |

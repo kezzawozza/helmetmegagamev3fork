@@ -112,7 +112,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
           {depot.generatorOn ? "Shut it down" : "Fire it up"}
         </button>
 
-        <h3 className="depot-subhead">Feed it</h3>
+        <h3 className="group-label depot-subhead">Feed it</h3>
         <ul className="depot-list">
           {fuel.sources.map((source) => (
             <li key={source.slug}>
