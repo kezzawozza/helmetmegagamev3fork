@@ -5456,41 +5456,7 @@ label.chip {
   padding: 0.25rem 0 0.5rem;
 }
 
-.dm-row {
-  display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr);
-  column-gap: 0.25rem;
-  padding: 0.125rem 0.75rem 0.125rem 0.5rem;
-  border-radius: var(--r-sm);
-}
-.dm-row:hover {
-  background: var(--surface-raised);
-}
-.dm-row-head {
-  margin-top: 0.75rem;
-}
-.dm-thread-compact .dm-row {
-  grid-template-columns: 2.25rem minmax(0, 1fr);
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
-}
-
-/* An optimistic row: appended the moment Send is pressed, before the Discord
-   POST has answered. Dimmed rather than spinner'd — the message is there, it
-   just isn't confirmed, and a failed send removes it outright. */
-.dm-row[data-pending] {
-  opacity: 0.55;
-}
-
-/* A send that did not go. It keeps its place in the thread rather than being
-   swept back into the composer, so the quiet danger mark is what says it is
-   not delivered. */
-.dm-row[data-failed] .dm-row-body {
-  border-left: 2px solid var(--danger);
-  padding-left: 0.5rem;
-}
-
-.dm-row-failed {
+.dm-failed {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -5498,40 +5464,6 @@ label.chip {
   margin-top: 0.25rem;
   font-size: 0.8125rem;
   color: var(--danger);
-}
-
-.dm-row-gutter {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 0.125rem;
-}
-.dm-row-gutter > img,
-.dm-row-gutter > span,
-.dm-row-gutter > div {
-  flex-shrink: 0;
-}
-.dm-thread-compact .dm-row-gutter img,
-.dm-thread-compact .dm-row-gutter > div {
-  width: 24px !important;
-  height: 24px !important;
-}
-
-.dm-row-cont-time {
-  font-size: var(--fs-2xs);
-  color: var(--muted);
-  line-height: 1.5rem;
-  opacity: 0;
-}
-.dm-row:hover .dm-row-cont-time {
-  opacity: 1;
-}
-
-.dm-row-body {
-  min-width: 0;
-  font-size: var(--fs-sm);
-  line-height: 1.5rem;
-  overflow-wrap: anywhere;
 }
 
 /* A mention relay in the player's Bascinet thread: one quiet line and a
@@ -5544,24 +5476,6 @@ label.chip {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-.dm-row-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-.dm-row-name {
-  font-weight: 600;
-  color: var(--text);
-}
-.dm-row[data-dir="out"] .dm-row-name {
-  color: var(--accent-text);
-}
-.dm-row-time {
-  font-size: var(--fs-2xs);
-  color: var(--muted);
 }
 
 .dm-day,
@@ -7002,59 +6916,33 @@ label.chip {
    measure is wanted here, it has to CENTRE the column (margin-inline: auto)
    rather than cap a left-aligned one, or it does this again. */
 
-.chat-row {
-  display: flex;
-  gap: var(--sp-3);
-  /* A run of lines from one speaker sits tight; the first line of a new run
-     stands off from the last. Two booleans, so CSS rather than an inline
-     style (Feed.js sets data-run / data-pending). */
-  margin-top: var(--sp-1);
-  /* The row is the positioning context for the action bar that floats at its
-     top-right. */
-  position: relative;
-  /* The hover fill wants to read as a band across the feed rather than a
-     box hugging the words, so the row bleeds out to the scroller's padding
-     and pulls its content back to where it already sat. Net effect on the
-     text's position: none. */
-  padding: 1px var(--sp-2);
-  margin-inline: calc(var(--sp-2) * -1);
-  border-radius: var(--r-sm);
-}
+/* ── The transcript line ─────────────────────────────────────────────────────
+   One line of transcript, drawn by web/app/components/TranscriptLine.js, and
+   the one renderer behind /chat's feed, the DM thread, the inspector's Archive
+   tab and the archive-context popup (REDESIGN.md §5).
 
-/* The row's own class family. It used to be .chat-* mixed with loose Tailwind
-   utilities (min-w-0 flex-1, flex items-baseline gap-2, font-semibold,
-   mono text-xs text-muted), which meant restyling a line meant editing JSX. */
-.chat-row-body {
+   data-density is GEOMETRY ONLY, and each block below is an old family's
+   declarations moved verbatim — "feed" was .chat-row, "thread" and
+   "thread-compact" were .dm-row and .dm-thread-compact .dm-row. Phase 5
+   re-solves those numbers and collapses the variants; until then one component
+   carrying three sets of numbers is the honest shape, and a variant here is a
+   staging post rather than drift.
+
+   /archive keeps its own .archive-row family on purpose: that row is a
+   four-column CSS grid whose children ARE the columns (clock, who, what, cite),
+   which a gutter/body shape cannot reproduce without breaking the grid. */
+
+.tline-body {
   min-width: 0;
-  flex: 1;
 }
 
-/* Where a pointer can hover, the words stop short of the right edge so the
-   action bar that floats there on hover never sits on them — Discord's
-   messages carry the same right indent for the same toolbar. A run's second
-   line has no name row to put the bar over, so without this it landed on
-   the sentence itself. Not on a touch screen: the bar only shows for a
-   tapped row there, and the width is worth more than the clearance. */
-@media (hover: hover) {
-  .chat-row-body {
-    padding-right: 8rem;
-  }
-}
-
-/* A tapped row (tabIndex -1) takes focus so its bar can show; the ring that
-   would draw around a whole message is not wanted, and :focus-visible never
-   fires for a tap anyway. */
-.chat-row:focus {
-  outline: none;
-}
-
-.chat-row-head {
+.tline-head {
   display: flex;
   align-items: baseline;
   gap: var(--sp-2);
 }
 
-.chat-row-name {
+.tline-name {
   font-weight: 600;
 }
 
@@ -7062,46 +6950,67 @@ label.chip {
    Form's Beast (db/lib/archive.js#feedRowShape). Tinted so a scene can be
    read by who is in it: an unfamiliar name in a room is a different fact from
    a name you know, and the column gave them identical weight. */
-.chat-row-name[data-alias="true"] {
+.tline-name[data-alias="true"] {
   color: var(--muted);
   font-style: italic;
 }
 
-.chat-row-time,
-.chat-row-edited {
-  font-size: var(--fs-xs);
+.tline-time,
+.tline-edited {
   color: var(--muted);
 }
 
-/* The row lights up under the pointer, and under the keyboard: without this
-   there was no indication at all of which line the action bar belonged to.
-   Kept to a fill, no border and no movement — a hundred of these scroll past
-   and any of them shifting by a pixel would read as the feed twitching. */
-.chat-row:hover,
-.chat-row:focus-within {
-  background: var(--row-hover);
+/* A quiet micro-label in the head: a zone, a turn number — where or when,
+   for a surface that prints them beside the name. */
+.tline-place {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
 }
 
 /* A line does not blink into existence, it arrives. 80ms is under the
    threshold where it reads as an animation at all — it just stops the jump.
 
-   ONLY A LINE THAT ARRIVED. This used to run on every .chat-row, so opening a
-   place faded its whole backlog in at once — a hundred lines animating
-   together, which is the one thing the effect was meant to avoid. Feed.js
-   sets data-live on a row past the seq the place painted with. */
-.chat-row[data-live="true"] {
-  animation: chat-row-in 80ms ease-out;
+   ONLY A LINE THAT ARRIVED. This used to run on every row, so opening a place
+   faded its whole backlog in at once — a hundred lines animating together,
+   which is the one thing the effect was meant to avoid. Feed.js sets data-live
+   on a row past the seq the place painted with. */
+.tline[data-live="true"] {
+  animation: tline-in 80ms ease-out;
 }
 
-@keyframes chat-row-in {
+@keyframes tline-in {
   from {
     opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-row[data-live="true"] {
+  .tline[data-live="true"] {
     animation: none;
+  }
+}
+
+/* A row a search hit took the reader to. A flash and then nothing: the point
+   is to say WHICH line, not to leave it marked. Feed.js writes data-hit onto
+   the element it found by data-seq, so this has to reach a system line too. */
+.tline[data-hit="true"] {
+  animation: tline-hit 2s ease-out;
+  border-radius: var(--r-sm);
+}
+
+@keyframes tline-hit {
+  from {
+    background: var(--accent-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tline[data-hit="true"] {
+    animation: none;
+    background: var(--accent-soft);
   }
 }
 
@@ -7111,11 +7020,11 @@ label.chip {
    pushed the sentence left every time the mouse crossed the row. Lifted
    slightly above the row so it reads as belonging to the line it is over
    rather than to the line above it. */
-.chat-row-actions {
+.tline-actions {
   position: absolute;
   right: var(--sp-2);
   /* Astride the row's top edge — half in the gap above, half over the
-     row's own right-hand indent (.chat-row-body's padding-right) — so it
+     row's own right-hand indent (the body's padding-right) — so it
      belongs visibly to this line and covers no words of it. */
   top: -12px;
   z-index: 1;
@@ -7135,16 +7044,243 @@ label.chip {
   pointer-events: none;
 }
 
-.chat-row:hover .chat-row-actions,
-.chat-row:focus-within .chat-row-actions {
+.tline:hover .tline-actions,
+.tline:focus-within .tline-actions {
   opacity: 1;
   pointer-events: auto;
 }
 
-/* No hover on a touch screen. The bar used to be simply always there, and
-   on a phone that was three buttons sitting on the words of every second
-   line of a run. Now it shows for the row that was TAPPED (the row takes
-   focus, Feed.js) and goes again when the next tap lands somewhere else. */
+/* ---- density: feed (/chat) ---- */
+
+.tline[data-density="feed"] {
+  display: flex;
+  gap: var(--sp-3);
+  /* A run of lines from one speaker sits tight; the first line of a new run
+     stands off from the last. Two booleans, so CSS rather than an inline
+     style (Feed.js sets data-run / data-pending). */
+  margin-top: var(--sp-1);
+  /* The row is the positioning context for the action bar that floats at its
+     top-right. */
+  position: relative;
+  /* The hover fill wants to read as a band across the feed rather than a
+     box hugging the words, so the row bleeds out to the scroller's padding
+     and pulls its content back to where it already sat. Net effect on the
+     text's position: none. */
+  padding: 1px var(--sp-2);
+  margin-inline: calc(var(--sp-2) * -1);
+  border-radius: var(--r-sm);
+}
+
+.tline[data-density="feed"] .tline-body {
+  flex: 1;
+}
+
+/* Where a pointer can hover, the words stop short of the right edge so the
+   action bar that floats there on hover never sits on them — Discord's
+   messages carry the same right indent for the same toolbar. A run's second
+   line has no name row to put the bar over, so without this it landed on
+   the sentence itself. Not on a touch screen: the bar only shows for a
+   tapped row there, and the width is worth more than the clearance. */
+@media (hover: hover) {
+  .tline[data-density="feed"] .tline-body {
+    padding-right: 8rem;
+  }
+}
+
+/* A tapped row (tabIndex -1) takes focus so its bar can show; the ring that
+   would draw around a whole message is not wanted, and :focus-visible never
+   fires for a tap anyway. */
+.tline[data-density="feed"]:focus {
+  outline: none;
+}
+
+.tline[data-density="feed"] .tline-time,
+.tline[data-density="feed"] .tline-edited {
+  font-size: var(--fs-xs);
+}
+
+/* The row lights up under the pointer, and under the keyboard: without this
+   there was no indication at all of which line the action bar belonged to.
+   Kept to a fill, no border and no movement — a hundred of these scroll past
+   and any of them shifting by a pixel would read as the feed twitching. */
+.tline[data-density="feed"]:hover,
+.tline[data-density="feed"]:focus-within {
+  background: var(--row-hover);
+}
+
+.tline[data-density="feed"][data-run="start"] {
+  margin-top: var(--sp-3);
+}
+
+/* Lines within a run sit tight — the same speaker, moments apart. */
+.tline[data-density="feed"]:not([data-run="start"]) {
+  margin-top: 2px;
+}
+
+/* A pending row is the same row, quieter. */
+.tline[data-density="feed"][data-pending] {
+  opacity: 0.6;
+}
+
+/* The avatar column. The face draws only on the first line of a run; the
+   column keeps its width on every line so the text stays aligned. */
+.tline[data-density="feed"] .tline-gutter {
+  width: var(--chat-face);
+  flex-shrink: 0;
+}
+
+/* ---- density: thread (the DM thread, and its compact twin in the
+        inspector's narrower column) ---- */
+
+.tline[data-density^="thread"] {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  column-gap: 0.25rem;
+  padding: 0.125rem 0.75rem 0.125rem 0.5rem;
+  border-radius: var(--r-sm);
+}
+
+.tline[data-density^="thread"]:hover {
+  background: var(--surface-raised);
+}
+
+.tline[data-density^="thread"][data-run="start"] {
+  margin-top: 0.75rem;
+}
+
+/* A surface with no faces at all (the inspector's Archive tab) drops the
+   gutter, and the body takes the whole row rather than the text column. */
+.tline[data-density^="thread"] > .tline-body:only-child {
+  grid-column: 1 / -1;
+}
+
+.tline[data-density="thread-compact"] {
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+/* An optimistic row: appended the moment Send is pressed, before the Discord
+   POST has answered. Dimmed rather than spinner'd — the message is there, it
+   just isn't confirmed, and a failed send removes it outright. */
+.tline[data-density^="thread"][data-pending] {
+  opacity: 0.55;
+}
+
+/* A send that did not go. It keeps its place in the thread rather than being
+   swept back into the composer, so the quiet danger mark is what says it is
+   not delivered. */
+.tline[data-density^="thread"][data-failed] .tline-body {
+  border-left: 2px solid var(--danger);
+  padding-left: 0.5rem;
+}
+
+.tline[data-density^="thread"] .tline-gutter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.125rem;
+}
+
+.tline[data-density^="thread"] .tline-gutter > img,
+.tline[data-density^="thread"] .tline-gutter > span,
+.tline[data-density^="thread"] .tline-gutter > div {
+  flex-shrink: 0;
+}
+
+.tline[data-density="thread-compact"] .tline-gutter img,
+.tline[data-density="thread-compact"] .tline-gutter > div {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+/* A continuation row shows its own clock in the gutter, and only under the
+   pointer — the face is only on the first line of a run. */
+.tline-gutter-aside {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  line-height: 1.5rem;
+  opacity: 0;
+}
+
+.tline:hover .tline-gutter-aside {
+  opacity: 1;
+}
+
+.tline[data-density^="thread"] .tline-body {
+  font-size: var(--fs-sm);
+  line-height: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.tline[data-density^="thread"] .tline-head {
+  flex-wrap: wrap;
+}
+
+.tline[data-density^="thread"] .tline-name {
+  color: var(--text);
+}
+
+.tline[data-density^="thread"][data-dir="out"] .tline-name {
+  color: var(--accent-text);
+}
+
+.tline[data-density^="thread"] .tline-time {
+  font-size: var(--fs-2xs);
+}
+
+/* ---- variant: system — the line nobody said ---- */
+
+/* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
+   half of db/lib/ambientLine.js's `-#`, which is why it wears no face. The
+   unkeyed default, so an unrecognised channelKind reads as scenery. */
+.tline--system {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: var(--sp-2);
+  padding-left: calc(var(--chat-face) + var(--sp-3));
+}
+
+/* The intercom (db/lib/intercom.js) — a loudspeaker, not scenery, so it does
+   NOT get the muted subtext treatment above. Full size and bold, same
+   weight-first idea as Discord's own @here: the loudest notice Discord has
+   should not render as the quietest text on the page. Still wears no face —
+   it's the PA, not a person — so it keeps the face-gutter indent. */
+.tline--system[data-kind="intercom"] {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* A shout heard at distance 0 — your OWN place (db/lib/shout.js). Louder than
+   the intercom: this is a shout right where it's shouted, larger than
+   ordinary chat text (--fs-base), not just un-muted like the PA. */
+.tline--system[data-kind="shout"] {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* A shout heard one hop away — still carries every word (MUFFLE_BY_DISTANCE[1]
+   is 0), so it reads at ordinary chat size rather than the muted subtext
+   farther hops get. Plain weight and the default text colour: this is the
+   middle of the three sizes, not another loudspeaker. */
+.tline--system[data-kind="shout-near"] {
+  font-size: var(--fs-base);
+  color: var(--text);
+}
+
+/* Out of character (db/lib/ooc.js) — the PLAYER talking, not the character and
+   not the world. Subtext-sized like the scenery, because none of it is
+   happening in the room either, but its own rule so it can be told from a
+   smell or a gate crossing at a glance: the accent border is the whole tell.
+   The body already carries its `[OOC]:` tag, so nothing here needs to say it
+   twice. */
+.tline--system[data-kind="ooc"] {
+  margin-left: calc(var(--chat-face) + var(--sp-3));
+  padding-left: var(--sp-2);
+  border-left: 2px solid var(--border);
+}
 
 /* Discord's red line: everything below it arrived since you last had this
    place open. A rule with its label at the right-hand end, where the eye
@@ -7179,52 +7315,6 @@ label.chip {
 .chat-backlog-edge a {
   color: inherit;
   text-decoration: underline;
-}
-
-/* A row a search hit took the reader to. A flash and then nothing: the point
-   is to say WHICH line, not to leave it marked. */
-.chat-row[data-run="start"] {
-  margin-top: var(--sp-3);
-}
-
-/* Lines within a run sit tight — the same speaker, moments apart. */
-.chat-row:not([data-run="start"]) {
-  margin-top: 2px;
-}
-
-/* A pending row is the same row, quieter. */
-.chat-row[data-pending] {
-  opacity: 0.6;
-}
-
-/* The avatar column. The face draws only on the first line of a run; the
-   column keeps its width on every line so the text stays aligned. */
-.chat-row-face {
-  width: var(--chat-face);
-  flex-shrink: 0;
-}
-
-.chat-row[data-hit="true"],
-.chat-subtext[data-hit="true"] {
-  animation: chat-hit 2s ease-out;
-  border-radius: var(--r-sm);
-}
-
-@keyframes chat-hit {
-  from {
-    background: var(--accent-soft);
-  }
-  to {
-    background: transparent;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chat-row[data-hit="true"],
-  .chat-subtext[data-hit="true"] {
-    animation: none;
-    background: var(--accent-soft);
-  }
 }
 
 /* While a place's backlog is on the wire. Three faded rows in the shape of
@@ -7355,61 +7445,15 @@ label.chip {
   margin-bottom: var(--sp-1);
 }
 
-/* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
-   half of db/lib/ambientLine.js's `-#`, which is why it wears no face. */
+/* A `-#` subtext line INSIDE a message body — remarkSubtext.js hangs this on
+   it (db/lib/ambientLine.js's web half). A whole row the world said is
+   .tline--system now; this is the same recipe for the paragraph case, left
+   exactly as it was so an existing message does not reflow. */
 .chat-subtext {
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-top: var(--sp-2);
   padding-left: calc(var(--chat-face) + var(--sp-3));
-}
-
-/* The intercom (db/lib/intercom.js) — a loudspeaker, not scenery, so it does
-   NOT get the muted subtext treatment above. Full size and bold, same
-   weight-first idea as Discord's own @here: the loudest notice Discord has
-   should not render as the quietest text on the page. Still wears no face —
-   it's the PA, not a person — so it keeps chat-subtext's face-gutter indent. */
-.chat-intercom {
-  font-size: var(--fs-base);
-  font-weight: 700;
-  margin-top: var(--sp-2);
-  padding-left: calc(var(--chat-face) + var(--sp-3));
-}
-
-/* A shout heard at distance 0 — your OWN place (db/lib/shout.js). Louder than
-   the intercom: this is a shout right where it's shouted, larger than
-   ordinary chat text (--fs-base), not just un-muted like the PA. */
-.chat-shout {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  margin-top: var(--sp-2);
-  padding-left: calc(var(--chat-face) + var(--sp-3));
-}
-
-/* A shout heard one hop away — still carries every word (MUFFLE_BY_DISTANCE[1]
-   is 0), so it reads at ordinary chat size rather than the muted subtext
-   farther hops get. Plain weight and the default text colour: this is the
-   middle of the three sizes, not another loudspeaker. */
-.chat-shout-near {
-  font-size: var(--fs-base);
-  margin-top: var(--sp-2);
-  padding-left: calc(var(--chat-face) + var(--sp-3));
-}
-
-/* Out of character (db/lib/ooc.js) — the PLAYER talking, not the character and
-   not the world. Subtext-sized like the scenery, because none of it is
-   happening in the room either, but its own rule so it can be told from a
-   smell or a gate crossing at a glance: the accent border is the whole tell.
-   The body already carries its `[OOC]:` tag, so nothing here needs to say it
-   twice. Wears no face, like every other SYSTEM row, so it keeps the same
-   face-gutter indent. */
-.chat-ooc {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  margin-top: var(--sp-2);
-  margin-left: calc(var(--chat-face) + var(--sp-3));
-  padding-left: var(--sp-2);
-  border-left: 2px solid var(--border);
 }
 
 /* The scroller and the jump-to-bottom pill. The wrapper exists only to give
@@ -8249,10 +8293,10 @@ label.chip {
     padding-right: var(--sp-3);
   }
 
+  /* The OOC line is the one system row that indents with a MARGIN and keeps
+     its own padding, so it stays out of this list the way .chat-ooc did. */
   .chat-subtext,
-  .chat-intercom,
-  .chat-shout,
-  .chat-shout-near {
+  .tline--system:not([data-kind="ooc"]) {
     padding-left: 0;
   }
 
@@ -8865,12 +8909,12 @@ label.chip {
 
   /* The desktop hover bar never shows on a tap; a row's one action is the
      ⋯ sheet instead. */
-  .chat-shell .chat-row-actions {
+  .chat-shell .tline-actions {
     display: none;
   }
   /* Room for that one ⋯, floated at the row's corner rather than pushing
      the sentence over on every line. */
-  .chat-shell .chat-row-body {
+  .chat-shell .tline[data-density="feed"] .tline-body {
     padding-right: calc(var(--tap) + var(--sp-2));
   }
   /* Clear of the typing line, which sits over the last row here. */
@@ -8891,7 +8935,7 @@ label.chip {
 /* Drawn only in Chat proper and only under a touch pointer: the GM desk's
    Scene tab embeds the same Feed with no .chat-shell around it and keeps the
    hover bar, and a mouse never needs both. */
-.chat-row-more {
+.tline-more {
   display: none;
   position: absolute;
   top: 2px;
@@ -8900,7 +8944,7 @@ label.chip {
 }
 
 @media (pointer: coarse) {
-  .chat-shell .chat-row-more {
+  .chat-shell .tline-more {
     display: inline-flex;
   }
 }
@@ -8908,11 +8952,11 @@ label.chip {
 /* Frameless at rest: a bordered box on every line of a scene is a wall of
    buttons, and the ⋯ only has to be findable, not loud. The frame comes back
    under the finger. */
-.chat-row-more .icon-btn {
+.tline-more .icon-btn {
   border-color: transparent;
 }
 
-.chat-row-more .icon-btn:active {
+.tline-more .icon-btn:active {
   border-color: var(--border);
 }
 

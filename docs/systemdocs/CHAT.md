@@ -77,7 +77,7 @@ like every other archive write.
 
 **The intercom passes `channelKind: "intercom"` instead of the default
 `"scene"`**, and that is what SystemRow (`web/app/(app)/chat/Feed.js`) reads
-to draw it `.chat-intercom` — bold, regular size, still no face — rather than
+to draw it `.tline--system[data-kind="intercom"]` — bold, regular size, still no face — rather than
 `.chat-subtext`. It writes through `sceneLineAt` the same as every other
 ambient line, but it isn't one: CLAUDE.md's "Bot message style" calls it out
 as the deliberate exception to `-#`, a loudspeaker rather than scenery, full
@@ -87,8 +87,8 @@ smallest, quietest text on the page.
 
 **A shout (`db/lib/shout.js`) carries two more `channelKind`s of its own:
 `"shout"` at distance 0 and `"shout-near"` at distance 1**, both read by the
-same `SystemRow` and drawn `.chat-shout` (bigger and bold than ordinary chat
-text) and `.chat-shout-near` (ordinary size, plain weight) respectively — a
+same `SystemRow` and drawn `.tline--system[data-kind="shout"]` (bigger and bold than ordinary chat
+text) and `[data-kind="shout-near"]` (ordinary size, plain weight) respectively — a
 shout is heard as three sizes, not two, matching the three sizes Discord's own
 line renders in (`shoutChannelKind`/`renderShout` in `shout.js`: full text at
 0 and 1, `-#` only from 2 on). Distance 2 and beyond keep the default
@@ -112,7 +112,7 @@ caller can hand the escaped one to Discord or the plain one to the archive.
 `db/test/ooc.test.js` pins it.
 
 **The line is `channelKind: "ooc"`** (`db/lib/ooc.js`),
-drawn `.chat-ooc` — subtext-sized like the scenery, because none of it is
+drawn `.tline--system[data-kind="ooc"]` — subtext-sized like the scenery, because none of it is
 happening in the room either, but with a rule down its left edge so a GM or a
 player can tell it from a smell at a glance. The body already carries its own
 `[OOC]:` tag, so the styling never has to say it twice. It wears no face for the
@@ -514,7 +514,7 @@ like everything else.
   `:focus-within`. The row action bar is always in the DOM and revealed by
   CSS, which is what makes it reachable by tab — a keyboard fires no
   `mouseenter`. Its buttons sit in the tab order on every row.
-- **Only a line that ARRIVED animates** (`chat-row-in`). `Feed.js` keeps a
+- **Only a line that ARRIVED animates** (`tline-in`). `Feed.js` keeps a
   lazily-filled ref of the seq the place painted with — a ref rather than
   state, since `react-hooks/set-state-in-effect` is an error here — and sets
   `data-live` above it.
@@ -933,7 +933,7 @@ a 48px head and a one-line composer:
   the reader is already at the bottom; otherwise a "New messages" pill. On a
   coarse pointer, Enter is a newline and a Send button appears, as in Discord's
   app. An edited row says "(edited)" after the time.
-- **The row action bar** (`.chat-row-actions`) floats at a row's top-right the
+- **The row action bar** (`.tline-actions`) floats at a row's top-right the
   way Discord's does — absolute, over the corner, so appearing on hover never
   reflows the sentence under it. Shown on hover with a mouse and always on a
   touch screen, and never on a row that has not confirmed yet. What it holds
@@ -1205,10 +1205,10 @@ a 48px head and a one-line composer:
   the web half of the `-#` those lines go out as on Discord
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them. **The
   intercom is the one `SYSTEM` row that isn't scenery** — `channelKind:
-  "intercom"` (§2) draws it `.chat-intercom` instead: bold, regular size,
+  "intercom"` (§2) draws it `.tline--system[data-kind="intercom"]` instead: bold, regular size,
   still no face. **A shout is three sizes**: `channelKind: "shout"` at
-  distance 0 draws `.chat-shout` (bigger and bold), `"shout-near"` at distance
-  1 draws `.chat-shout-near` (ordinary size), and distance 2+ keeps the
+  distance 0 draws `[data-kind="shout"]` (bigger and bold), `"shout-near"` at distance
+  1 draws `[data-kind="shout-near"]` (ordinary size), and distance 2+ keeps the
   default `"scene"` and stays `.chat-subtext`.
 - **The composer is hidden where `canSpeak` is false** — every place for a GM
   (§5a). In its place, one line saying so. The **Location is the exception**:
@@ -1583,7 +1583,7 @@ a 48px head and a one-line composer:
   scene behind them. A hit is a name, a place, a time and a snippet; clicking
   one loads the window around its seq (`/api/feed/history?around=<seq>`, 50
   rows either side inclusive), opens that place, scrolls to the row by
-  `data-seq` and flashes it once with `.chat-row[data-hit]`. The window is
+  `data-seq` and flashes it once with `.tline[data-hit]`. The window is
   loaded FIRST, because the store holds the newest hundred and a hit from
   three days ago is not in it.
 - **⌘K reaches Chat.** `paletteActions.js#getPaletteIndex` gains two kinds

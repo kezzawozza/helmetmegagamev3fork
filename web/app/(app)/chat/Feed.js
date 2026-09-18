@@ -4,6 +4,7 @@ import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { useRefresh } from "@/app/components/useRefresh";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
+import TranscriptLine from "@/app/components/TranscriptLine";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
@@ -123,23 +124,12 @@ function timeLabel(iso) {
 // size, and anything past that keeps no tag and falls through to the default
 // subtext — matching its muffled `-#` treatment on Discord.
 const SystemRow = memo(function SystemRow({ row }) {
-  const shout = row.channelKind === "shout";
-  const shoutNear = row.channelKind === "shout-near";
-  const intercom = row.channelKind === "intercom";
-  const ooc = row.channelKind === "ooc";
-  const className = shout
-    ? "chat-shout"
-    : shoutNear
-      ? "chat-shout-near"
-      : intercom
-        ? "chat-intercom"
-        : ooc
-          ? "chat-ooc"
-          : "chat-subtext";
+  // The five-way branch that used to live here is CSS now: channelKind goes
+  // straight onto data-kind and .tline--system keys off it.
   return (
-    <li className={className} data-seq={row.seq ?? undefined}>
+    <TranscriptLine variant="system" channelKind={row.channelKind} seq={row.seq}>
       <ChatMarkdown content={row.content} />
-    </li>
+    </TranscriptLine>
   );
 });
 
@@ -245,7 +235,7 @@ const FeedRow = memo(function FeedRow({
   // somebody can act against. A system line with no seq still has nothing.
   const anyAction = mine || canLook || canPhoto || canRemove || canStar;
   // WHETHER the bar exists is decided here; whether it is SEEN is decided in
-  // CSS, by .chat-row:hover and :focus-within. It used to be a useState set
+  // CSS, by .tline:hover and :focus-within. It used to be a useState set
   // from onMouseEnter/onMouseLeave, which re-rendered the row on every mouse
   // crossing and — worse — meant a keyboard could never reveal the bar at
   // all, because a keyboard produces no mouseenter. Rendering it always and
@@ -256,8 +246,7 @@ const FeedRow = memo(function FeedRow({
   const verbs = ROW_VERBS.filter((v) => v.show(guards));
 
   return (
-    <li
-      className="chat-row"
+    <TranscriptLine
       // Focusable by a tap, never by Tab: on a touch screen there is no
       // hover, so the action bar shows for the row that was tapped
       // (:focus-within, globals.css) — Discord's long-press, one gesture
@@ -265,14 +254,15 @@ const FeedRow = memo(function FeedRow({
       // buttons are still reached by keyboard, and focusing one of them
       // reveals the bar the same way.
       tabIndex={showActions ? -1 : undefined}
-      data-seq={row.seq ?? undefined}
-      data-run={startsRun ? "start" : undefined}
-      data-pending={row.pending ? "true" : undefined}
+      seq={row.seq}
+      startsRun={startsRun}
+      pending={row.pending}
       // Only a line that ARRIVED gets the fade. See `liveAfter` below.
-      data-live={live ? "true" : undefined}
-    >
-      <div className="chat-row-face">
-        {startsRun && (
+      live={live}
+      // The face draws only on the first line of a run; the gutter keeps its
+      // width on every line so the text stays aligned.
+      avatar={
+        startsRun ? (
           <CharacterAvatar
             characterId={row.characterId}
             name={row.name ?? ""}
@@ -286,108 +276,100 @@ const FeedRow = memo(function FeedRow({
             size={32}
             zoomable
           />
-        )}
-      </div>
-      <div className="chat-row-body">
-        {/* A real class family rather than .chat-* mixed with loose Tailwind
-            utilities, so restyling a row is a CSS edit and not a JSX one.
-            data-alias tints the name where somebody is speaking under one, so
-            a scene is scannable by who is in it — a hood reads as a hood at a
-            glance instead of as one more name in the column. */}
-        {startsRun && (
-          <div className="chat-row-head">
-            <span className="chat-row-name" data-alias={row.alias ? "true" : undefined}>
-              {realName ? `${row.name} (${realName})` : row.name}
-            </span>
-            <span className="chat-row-time mono">{timeLabel(row.sentAt)}</span>
-            {row.editedAt && <span className="chat-row-edited">(edited)</span>}
-          </div>
-        )}
-
-        {editing ? (
-          <div className="field">
-            <textarea
-              rows={2}
-              value={draft}
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  onCancelEdit();
-                  return;
-                }
-                if (e.key !== "Enter" || e.shiftKey) return;
-                e.preventDefault();
-                onSaveEdit(row.seq, draft);
-              }}
-            />
-            <div className="chat-buttons">
-              <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
-                Save
-              </button>
-              <button type="button" className="btn-quiet" onClick={onCancelEdit}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <ChatMarkdown content={row.content} />
-        )}
-
-        {/* The bar FLOATS over the row's top-right corner (.chat-row-actions),
-            so it never pushes the sentence around when a mouse crosses the
-            line. Everything it offers is re-decided by the server when it is
-            pressed: the five-minute window, the camera in your hands, whether
-            that person is still standing beside you. */}
-        {showActions && (
-          <div className="chat-row-actions">
-            {verbs.map((v) => (
+        ) : null
+      }
+      // A run's second line prints no head at all, which is what `name`
+      // being null means. The real name behind an alias is printed in the
+      // parentheses and nowhere else — no tooltip, no second element.
+      name={startsRun ? (realName ? `${row.name} (${realName})` : row.name) : null}
+      alias={Boolean(row.alias)}
+      time={timeLabel(row.sentAt)}
+      edited={Boolean(row.editedAt)}
+      // The bar FLOATS over the row's top-right corner (.tline-actions), so it
+      // never pushes the sentence around when a mouse crosses the line.
+      // Everything it offers is re-decided by the server when it is pressed:
+      // the five-minute window, the camera in your hands, whether that person
+      // is still standing beside you.
+      actions={
+        showActions
+          ? verbs.map((v) => (
               <IconButton
                 key={v.key}
                 icon={v.icon}
                 label={v.label}
                 onClick={() => v.run(handlers, { seq: row.seq, sentAt: row.sentAt })}
               />
-            ))}
-          </div>
-        )}
-
-        {/* Same verbs as the hover bar above, as a ⋯ that opens a bottom
-            sheet — a touch screen has no hover, so this is the one action a
-            tap can reach. CSS decides which of the two shows (globals.css). */}
-        {showActions && (
-          /* The wrapper carries the position, not the button: IconButton
-             wraps its button in the tooltip's own span, and an absolutely
-             positioned button inside that span pins to the span, not the
-             row — which put the ⋯ over the avatar. */
-          <span className="chat-row-more">
-            <IconButton
-              icon={MoreIcon}
-              label="Actions"
-              size="lg"
-              onClick={() =>
-                onOpenMenu({
-                  seq: row.seq,
-                  sentAt: row.sentAt,
-                                    mine,
-                  canLook,
-                  canPhoto,
-                  canStar,
-                  canRemove,
-                })
+            ))
+          : null
+      }
+      trailing={
+        <>
+          {/* Same verbs as the hover bar above, as a ⋯ that opens a bottom
+              sheet — a touch screen has no hover, so this is the one action a
+              tap can reach. CSS decides which of the two shows (globals.css).
+              The wrapper carries the position, not the button: IconButton
+              wraps its button in the tooltip's own span, and an absolutely
+              positioned button inside that span pins to the span, not the
+              row — which put the ⋯ over the avatar. */}
+          {showActions && (
+            <span className="tline-more">
+              <IconButton
+                icon={MoreIcon}
+                label="Actions"
+                size="lg"
+                onClick={() =>
+                  onOpenMenu({
+                    seq: row.seq,
+                    sentAt: row.sentAt,
+                    mine,
+                    canLook,
+                    canPhoto,
+                    canStar,
+                    canRemove,
+                  })
+                }
+              />
+            </span>
+          )}
+          {row.failed && (
+            <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
+              Try again
+            </button>
+          )}
+        </>
+      }
+    >
+      {editing ? (
+        <div className="field">
+          <textarea
+            rows={2}
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onCancelEdit();
+                return;
               }
-            />
-          </span>
-        )}
-
-        {row.failed && (
-          <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
-            Try again
-          </button>
-        )}
-      </div>
-    </li>
+              if (e.key !== "Enter" || e.shiftKey) return;
+              e.preventDefault();
+              onSaveEdit(row.seq, draft);
+            }}
+          />
+          <div className="chat-buttons">
+            <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
+              Save
+            </button>
+            <button type="button" className="btn-quiet" onClick={onCancelEdit}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ChatMarkdown content={row.content} />
+      )}
+    </TranscriptLine>
   );
 });
 

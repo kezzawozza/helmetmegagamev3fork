@@ -379,7 +379,7 @@ same place you are reading.
 ```
 
 through `db/lib/ambientLine.js` on Discord and a `channelKind: "ooc"` scene row
-on the web (`.chat-ooc`, subtext with a rule down its left edge). The web
+on the web (`.tline--system[data-kind="ooc"]`, subtext with a rule down its left edge). The web
 spelling escapes the outer brackets and Discord's does not, for a Markdown
 reason `db/lib/ooc.js` explains at length. Who said it *also* lives in the
 `AuditLog` row, which is what the GM's OOC lens reads (`ADJUDICATION.md` §3) —
