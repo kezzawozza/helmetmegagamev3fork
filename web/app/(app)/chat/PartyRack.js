@@ -75,7 +75,7 @@ export default function PartyRack() {
     // place card forever for a player who has nobody to bring anyway.
     return data?.error ? (
       <div className="chat-party">
-        <p className="chat-section-title">Bringing</p>
+        <p className="group-label chat-section-title">Bringing</p>
         <FormError>{data.error}</FormError>
       </div>
     ) : null;
@@ -96,7 +96,7 @@ export default function PartyRack() {
     <div className="chat-party">
       {riding ? (
         <>
-          <p className="chat-section-title">With {riding.leaderName}</p>
+          <p className="group-label chat-section-title">With {riding.leaderName}</p>
           {riding.companions.length > 0 && (
             <p className="text-sm text-muted">
               Also along: {riding.companions.map((c) => c.name).join(", ")}
@@ -104,7 +104,7 @@ export default function PartyRack() {
           )}
         </>
       ) : (
-        <p className="chat-section-title">
+        <p className="group-label chat-section-title">
           Bringing · {party.length}
           {seat && <span className="text-muted"> · {seat.label}</span>}
         </p>

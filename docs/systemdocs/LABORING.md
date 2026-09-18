@@ -48,8 +48,8 @@ bubbles the tag descriptions render through.
 
 | slug | name | range | gate |
 |---|---|---|---|
-| `laboring-basic` | Laboring (Basic) | 0–2 | — |
-| `laboring-skilled` | Laboring (Skilled) | 1–4 | `parentTag: laboring-basic` |
+| `laboring-basic` | Laboring I | 0–2 | — |
+| `laboring-skilled` | Laboring II | 1–4 | `parentTag: laboring-basic` |
 | `laboring-hunting` | Laboring (Hunting) | 0–15 | `requiredTag: laboring-skilled` |
 | `laboring-farming` | Laboring (Farming) | 15–21 | `requiredTag: laboring-skilled` |
 | `laboring-fishing` | Laboring (Fishing) | 7–13 | `requiredTag: laboring-skilled` |
@@ -553,7 +553,7 @@ At base, only `depths-obelisk` wears Bountiful. This button is the
 
 ## Laboring (Tireless)
 
-A `mastery` tag (`TAGS.md` §4a) gated on Laboring (Skilled): you can labor
+A `mastery` tag (`TAGS.md` §4a) gated on Laboring II: you can labor
 while **Exhausted**, at half yield.
 
 Two halves, and the second is the one that makes it worth 14 points:

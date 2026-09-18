@@ -81,10 +81,12 @@ export default function DesirePanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="field-label panel-header--with-icon">
-        Desire
+      {/* A real .panel-header now, not a field-label: this is the card's own
+          heading, and phase 4 gave every panel heading the bold serif. */}
+      <h2 className="panel-header panel-header--with-icon">
+        Desires
         <InfoIcon text={desireHelp(desireSlots)} />
-      </h3>
+      </h2>
 
       <div className="flex flex-col gap-3">
         {Array.from({ length: desireSlots }, (_, slotIndex) => {

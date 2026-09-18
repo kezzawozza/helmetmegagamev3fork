@@ -62,8 +62,8 @@ documents:
     name: Producing Resources
     public: true
     tags:
-      - Laboring (Basic)
-      - Laboring (Skilled)
+      - Laboring I
+      - Laboring II
       - Laboring (Hunting)
       - Laboring (Farming)
       - Laboring (Fishing)
@@ -287,21 +287,21 @@ documents:
 
       | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
       |---|---|---|---|---|
-      | {tag:white-honey} | Brewing (Skilled) | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 4 ⬢, and a rare fishing catch |
-      | {tag:graga-sweat} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:invisibility-potion} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:dreamers-draught} | Brewing (Skilled) | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
-      | {tag:pure-luck} | Brewing (Skilled) | 0 | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
-      | {tag:raven-draught} | Brewing (Skilled) | 2 | {tag:ravens-eye} | foraged while hunting |
-      | {tag:honeyed-cakes} | Cooking (Skilled) | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
+      | {tag:white-honey} | Brewing II | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 4 ⬢, and a rare fishing catch |
+      | {tag:graga-sweat} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:invisibility-potion} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:dreamers-draught} | Brewing II | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
+      | {tag:pure-luck} | Brewing II | 0 | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
+      | {tag:raven-draught} | Brewing II | 2 | {tag:ravens-eye} | foraged while hunting |
+      | {tag:honeyed-cakes} | Cooking II | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
       | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:minted-charm} | Smithing | 15, 3-turn project | {tag:old-coin} | caving loot |
+      | {tag:minted-charm} | Smithing I | 15, 3-turn project | {tag:old-coin} | caving loot |
       | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
-      | {tag:autoinjector} | Brewing (Expert) | 3, 1 turn | {tag:antidote}, {tag:fever-draught} and {tag:brackenmoss} | foraged — GM-granted until the loot pass wires it |
-      | {tag:last-breath} | Brewing (Expert) | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
-      | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Brewing (Expert) | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
+      | {tag:autoinjector} | Brewing III | 3, 1 turn | {tag:antidote}, {tag:fever-draught} and {tag:brackenmoss} | foraged — GM-granted until the loot pass wires it |
+      | {tag:last-breath} | Brewing III | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
+      | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Brewing III | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
       | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
-      | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
+      | {tag:heartforged-blade} | Smithing II | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
 
       The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey.

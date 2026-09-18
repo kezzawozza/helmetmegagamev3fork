@@ -919,7 +919,7 @@ export default function MapBoard({ onClose = null }) {
 
         {!chosen && (!narrow || sheetOpen) && exits.length > 0 && (
           <div className="map-exits">
-            <p className="chat-section-title">Ways out</p>
+            <p className="group-label chat-section-title">Ways out</p>
             {exits.map((n) => (
               <button key={n.id} type="button" className="map-exit" onClick={() => setSel(n.id)}>
                 <span>{n.name}</span>
@@ -934,7 +934,7 @@ export default function MapBoard({ onClose = null }) {
 
         {!chosen && (!narrow || sheetOpen) && walks.length > 0 && (
           <div className="map-exits">
-            <p className="chat-section-title">Further in {here?.zoneName ?? "this zone"}</p>
+            <p className="group-label chat-section-title">Further in {here?.zoneName ?? "this zone"}</p>
             {walks.map((n) => (
               <button key={n.id} type="button" className="map-exit" onClick={() => setSel(n.id)}>
                 <span>{n.name}</span>
@@ -977,7 +977,7 @@ function Inside({ inside }) {
     <div className="map-inside">
       {groups.map((group) => (
         <div key={group.key}>
-          <p className="chat-section-title">{group.label}</p>
+          <p className="group-label chat-section-title">{group.label}</p>
           <ul className="map-inside-list">
             {group.items.map((name) => (
               <li key={name}>{name}</li>

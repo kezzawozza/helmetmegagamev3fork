@@ -9,6 +9,16 @@ Product bar: **functionality, usability, cleanliness, responsiveness, browser
 performance.** The explicit reference point to avoid is the typical slow,
 laggy Discord bot dashboard.
 
+**The look is two registers, on purpose.** The fixture is the rusted, riveted
+frame around everything: dark textured ground, iron rails, hard 1px borders,
+bevelled buttons, square corners, blackletter for the handful of things the
+world says in its own voice. The tool is what sits inside that frame: the log,
+the tables, the forms — a plain system font at a small size, grey on dark,
+bold coloured names, dim world lines, reading like output rather than like a
+brand. The gap between the two is the whole aesthetic. Make both registers
+equally polished and it turns back into a designed teal-and-ember app with
+rounded panels, which is the look this replaced.
+
 ## 1. Fonts
 
 One face loaded via `next/font/google` in `layout.js`, exposed as a CSS
@@ -16,24 +26,32 @@ variable on `<html>`:
 
 | Variable | Face | Use |
 |---|---|---|
-| `--font-display` | UnifrakturMaguntia | Blackletter, reserved for a few thematic moments — the login wordmark and a couple of flavor-heavy titles — via `.font-display`/`.wordmark`. |
+| `--font-display` | UnifrakturMaguntia | Blackletter, reserved for the few things the world says in its own voice: the login wordmark, and a character's own name on their sheet (`.ledger-name`, in `--blackletter` with `text-shadow: 0 2px 3px #000` — see §2). Chat's zone heading and its decree block are landing on the same face as part of the chat rework; that piece has not shipped yet, so it's not documented here until it does. |
 
 `--font-sans`, `--font-serif` and `--font-mono` are plain system stacks
-declared on `:root` in `globals.css`, not downloaded fonts. `--font-serif` is
-an alias of `--font-sans` — headings are the body face, bold, not a second
-face.
+declared on `:root` in `globals.css`, not downloaded fonts:
 
-Three rules that are easy to get wrong:
+- `--font-sans` — `system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
+  13px body, 12px in tables and chips. This is the tool register described
+  above: it should read like output, not like a brand.
+- `--font-serif` — `"Times New Roman", Times, "Liberation Serif", serif`.
+  `h1`/`h2`/`h3`, `.panel-header` and `.section-title` pick this up from one
+  rule in `globals.css` and nothing else changes — every heading in the app is
+  a bold serif, automatically, and no call site hand-applies a font class.
+- `--font-mono` — `"Courier New", Courier, ui-monospace, monospace`, opt-in via
+  `.mono`, for data only: numbers, IDs, timestamps, dice. It was the body face
+  once, which made it wallpaper — dense GM tables got wider and harder to
+  read, and the mono signalled nothing because everything was mono.
+
+Two rules that are easy to get wrong:
 
 - **Never hand-apply a font class to a heading.** Just use the tag; the global
-  rule handles it. Source Serif 4 and Source Sans 3 are a designed
-  superfamily, so they share metrics for free.
-- **Don't reach for mono for prose.** It was the body face once, which made it
-  wallpaper — dense GM tables got wider and harder to read, and the mono
-  signalled nothing because everything was mono.
+  rule handles the serif, the weight and the size.
 - **Never use `--font-display` for bulk headings, loading-state text, or
   player-authored content.** It's illegible at small sizes and reads as a
-  mismatch everywhere but the few places it's deliberate.
+  mismatch everywhere but the few places it's deliberate. `--fs-3xl` (28px) is
+  the floor it's readable at, and the only size the blackletter tokens below
+  are gated for contrast against.
 
 ## 2. Colour
 
@@ -92,6 +110,19 @@ Three things about the token set are load-bearing and easy to undo by accident:
   2026-09-15; `ChipLabel.js` painting that hex inline used to be the one
   documented exception to "colour rides on a token", and there is no exception
   now. Do not give a group a colour.
+- **The name palette is six tokens, and they owe full AA.** `--name-1`
+  through `--name-6` are muted hues, one assigned per character, stable across
+  sessions, used as **bold text** on a log line to tell speakers apart at a
+  glance. Unlike the zone and tag codes above, a name is read as text, not as
+  a fill — so `audit:contrast` gates these at **4.5**, not 3.0. Both looks
+  share one set; worst case measures 6.16.
+- **`--blackletter` is body text's opposite number** — the one token that
+  exists to be *illegible at small sizes on purpose*, because it is only ever
+  used at `--fs-3xl` (28px) and up, always with `text-shadow: 0 2px 3px #000`
+  at the call site. It is gated at the **3.0** large-text floor, not full AA:
+  Lifeweb's own `#744` and an earlier `#9a5a5a` both measured under 3.0 on
+  this ground, so both looks' values are lifted off the "authentic" pick to
+  clear it. Never set it on body text — see §1 for where it's actually used.
 - **Each theme names its own `color-scheme`.** A handful of controls are drawn
   by the browser, not by `globals.css` — the unchecked checkbox, the date
   picker's calendar glyph and popup, the search field's clear button, the
@@ -105,11 +136,79 @@ cave civilisation, so they differ by lamplight temperature and lift, not by
 daylight. The look follows real Chicago wall-clock time via
 `web/lib/clockTheme.js`: dawn 06:00–18:00 with a slow warmth ramp on six
 tokens driven by `--lamp`, dusk 18:00–06:00 flat, hard switch at 18:00.
-`BASCINET_THEME` pins either look with no ramp. `audit:contrast` gates the
-ramp at five points.
+`BASCINET_THEME` pins either look with no ramp (`resolveLook` in
+`clockTheme.js`; anything it doesn't recognise, including the deleted
+`limestone`, falls through to the clock). `audit:contrast` gates the ramp at
+five points, not just the two ends.
 
-A CRT/terminal look is a parked option, written up in `CRT-TERMINAL.md`. **Read
-that before rebuilding it** — it has been half-built and deleted twice.
+A CRT/terminal look was considered twice and dropped both times — too slow and
+too much flavour once it had the full treatment (an animated warp filter,
+scanline flicker), invisible once it was toned down to fit the performance
+budget. Nobody has since found a middle version worth shipping. If a new look
+comes up, it is not a special case: add a `[data-theme="…"]` block to
+`globals.css` with the same token set as dawn and dusk, add its name to
+`THEMES` in `web/lib/clockTheme.js`, and let `audit:contrast` gate it before it
+ships — same as any other theme.
+
+## 3a. Chrome
+
+The fixture register (see the top of this doc) is drawn with two textured
+layers and one sprite strip, all from `web/public/assets/chrome/` — five
+images lifted from the open-licensed Lifeweb/Farweb archive, credited in that
+folder's `ATTRIBUTION.md` (CC BY-SA 3.0) and again in the handbook's credits.
+Anything derived from them (a recolour, a crop) carries the same license; CSS
+that only references them does not.
+
+- **`.grain`** tiles `chatbg.png` under every page at `opacity: 0.25` — texture,
+  not a subject. It sits at `z-index: -1` (not 0) so it paints behind in-flow
+  content rather than as a film over it, and it never animates.
+- **`.vignette`** is a radial gradient toward `--shadow-color` at the same
+  `z-index`, both layers fixed and `pointer-events: none` so neither costs a
+  paint on scroll. Neither layer, nor anything else in the app, gets a
+  `backdrop-filter` or a per-frame or full-viewport animation — `/gm/turns`
+  scrolling smoothly with these composited is the benchmark.
+- **The header strip** is `bg2.png`, a 32×16 sprite repeated along the foot of
+  every `.panel-header`, and — as a bar rather than a heading — of
+  `.desk-inspector-head`, `.desk-convo-head` and `.ops-section-head`. It IS the
+  rule: a header that carries the strip never also carries a `border-bottom`,
+  because two lines under one heading reads as a mistake. It's automatic —
+  `Panel.js` and the desk bar components write it for you; nobody hand-adds a
+  border under a heading that already has one.
+
+Every sprite here scales at integer multiples with `image-rendering:
+pixelated`. A non-integer size blurs a pixel-art image instead of scaling it
+cleanly, which is the one way to make this chrome look like a mistake rather
+than a texture.
+
+## 3b. Shape
+
+Radius is `0` everywhere. The four old radius tokens (`--r-sm`/`--r-md`/
+`--r-lg`/`--r-full`) survive as aliases of `--r` so the ~110 call sites that
+still name one don't need touching — never reintroduce a non-zero value under
+any of them.
+
+- **`.btn` and `.btn-secondary` are a 2px bevel on a flat fill**, drawn as
+  explicit per-side borders (`--border-hi` top/left, `--border-lo`
+  bottom/right) rather than the `outset` keyword, which computes its own light
+  and dark from `border-color` and lands differently per browser. `:active`
+  swaps the two pairs, so the button looks pressed in. A gated verb
+  (`aria-disabled`/`:disabled`) goes dashed instead of pressing.
+- **`.field` and `.control` are inset**, the opposite bevel: a hard dark edge
+  top and left (`--border-lo`), the ordinary hairline bottom and right, so an
+  input reads as cut into the panel rather than sitting on top of it.
+- **Chips are bordered labels, not pills.** `.chip` is a 1px border with a 3px
+  category rule down the left — `--tag-rule` set by `data-tag-category` for a
+  tag chip, `--zone-*` set directly by `data-zone` for a `.zone-chip` — over a
+  flat `--surface-raised` fill, square corners: a name for a thing that simply
+  *is*. `danger` is the one tone a chip carries, for the short list of
+  always-bad states (Overburdened, Dying, Catatonic).
+- **`StatusPill` is bold coloured text, no background, no border.** A tone
+  (`good`/`warn`/`bad`/`muted`/`subdued`/`accent`) says what a state *means*
+  and the stylesheet supplies the colour — see §5a's "chip is a LABEL,
+  StatusPill is a STATE" rule for why the two never trade places.
+- **Tables are tight.** `.data-table` cells run `2px 6px` padding with 1px
+  rules on every side, `--fs-xs` throughout, headers uppercase and muted. It
+  reads dense on purpose — a GM desk is a log, not a brochure.
 
 ## 4. Tailwind bridge
 
@@ -134,7 +233,7 @@ Use these instead of rolling one-off markup.
 | Class | For |
 |---|---|
 | `.panel` | Any card/section container. A card **with** a heading is `Panel` — it carries the padding `.panel` deliberately does not, and writes the `.panel-header` for you. |
-| `.panel-header` | Its heading — serif `--fs-lg` with a hairline rule. |
+| `.panel-header` | Its heading — serif `--fs-lg` over the 16px metal strip. The strip is the rule; a header that carries it never also carries a border. |
 | `.section-title` | A heading that is a **flex child beside something else**. |
 | `.btn` | Solid primary button. |
 | `.btn-secondary` | Outline. |
@@ -148,8 +247,11 @@ Use these instead of rolling one-off markup.
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
 | `.icon-btn` | The one framed icon button — via `IconButton`, whose `size` is `sm` (26, default) or `lg` (44), the desktop size; a coarse pointer inside `/chat` floors every one of these at 44 regardless. |
 | `.chat-buttons` | Chat's only action row. A `.btn-quiet` inside one gets the padded, aligned treatment `.modal-actions` gives one, so a Cancel lines up with the button beside it. |
-| `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="chat-section-title">` instead. |
-| `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. |
+| `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="group-label chat-section-title">` instead. `.group-label` is the shared recipe — quiet, uppercase, --fs-2xs — and `.chat-section-title` is only Chat's own inset and spacing on top of it. |
+| `.group-label` | The quiet uppercase label over a group of things, on its own — Chat's section headers, the audit inspector's field labels, a `DeskRailGroup` title, every sheet rail group. One recipe (`--ls-wide`, `--fs-2xs`, `--muted`) rather than a hand-typed letter-spacing at each call site. |
+| `.tline` | One line of transcript, via `TranscriptLine.js` — the Chat feed, the DM thread, the inspector's Archive tab and the archive-context popup all draw through it. `data-density` (`feed` / `thread` / `thread-compact`) is geometry only, a staging post for the three old page families' numbers rather than a real fork; `data-kind` carries the row's `channelKind` and is the only thing allowed to change how a system line looks. `/archive`'s own four-column grid row is the one exception — no gutter/body shape reproduces it without breaking the grid. |
+| `DeskRail` / `.desk-rail` | The left rail on every `(desk)` page — one component and one class family for what used to be three: the adjudication desk's and player desk's queue, `/gm/audit`'s filters, and `/gm/dev`'s and `/gm/economy`'s section nav. `variant="queue"` is a scrolling list of selectable rows; `variant="sections"` is a padded stack of titled groups (`DeskRailGroup`, which is `.group-label` over its children — this replaced `.ops-nav-group`/`.audit-group` written twice). Never give this component or its children `position`/`z-index`/`transform`/`filter`/`contain`/`will-change` — see §6. |
+| `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. One shared strip now: Chat's aside, the Depot console and the faction console all wear it instead of three near-copies, and it scrolls sideways under a narrow viewport rather than wrapping. |
 | `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
 | `.chip-row` | A wrapping row of chips. The house form for a **multi**-select: each chip is a `<button className="chip">` keyed on `data-active` (plus `aria-pressed`), and `.chip[data-active]` gives it the accent border and label. |
 | `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. Its left rule may carry a group colour set inline per row — a tag group in Point Buy, a desire family in the Desire picker — because those are freeform hexes out of data, not tokens. |
@@ -177,8 +279,11 @@ Three of these carry a trap:
 - **`.panel-header` vs `.section-title`.** Use `.section-title` wherever the
   heading sits beside something else — a modal title next to its close button,
   a status band next to its value, a "Tags" heading next to its buttons.
-  `.panel-header`'s `border-bottom` would underline just the title text there
-  rather than spanning the container, which reads as an underline, not a divider.
+  `.panel-header`'s strip would sit under just the title text there rather than
+  spanning the container, which reads as an underline, not a divider. Where the
+  whole thing is a **bar** heading a column — `.desk-inspector-head`,
+  `.desk-convo-head`, `.ops-section-head` — the BAR takes the strip and keeps
+  its own flex layout; the heading inside it stays `.section-title`.
 - **`.tab-item` and `.segmented` are not the same idea.** A tab strip navigates
   between panels and is keyed on `data-active`, a styling hook. A segmented
   control has a *value*, so its pressed state lives in `aria-pressed`, where a
@@ -313,9 +418,10 @@ inside it still uses the tokens and the shared control classes. Within that
 exception, `DeskHeader.js` is PageHeader's desk equivalent — title/meta/
 actions slots over `.desk-header`, `<h1 className="section-title">` — and all
 four desk pages use it, `/gm/dev` included. Don't hand-roll `.desk-header`
-markup in a new one. `/gm/dev`'s own left rail (`OpsNav.js`) is the
-`.ops-*` family, the same idea as `.audit-*` for the audit desk — a nav rail
-styled to its own page rather than shared across desks.
+markup in a new one. Every desk's left rail is `DeskRail.js` on the shared
+`.desk-rail` family — `/gm/dev`'s and `/gm/economy`'s section navs are
+`variant="sections"`, which is what the old `.ops-*` and `.audit-*` rail
+classes became.
 
 Desks **do** carry the nav rail. `(desk)/layout.js` renders the same
 `.app-shell` + `AppRail` + `.app-main` as `(app)`, so a desk is

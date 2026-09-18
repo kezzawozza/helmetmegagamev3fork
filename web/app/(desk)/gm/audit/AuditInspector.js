@@ -109,7 +109,7 @@ export default function AuditInspector({ entry, names, tagsByName, tagsById, onF
         </dl>
 
         <section className="audit-person p-3">
-          <h3 className="audit-group-title">Actor</h3>
+          <h3 className="group-label">Actor</h3>
           <div className="flex items-center gap-2">
             {/* A plain <img>: next.config.mjs declares no remotePatterns, so
                 next/image against cdn.discordapp.com throws at render. Same
@@ -135,7 +135,7 @@ export default function AuditInspector({ entry, names, tagsByName, tagsById, onF
 
         {entry.target && (
           <section className="audit-person p-3">
-            <h3 className="audit-group-title">Target</h3>
+            <h3 className="group-label">Target</h3>
             <CharacterLink characterId={entry.target.id} name={entry.target.name} isGm />
             <button type="button" className="btn-quiet mt-1" onClick={() => onFilter({ targets: [entry.target.id] })}>
               Everything about this character
@@ -145,7 +145,7 @@ export default function AuditInspector({ entry, names, tagsByName, tagsById, onF
 
         {entry.location && (
           <section className="audit-person p-3">
-            <h3 className="audit-group-title">Where</h3>
+            <h3 className="group-label">Where</h3>
             <p>
               {entry.room ? `${entry.room.name}, ` : ""}
               {entry.location.name}
@@ -162,7 +162,7 @@ export default function AuditInspector({ entry, names, tagsByName, tagsById, onF
 
         {entry.reason && (
           <section className="audit-person p-3">
-            <h3 className="audit-group-title">Reason</h3>
+            <h3 className="group-label">Reason</h3>
             {/* The player's own words — quoted content takes the » prefix
                 everywhere in the app. */}
             <p className="audit-reason-block">» {entry.reason}</p>
@@ -171,7 +171,7 @@ export default function AuditInspector({ entry, names, tagsByName, tagsById, onF
 
         {details && (
           <section className="audit-person p-3">
-            <h3 className="audit-group-title">Details</h3>
+            <h3 className="group-label">Details</h3>
             {/* gm_character_applied's `core` is already a before/after diff, so
                 it gets rendered as one rather than flattened into two lines. */}
             {isDiff(details.core) ? <Diff diff={details.core} /> : null}

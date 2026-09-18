@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import FormError from "@/app/components/FormError";
 import MarkdownContent from "@/app/components/MarkdownContent";
+import TranscriptLine from "@/app/components/TranscriptLine";
 import { getArchiveContext } from "@/app/(desk)/gm/turns/actions";
 
 // "In context": the ~30 messages before and after one archived line, in the
@@ -66,20 +67,26 @@ export default function ArchiveContext({ archiveEntryId, maxHeight = null, onLoa
         style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
       >
         {state.data.entries.map((e) => (
+          /* The anchor needs a plain element to hold the ref and the marker
+             class, so the line renderer sits inside it rather than being it. */
           <div
             key={e.id}
             ref={e.id === state.data.anchorId ? anchorRef : undefined}
             data-anchor={e.id === state.data.anchorId || undefined}
             className={e.id === state.data.anchorId ? "desk-archive-anchor" : undefined}
           >
-            <p className="text-xs text-muted">
-              {e.concealedAlias ? `${e.concealedAlias} (${e.characterName})` : e.characterName}
-              {e.turnNumber != null ? ` · turn ${e.turnNumber}` : ""}
-              {` · ${e.sentAt.slice(0, 16).replace("T", " ")}`}
-            </p>
-            <div className="text-sm">
+            <TranscriptLine
+              as="div"
+              density="thread-compact"
+              gutter={false}
+              startsRun
+              name={e.concealedAlias ? `${e.concealedAlias} (${e.characterName})` : e.characterName}
+              alias={Boolean(e.concealedAlias)}
+              meta={e.turnNumber != null ? <span className="tline-place">turn {e.turnNumber}</span> : null}
+              time={e.sentAt.slice(0, 16).replace("T", " ")}
+            >
               <MarkdownContent content={e.content} />
-            </div>
+            </TranscriptLine>
           </div>
         ))}
       </div>

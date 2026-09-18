@@ -22,9 +22,14 @@ import ItemCard from "./ItemCard";
 import { useRequestActions } from "./RequestActionsProvider";
 import { useNotice } from "./NoticeProvider";
 
-// The right column of /ledger: every held tag, one card per kind, one row per
-// tag, and a filter box over all of it. Which card, which order and which
-// value each row shows is web/lib/sheetCards.js; this draws.
+// The left column of /character: every held tag, and a filter box over all of
+// it. Which card, which order and which value each row shows is
+// web/lib/sheetCards.js; this draws.
+//
+// Two shapes since phase 4, as the mockup draws them. The plain rails — Skills,
+// Health, Status, General, Meta — are labelled runs of rows inside ONE Tags
+// card, with the filter over the lot. Items and Assets get a card each, because
+// an item row carries its own verbs and the card carries a weight total.
 //
 // Three things a row can do, all through machinery that already exists:
 // - click it and its details open inline (TagRow.js → TagDetails.js);
@@ -66,7 +71,15 @@ export default function TagRail({
   const [pending, startTransition] = useTransition();
   const notice = useNotice();
 
-  const cards = useMemo(() => buildCards(characterTags, { currentTurn }), [characterTags, currentTurn]);
+  // includeStatus, as of phase 4: the mockup's rail draws SKILLS / HEALTH /
+  // STATUS as three groups inside one Tags card, so Status is a group here as
+  // well as a chip row in the band. The two are not the same reading — a chip
+  // says "you are Concealed", a row says what it turns into and when it ends —
+  // and the mockup shows both on purpose.
+  const cards = useMemo(
+    () => buildCards(characterTags, { currentTurn, includeStatus: true }),
+    [characterTags, currentTurn],
+  );
   const verbSets = useMemo(() => thingVerbSets(characterTags), [characterTags]);
   const heldTagIds = useMemo(() => new Set(characterTags.map((ct) => ct.tag.id)), [characterTags]);
 
@@ -182,23 +195,98 @@ export default function TagRail({
 
   const filtering = query.trim().length > 0;
 
+  // Two shapes, as the mockup draws them. The plain rails — Skills, Health,
+  // Status, General, Meta — sit inside ONE Tags card as labelled runs of rows,
+  // with the filter over the lot of them; the two inventory cards get a card
+  // each, because an item row is a card with its own verbs and its own weight
+  // total in the header. Before this it was one panel per kind plus a separate
+  // header strip, which on a wide screen read as six unrelated boxes.
+  const railCards = cards.filter((card) => !INVENTORY_CARDS.has(card.key));
+  const inventoryCards = cards.filter((card) => INVENTORY_CARDS.has(card.key));
+
+  // The filter applied, groups with nothing left dropped.
+  function visibleGroups(card) {
+    return card.groups
+      .map((g) => ({ ...g, rows: g.rows.filter((ct) => matchesQuery(ct, query)) }))
+      .filter((g) => g.rows.length > 0);
+  }
+
+  // One card's rows, however they are drawn. Shared by both shapes above so a
+  // row means the same thing in either — the category rule, the icon, the
+  // second line, the value on the right, the details opening inline.
+  function rowsFor(card, groups) {
+    return groups.map((g) => (
+      <div key={g.key} className="sheet-group">
+        {/* No colour on the heading: the group's mark is the icon on each of
+            its rows now, and colour says which category the whole card is
+            (web/lib/tagIcons.js). */}
+        {g.name && card.groups.length > 1 && <p className="sheet-group-name">{g.name}</p>}
+        <ul className="sheet-rows">
+          {g.rows.map((ct) => {
+            const id = ct.tag.id;
+            const rung = card.key === "Skills" ? nextRung(ct, tagCatalog, heldTagIds) : null;
+            const shared = {
+              ct,
+              note: noteFor(ct, card, rung),
+              verbs:
+                INVENTORY_CARDS.has(card.key) || card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG
+                  ? verbsFor(ct)
+                  : null,
+              open: openId === id,
+              onToggle: () => setOpenId((was) => (was === id ? null : id)),
+              currentTurn,
+              armedTurn: ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null,
+              worn: Boolean(ct.equipped),
+            };
+            // Items and Assets are an inventory, so they get the card that says
+            // everything; every other rail keeps the one-value row.
+            return INVENTORY_CARDS.has(card.key) ? (
+              <ItemCard key={id} {...shared} facts={itemFacts(ct, currentTurn)} />
+            ) : (
+              <TagRow key={id} {...shared} value={rowValue(ct, currentTurn)} />
+            );
+          })}
+        </ul>
+      </div>
+    ));
+  }
+
   return (
     <>
-      <section className="panel p-4 sheet-rail-head">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="section-title">Tags</h2>
+      <section className="panel p-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="panel-header">Tags</h2>
           {pointsControl}
         </div>
-        <label className="field mt-2">
-          <span className="sr-only">Find a tag</span>
+        <label className="field sheet-tags-filter">
+          <span className="field-label">Filter</span>
           <input
             type="search"
             value={query}
-            placeholder="Find a tag…"
+            placeholder="name, description or group…"
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
         <FormError>{error}</FormError>
+
+        {railCards.length === 0 && <p className="text-sm text-muted">No tags yet.</p>}
+
+        {railCards.map((card) => {
+          const groups = visibleGroups(card);
+          if (groups.length === 0) return null;
+          const shown = groups.reduce((n, g) => n + g.rows.length, 0);
+          return (
+            <div key={card.key} className="sheet-card sheet-rail-run" data-card={card.key.toLowerCase()}>
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 className="section-title">{card.title}</h3>
+                <span className="mono text-sm text-muted">
+                  {filtering ? `${shown} / ${card.count}` : card.count}
+                </span>
+              </div>
+              {rowsFor(card, groups)}
+            </div>
+          );
+        })}
       </section>
 
       {isSelf && storeTags && (
@@ -216,62 +304,24 @@ export default function TagRail({
         <IdentityDialog identity={identity} open onClose={() => setIdentityOpen(false)} />
       )}
 
-      {cards.length === 0 && (
-        <section className="panel p-4">
-          <p className="text-sm text-muted">No tags yet.</p>
-        </section>
-      )}
-
-      {cards.map((card) => {
-        const groups = card.groups
-          .map((g) => ({ ...g, rows: g.rows.filter((ct) => matchesQuery(ct, query)) }))
-          .filter((g) => g.rows.length > 0);
+      {inventoryCards.map((card) => {
+        const groups = visibleGroups(card);
         if (filtering && groups.length === 0) return null;
         const shown = groups.reduce((n, g) => n + g.rows.length, 0);
         return (
-          <section key={card.key} className="panel p-4 sheet-card" data-card={card.key.toLowerCase()}>
-            <div className="mb-2 flex items-baseline justify-between gap-2">
-              <h2 className="section-title">{card.title}</h2>
+          <section key={card.key} className="panel p-3 sheet-card" data-card={card.key.toLowerCase()}>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="panel-header">{card.title}</h2>
               <span className="mono text-sm text-muted">
                 {card.weight != null ? `${card.weight} lb · ` : ""}
                 {filtering ? `${shown} / ${card.count}` : card.count}
               </span>
             </div>
-            {groups.map((g) => (
-              <div key={g.key} className="sheet-group">
-                {/* No colour on the heading: the group's mark is the icon on
-                    each of its rows now, and colour says which category the
-                    whole card is (web/lib/tagIcons.js). */}
-                {g.name && card.groups.length > 1 && <p className="sheet-group-name">{g.name}</p>}
-                <ul className="sheet-rows">
-                  {g.rows.map((ct) => {
-                    const id = ct.tag.id;
-                    const rung = card.key === "Skills" ? nextRung(ct, tagCatalog, heldTagIds) : null;
-                    const shared = {
-                      ct,
-                      note: noteFor(ct, card, rung),
-                      verbs:
-                        INVENTORY_CARDS.has(card.key) || card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG
-                          ? verbsFor(ct)
-                          : null,
-                      open: openId === id,
-                      onToggle: () => setOpenId((was) => (was === id ? null : id)),
-                      currentTurn,
-                      armedTurn: ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null,
-                      worn: Boolean(ct.equipped),
-                    };
-                    // Items and Assets are an inventory, so they get the card
-                    // that says everything; every other rail keeps the
-                    // one-value row.
-                    return INVENTORY_CARDS.has(card.key) ? (
-                      <ItemCard key={id} {...shared} facts={itemFacts(ct, currentTurn)} />
-                    ) : (
-                      <TagRow key={id} {...shared} value={rowValue(ct, currentTurn)} />
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
+            {groups.length === 0 ? (
+              <p className="text-sm text-muted">Nothing.</p>
+            ) : (
+              rowsFor(card, groups)
+            )}
           </section>
         );
       })}

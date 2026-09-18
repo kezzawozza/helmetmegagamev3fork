@@ -12,7 +12,7 @@ export default function LedgerWork({ craftProjects = [], sitesHere = [] }) {
   const nothing = craftProjects.length === 0 && sites.length === 0;
 
   return (
-    <section className="panel p-4">
+    <section className="panel p-3">
       <h2 className="panel-header">Crafting & building</h2>
       {nothing ? (
         <p className="text-sm text-muted">Nothing in progress.</p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import CheckField from "@/app/components/CheckField";
 import StatusPill from "@/app/components/StatusPill";
 import Select from "@/app/components/Select";
@@ -1112,7 +1113,7 @@ export default function QueueRail({
   ]);
 
   return (
-    <aside className="desk-rail" ref={railRef}>
+    <DeskRail as="aside" scrollRef={railRef} ariaLabel="Turn queue">
       <div className="segmented desk-rail-lens" role="group" aria-label="Queue lens">
         <button type="button" aria-pressed={lens === "moves" || !lens} onClick={() => onLens?.("moves")}>
           Moves ({movesShown.length})
@@ -1383,6 +1384,6 @@ export default function QueueRail({
         </>
       )}
       <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c/d/h lens · esc close</p>
-    </aside>
+    </DeskRail>
   );
 }

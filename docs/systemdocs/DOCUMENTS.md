@@ -67,7 +67,7 @@ disagree with itself about who may see what.
 - **RECIPES** — the same rows narrowed to `craftable`, each laid out as its
   `requirement:` block (`CRAFTING.md` §2) and filed under the **discipline**
   of the skill that gates it. The discipline is the skill's name with its rung
-  dropped, so Brewing (Basic) and Brewing (Skilled) are one section and
+  dropped, so Brewing I and Brewing II are one section and
   Smithing (Gunpowder) sits with Smithing — derived rather than mapped, so a
   new rung needs no edit. A reference book, not a menu: a recipe is listed
   whether or not the reader holds its skills, its ⬢ or its ingredients, which

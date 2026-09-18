@@ -1027,7 +1027,7 @@ export default async function DevPanelPage({ searchParams }) {
       />
       <div className="desk-body desk-body--ops">
         <OpsNav section={section} tier={tier} />
-        <main className="ops-main">
+        <main className="desk-main desk-main--ops">
           {section === "game" ? (
             <div className="flex flex-col gap-8">
               <section className="ops-section">

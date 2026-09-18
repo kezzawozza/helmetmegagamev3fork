@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MarkdownContent from "./MarkdownContent";
+import TranscriptLine from "./TranscriptLine";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
 import AvatarZoom from "./AvatarZoom";
@@ -315,7 +316,7 @@ function CollapsedGroup({ messages }) {
 // Every outbound row wears this one face for the player; the desk sees GMs by name (CHAT.md §2b).
 const BASCINET_PROFILE = Object.freeze({ username: "Bascinet", avatarUrl: null });
 
-function Row({ item, gmProfileById, character, now, perspective, onRetry, onDiscard }) {
+function Row({ item, gmProfileById, character, compact, now, perspective, onRetry, onDiscard }) {
   const { message, head, ms } = item;
   const outbound = message.direction === "OUTBOUND";
   const profile =
@@ -338,47 +339,33 @@ function Row({ item, gmProfileById, character, now, perspective, onRetry, onDisc
   const images = messageImages(message);
 
   return (
-    <div
-      className={head ? "dm-row dm-row-head" : "dm-row dm-row-cont"}
-      data-pending={message.pending || undefined}
-      data-failed={message.failed || undefined}
-      data-dir={outbound ? "out" : "in"}
-    >
-      <div className="dm-row-gutter" aria-hidden={head ? undefined : "true"}>
-        {head ? (
+    <TranscriptLine
+      as="div"
+      density={compact ? "thread-compact" : "thread"}
+      startsRun={head}
+      pending={Boolean(message.pending)}
+      failed={Boolean(message.failed)}
+      direction={outbound ? "out" : "in"}
+      avatar={
+        head ? (
           outbound ? (
             <GmAvatar profile={profile} size={32} />
           ) : (
             <CharacterAvatar characterId={character?.id ?? null} name={name} version={character?.avatarVersion} size={32} zoomable />
           )
-        ) : (
-          <span className="dm-row-cont-time mono">{clockLabel(ms)}</span>
-        )}
-      </div>
-      <div className="dm-row-body">
-        {head && (
-          <div className="dm-row-meta">
-            <span className="dm-row-name">{displayName}</span>
-            {sourceLabel && <span className="chip chip-quiet">{sourceLabel}</span>}
-            <time className="dm-row-time mono" title={fullTimestamp(ms)}>
-              {formatDmTime(ms, now)}
-            </time>
-          </div>
-        )}
-        {mention ? (
-          <MentionBody message={message} />
-        ) : letter ? (
-          <LetterBody message={message} />
-        ) : embed ? (
-          <EmbedBody message={message} />
-        ) : (
-          <MarkdownContent content={message.content} />
-        )}
-        {images.length > 0 && <AttachedImages images={images} />}
-        {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
-        {/* Retry reuses the send's nonce, so a message that already reached Discord cannot be delivered twice. */}
-        {message.failed && (
-          <div className="dm-row-failed">
+        ) : null
+      }
+      // A continuation row shows its own clock where the face would be, and
+      // only under the pointer.
+      gutterAside={<span className="tline-gutter-aside mono">{clockLabel(ms)}</span>}
+      name={head ? displayName : null}
+      meta={sourceLabel ? <span className="chip chip-quiet">{sourceLabel}</span> : null}
+      time={head ? formatDmTime(ms, now) : null}
+      timeTitle={fullTimestamp(ms)}
+      trailing={
+        /* Retry reuses the send's nonce, so a message that already reached Discord cannot be delivered twice. */
+        message.failed ? (
+          <div className="dm-failed">
             <span>{message.error || "That didn't send."}</span>
             {onRetry && (
               <button type="button" className="btn-quiet" onClick={() => onRetry(message)}>
@@ -391,9 +378,21 @@ function Row({ item, gmProfileById, character, now, perspective, onRetry, onDisc
               </button>
             )}
           </div>
+        ) : null
+      }
+    >
+      {mention ? (
+          <MentionBody message={message} />
+        ) : letter ? (
+          <LetterBody message={message} />
+        ) : embed ? (
+          <EmbedBody message={message} />
+        ) : (
+          <MarkdownContent content={message.content} />
         )}
-      </div>
-    </div>
+      {images.length > 0 && <AttachedImages images={images} />}
+      {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
+    </TranscriptLine>
   );
 }
 
@@ -526,7 +525,7 @@ export default function DmThread({
   }, [atBottom, seenBottomId, messages]);
 
   return (
-    <div ref={containerRef} className={`dm-thread ${compact ? "dm-thread-compact" : ""}`}>
+    <div ref={containerRef} className="dm-thread">
       {hasMore && onLoadOlder && (
         <div ref={sentinelRef} className="dm-older">
           <button type="button" className="btn-quiet" onClick={requestOlder}>
@@ -559,6 +558,7 @@ export default function DmThread({
                 item={item}
                 gmProfileById={gmProfileById}
                 character={character}
+                compact={compact}
                 now={now}
                 perspective={perspective}
                 onRetry={onRetry}

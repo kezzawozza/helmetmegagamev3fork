@@ -158,8 +158,8 @@ async function tellFiledWithoutReposting(client, entries) { // one DM per player
     if (!user) continue;
     const line =
       count === 1
-        ? "A message you sent while the bot was down has been kept in your archive."
-        : `${count} messages you sent while the bot was down have been kept in your archive.`;
+        ? "A message you sent while the bot was down has been recorded."
+        : `${count} messages you sent while the bot was down have been recorded.`;
     await sendDm(user, `» *${line}*`, { kind: DM_KIND.QUIET }).catch(() => {});
   }
 }

@@ -630,9 +630,9 @@ the tab now builds a query with `archiveParamsToQuery` and scrolls it with
 `useArchiveScroll`, the IntersectionObserver hook lifted out of the `/archive`
 page so both surfaces scroll the same transcript through the same code.
 
-**A GM is never gated out of that route.** `web/lib/archiveAccess.js` shuts the
-current game's transcript until `GameState.archiveVisible`, but tests `!gm`
-first, so mid-game the tab works and the public page does not.
+**A GM is never gated out of that route.** `web/lib/archiveAccess.js` is
+GM-only, full stop — there is no player-facing state of `/archive` to be
+shut out of.
 
 Its defaults differ from the page's on purpose: **newest first** (`order=desc`,
 against the page's `asc`) because a GM opening somebody's transcript wants what

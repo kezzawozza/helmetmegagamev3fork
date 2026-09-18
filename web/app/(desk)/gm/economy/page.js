@@ -60,7 +60,7 @@ export default async function EconomyPage({ searchParams }) {
       <DeskHeader title="Economy" meta={<DeskTurnChip turn={openTurn} />} />
       <div className="desk-body desk-body--ops">
         <EconomyNav section={section} />
-        <main className="ops-main">
+        <main className="desk-main desk-main--ops">
           <SnapshotPage
             scope={`gm-economy:${section}`}
             userId={session.discordUserId}

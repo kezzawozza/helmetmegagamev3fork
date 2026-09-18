@@ -56,7 +56,7 @@ const NOTICES = {
   grenade: "There is a **Fragmentation Grenade** in your hand.",
   seizure: "The world goes white and comes back wrong. You are having a **Seizure**.",
   rage: "Something opens behind your eyes and does not close. **Rage**.",
-  melee: "Your hands know things they were never taught. **Melee (Legendary)**.",
+  melee: "Your hands know things they were never taught. **Melee V**.",
   lonely: "You blink, and you are somewhere else entirely.",
   shout: "You hear your own voice before you decide to use it.",
 };
@@ -185,7 +185,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
               select: { id: true },
             });
             if (!tag) return false;
-            // The ladder's own rule (TAGS.md §3): lower rungs come off, or Melee (Expert) sits under Legendary forever.
+            // The ladder's own rule (TAGS.md §3): lower rungs come off, or Melee IV sits under Melee V forever.
             await replaceLowerTiers(tx, character.id, tag.id);
             const granted = await grantTagSlugs(tx, character.id, [MELEE_LEGENDARY_SLUG], turn.number + 1);
             return granted.some((row) => (row.added ?? 0) > 0);

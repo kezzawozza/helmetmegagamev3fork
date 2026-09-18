@@ -61,7 +61,7 @@ export default function FactionPanel({ faction, siloOpen = false, onSelect = nul
           </div>
         )}
 
-        <p className="chat-section-title">Members · {roster.length}</p>
+        <p className="group-label chat-section-title">Members · {roster.length}</p>
         {roster.length === 0 ? (
           <EmptyState>Nobody living is in it.</EmptyState>
         ) : (

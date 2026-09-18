@@ -10,6 +10,7 @@ import { useRefresh } from "./useRefresh";
 import FactionLink from "./FactionLink";
 import DevCharacterButton from "./DevCharacterButton";
 import MarkdownContent from "./MarkdownContent";
+import TranscriptLine from "./TranscriptLine";
 import FormError from "./FormError";
 import DmThread from "./DmThread";
 import ArchiveContextModal from "./ArchiveContextModal";
@@ -428,9 +429,8 @@ function MovesView({ data }) {
 // needs was already there — archiveQuery.js speaks `character`, `zone`, `day`,
 // `q`, `show` and `order`, and the route already pages them by keyset cursor —
 // so the tab used to be a worse, unfilterable copy of a thing one directory
-// over. A GM is never shut out of that route: archiveAccess.js closes the
-// current game's transcript to PLAYERS until archiveVisible, and tests
-// `!gm` before it does.
+// over. A GM is never shut out of that route: archiveAccess.js is GM-only,
+// full stop — a player is refused before any game or filter is even looked at.
 //
 // Filters are component state, not the URL. The page puts them in the URL
 // because a transcript view is worth linking to; an inspector tab is a lens
@@ -535,17 +535,26 @@ function ArchiveRows({ query, onOpenContext }) {
         // behind a hood: `name` is the alias when there is one, and `realName`
         // is who it actually was. The archive names them both — that is what
         // it is for — so this reads `alias (Real Name)`.
+        //
+        // The same line renderer the feed and the DM thread use, with no
+        // gutter: this column has no faces in it.
         const row = (
-          <>
-            <p className="text-xs text-muted">
-              {r.alias ? `${r.alias} (${r.realName})` : r.realName}
-              {r.zoneName ? ` · ${r.zoneName}` : ""}
-              {r.turnNumber != null ? ` · turn ${r.turnNumber}` : ""}
-            </p>
-            <div className="text-sm">
-              <MarkdownContent content={r.content} />
-            </div>
-          </>
+          <TranscriptLine
+            as="div"
+            density="thread-compact"
+            gutter={false}
+            startsRun
+            name={r.alias ? `${r.alias} (${r.realName})` : r.realName}
+            alias={Boolean(r.alias)}
+            meta={
+              <>
+                {r.zoneName ? <span className="tline-place">{r.zoneName}</span> : null}
+                {r.turnNumber != null ? <span className="tline-place">turn {r.turnNumber}</span> : null}
+              </>
+            }
+          >
+            <MarkdownContent content={r.content} />
+          </TranscriptLine>
         );
         if (r.kind !== "MESSAGE") return <div key={r.id}>{row}</div>;
         return (

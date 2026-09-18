@@ -27,7 +27,7 @@ export default async function ArchivePage({ searchParams }) {
   const params = await searchParams;
   const access = await loadArchiveAccess(params?.game?.toString() ?? "");
 
-  // The nav hides the link when the archive is shut, but a page is a public
+  // The nav hides the link from a non-GM entirely, but a page is a public
   // URL — same posture as /character's creation gate.
   if (!access.ok) {
     if (access.reason === "signin") redirect("/");
@@ -38,7 +38,7 @@ export default async function ArchivePage({ searchParams }) {
     redirect("/character");
   }
 
-  const { game, games, state, archived, revealHidden } = access;
+  const { game, games, state, archived } = access;
   const filters = parseArchiveParams(params ?? {});
   const where = archiveWhere(game.id, filters);
 
@@ -84,7 +84,7 @@ export default async function ArchivePage({ searchParams }) {
     .map((r) => ({ id: r.characterId, name: r.characterName ?? r.characterId }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const epilogue = revealHidden ? null : (game.epilogue ?? null);
+  const epilogue = game.epilogue ?? null;
   return (
     <>
       <AppHeader

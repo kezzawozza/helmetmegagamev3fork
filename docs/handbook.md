@@ -93,7 +93,6 @@ General questions can be asked in the `#general` channel or by creating a thread
 | **Faction** | Faction roster and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
-| **Archive** | A full transcript of all roleplay channels. Hidden until after the game ends. |
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
@@ -110,7 +109,7 @@ You can find information on the current turn in the `#turns` channel, in additio
 
 ### The Wipe
 
-At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
+At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, the Game Masters' record of the game. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
 
 The one exception is your Zone's Summary channel, which is only cleared once an in-game day — so what is posted there has longer to be read than a scene does.
 
@@ -460,10 +459,10 @@ Press **Craft** on your [Character](https://ravenheart.quest/character) page, pi
 **What you can make depends on your skills.** A handful of skill families gate crafting, each opening a different slice of the world's recipes:
 
 - **Crafting** — tailoring, woodwork, and the simplest metalwork (Dead Simple tier), no forge needed.
-- **Smithing**, **Smithing (Skilled)**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
-- **Cooking (Basic)** and **Cooking (Skilled)** — meals. Fine and Lavish meals each have their own cap per Routine, and a Lavish meal wants a delicacy off the Depot's shelf besides its ⬢.
-- **Brewing (Basic)**, **Brewing (Skilled)**, and **Brewing (Expert)** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise.
-- **Medical (Skilled)** and **Medical (Expert)** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical (Expert), whoever crafted the prosthetic itself.
+- **Smithing I**, **Smithing II**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
+- **Cooking I** and **Cooking II** — meals. Fine and Lavish meals each have their own cap per Routine, and a Lavish meal wants a delicacy off the Depot's shelf besides its ⬢.
+- **Brewing I**, **Brewing II**, and **Brewing III** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise.
+- **Medical II** and **Medical III** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical III, whoever crafted the prosthetic itself.
 
 **Make it your own.** A few crafts — a badge, a hat, a painting, a sketch, and a cook's meals — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it.
 

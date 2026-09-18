@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { DeskRailGroup } from "@/app/components/DeskRail";
 // Everything here comes from auditNarrative, never from auditQuery: that one
 // imports Prisma, and a client component reaching for one constant in it drags
 // the whole data layer into the browser bundle.
@@ -94,8 +95,10 @@ export default function AuditFilters({
     filters.from ||
     filters.to;
 
+  // The rail itself is the group stack now (DeskRail variant="sections"),
+  // so this is a fragment rather than a second padded column inside it.
   return (
-    <div className="audit-filters">
+    <>
       <label className="field">
         <span className="field-label">Search</span>
         <input
@@ -351,15 +354,14 @@ export default function AuditFilters({
           Clear every filter
         </button>
       ) : null}
-    </div>
+    </>
   );
 }
 
 function Group({ label, children }) {
   return (
-    <section className="audit-group">
-      <h2 className="audit-group-title">{label}</h2>
+    <DeskRailGroup title={label} titleAs="h2">
       {children}
-    </section>
+    </DeskRailGroup>
   );
 }

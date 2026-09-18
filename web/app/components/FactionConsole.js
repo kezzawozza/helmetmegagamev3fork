@@ -851,12 +851,13 @@ export default function FactionConsole(props) {
 
       <FormError>{error}</FormError>
 
-      <nav className="console-tabs" aria-label="Faction sections">
+      <nav className="tab-bar" aria-label="Faction sections">
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
-            className={t.key === current ? "console-tab console-tab-on" : "console-tab"}
+            className="tab-item"
+            data-active={t.key === current ? "true" : undefined}
             aria-current={t.key === current ? "page" : undefined}
             onClick={() => setTab(t.key)}
           >

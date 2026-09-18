@@ -578,9 +578,10 @@ free and silent is what the Demoness tag is paying its extra point for.
 
 The archive records **both halves** — `ArchiveEntry.concealedAlias` alongside
 the real `characterId`/`characterName` — so `/archive` renders
-`Young Man (Sir Alder)`. That is the one surface where concealment is undone,
-which is why `archiveVisible` is meant to stay shut until the game ends
-(`ARCHIVE.md`).
+`Young Man (Sir Alder)`. That is one more surface where concealment is
+undone, and it is fine that it is: `/archive` is GM-only, always
+(`ARCHIVE.md`), and a GM could already see through `/conceal` everywhere
+else.
 
 ### Forced identity (`Tag.forcedName`)
 

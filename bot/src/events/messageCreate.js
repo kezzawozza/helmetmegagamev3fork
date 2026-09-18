@@ -17,6 +17,7 @@ const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { isDeadchatChannel } = require("@lifeweb/db/lib/deadchat");
 const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
+const { charactersNamedNearby } = require("@lifeweb/db/lib/characterMentions");
 const {
   canHearPing,
   messageLink,
@@ -150,9 +151,14 @@ module.exports = {
     // A concealed (or forced) message relays nothing — a DM naming the location would hand the
     // target a thread to pull on. A ghost relays nothing either: a mention typed in Deadchat that
     // DM'd a living player would be the dead reaching into the world.
-    if (ghost || identity.concealed || mentionedRoleIds.length === 0) return;
+    //
+    // The role check is gone from this gate. A BARE NAME is a mention too now
+    // (REDESIGN.md §2, §6), so a message with no `@` in it at all still has to be
+    // looked at; handleMentions returns on its own when neither list holds
+    // anybody. Same precedence as before — a hood beats everything.
+    if (ghost || identity.concealed) return;
 
-    await handleMentions({ message, channel, proxied, mentionedRoleIds }).catch((err) =>
+    await handleMentions({ message, channel, proxied, mentionedRoleIds, speakerId: character.id }).catch((err) =>
       console.error("Failed to handle mentions:", err),
     );
   },
@@ -176,33 +182,69 @@ async function touchThreadActivity(threadId) {
 
 // Two independent things a character-role mention does: notify the player, and — in a
 // Conversation — let them in.
-async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
+async function handleMentions({ message, channel, proxied, mentionedRoleIds, speakerId = null }) {
   const context = resolveChannelContext(channel);
   const mentioned = await resolveMentionedCharacters(mentionedRoleIds);
 
+  // The place this channel is, for the bare-name lookup and for the relay's own
+  // deep link. Memoised, already warm.
+  const placeKey = await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }).catch(() => null);
+
+  // A BARE NAME is a mention (REDESIGN.md §2, §6): "Marrow, get down" names
+  // Marrow exactly as `@Marrow` would. db/lib/mentions.js is the predicate and
+  // db/lib/characterMentions.js#charactersNamedNearby the earshot query, and the
+  // web's send path asks both the same way (bot/src/lib/feedOutbox.js), so one
+  // rule answers on both faces.
+  //
+  // NOTIFY-ONLY, and kept apart from `mentioned` for exactly that reason: a role
+  // mention inside a Conversation is also an invite, and a bare name must never
+  // be, or saying "Marrow told me" in a private conversation would pull her in.
+  // The message text is untouched either way — nothing is rewritten into a ping.
+  const named = placeKey
+    ? await charactersNamedNearby(prisma, {
+        placeKey,
+        content: message.content ?? "",
+        speakerId,
+      }).catch((err) => {
+        console.error("Bare-name mention lookup failed:", err?.message ?? err);
+        return [];
+      })
+    : [];
+
   // The proxy suppresses the role ping itself, so a swallowed mention looks delivered — log it.
   console.log(
-    `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
+    `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} named=${named.length} ` +
     `location=${context.locationId ?? "none"} kind=${context.channelKind ?? "none"}`,
   );
-  if (mentioned.length === 0) return;
+  if (mentioned.length === 0 && named.length === 0) return;
 
   // Each target costs a user fetch, a DM open, a send and a DB insert, all serialized. Ten is well
   // past any legitimate ping, and the refusal names who was dropped.
-  const relayed = mentioned.slice(0, MAX_MENTION_RELAYS);
-  const dropped = mentioned.slice(MAX_MENTION_RELAYS);
+  // Token targets first, so a name that is BOTH tokened and typed keeps its
+  // invite; deduped, then capped across the pair.
+  const wanted = [];
+  const seenIds = new Set();
+  for (const entry of [
+    ...mentioned.map((target) => ({ target, invite: true })),
+    ...named.map((target) => ({ target, invite: false })),
+  ]) {
+    if (!entry.target?.id || seenIds.has(entry.target.id)) continue;
+    seenIds.add(entry.target.id);
+    wanted.push(entry);
+  }
+  const relayed = wanted.slice(0, MAX_MENTION_RELAYS);
+  const dropped = wanted.slice(MAX_MENTION_RELAYS).map((entry) => entry.target);
   if (dropped.length > 0) {
     console.log(`[mentions] capped at ${MAX_MENTION_RELAYS}, skipped ${dropped.length}`);
     await sendDm(
       message.author,
-      `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
+      `» *That named ${wanted.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
       `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
       { kind: DM_KIND.QUIET },
     ).catch(() => { });
   }
 
   const link = messageLink(message.guildId, channel.id, proxied.id);
-  const placeKey = await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }).catch(() => null); // memoised, already warm
   // A mention only becomes an invite inside a Conversation — a private Room is gated on a key tag
   // instead (db/lib/roomAccess.js); a ping would route straight around that lock.
   const conversation = await prisma.playerThread
@@ -214,8 +256,8 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
 
   const notHere = []; // collected, so the author gets one DM instead of one per absent person named
 
-  for (const target of relayed) {
-    if (conversation) {
+  for (const { target, invite } of relayed) {
+    if (conversation && invite) {
       // Same contract as /add: recorded, applied now if the target already stands here, replayed
       // by applyPendingInvites otherwise. Membership is a DB row; Discord's list is its projection.
       await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
@@ -238,7 +280,10 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       continue;
     }
 
-    const heard = await canHearPing(target, context);
+    // A bare-name target came out of the earshot query itself, so it has already
+    // passed this; a role target has not, and a ping must not carry further than
+    // a voice would (PROXYING.md §6).
+    const heard = !invite || (await canHearPing(target, context));
     console.log(`[mentions] ${target.name}: ${heard ? "notified" : "out of earshot, no DM"}`);
     if (heard) {
       await notifyMentioned(message.client, target, context, link, { placeKey });

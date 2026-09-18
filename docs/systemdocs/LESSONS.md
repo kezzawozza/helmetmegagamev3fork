@@ -68,7 +68,7 @@ rule, used by the page to build the menus and by the offer and accept paths
 to re-check them:
 
 - the teacher holds the skill **or a higher tier of it** (`parentTagId` chain
-  — a Melee (Expert) can teach Melee (Basic));
+  — a Melee IV can teach Melee I);
 - the learner holds neither it nor a higher tier;
 - the learner holds its `parentTagId` when it has one, and its `requiredTagId`
   / group gate — a lesson can't skip a prerequisite the store won't.

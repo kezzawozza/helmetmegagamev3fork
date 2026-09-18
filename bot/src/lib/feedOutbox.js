@@ -24,6 +24,7 @@ const {
   tokensToRoles,
   earshotForPlaceKey,
   inEarshot,
+  charactersNamedNearby,
 } = require("@lifeweb/db/lib/characterMentions");
 const { sendDm } = require("@lifeweb/db/lib/dm");
 const { currentGameId } = require("@lifeweb/db/lib/archive");
@@ -85,10 +86,23 @@ function messageLink(channelId, messageId) {
 // The relay DM for a WEB-origin row — same shape as a Discord-origin mention
 // (bot/src/lib/mentions.js#notifyMentioned): where + jump link, never the words.
 // Uses db/lib/dm.js (REST) since the outbox has no discord.js client. Concealed sends relay nothing.
-async function relayWebMentions({ row, characters, concealed, channelId, messageId }) {
-  if (concealed || characters.length === 0) return;
+async function relayWebMentions({ row, characters, named = [], concealed, channelId, messageId }) {
+  if (concealed || (characters.length === 0 && named.length === 0)) return;
   const link = messageLink(channelId, messageId);
   if (!link) return;
+
+  // Two lists, and the difference is whether a Conversation lets the person IN.
+  // An explicit `{char:…}` is an invite as well as a ping — that is what /add
+  // does, in one keystroke — and a BARE NAME must never be, or saying "Marrow
+  // told me" in a private conversation would pull Marrow into it. Token targets
+  // first, so a name that is BOTH tokened and typed keeps its invite.
+  const wanted = [];
+  const seen = new Set();
+  for (const entry of [...characters.map((c) => ({ target: c, invite: true })), ...named.map((c) => ({ target: c, invite: false }))]) {
+    if (!entry.target?.id || seen.has(entry.target.id)) continue;
+    seen.add(entry.target.id);
+    wanted.push(entry);
+  }
 
   const [earshot, context, conversation] = await Promise.all([
     earshotForPlaceKey(prisma, row.placeKey),
@@ -105,8 +119,8 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
   const place = context.zoneName ?? "somewhere";
   const where = context.threadName ? `${place} · ${context.threadName}` : place;
 
-  for (const target of characters.slice(0, MAX_MENTION_RELAYS)) {
-    if (conversation) {
+  for (const { target, invite } of wanted.slice(0, MAX_MENTION_RELAYS)) {
+    if (conversation && invite) {
       // Same contract as /add: membership row, then an invite row (db/lib/threadInvites.js
       // replays it on arrival). A "web only" target has no Discord presence to add (CHAT.md §6).
       await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
@@ -122,7 +136,10 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
       }
     }
     if (!target.discordUserId) continue;
-    if (!conversation && !inEarshot(target, earshot)) continue;
+    // A bare-name target came out of the earshot query itself, so it has already
+    // passed this; a token target has not, and a ping must not carry further
+    // than a voice would (PROXYING.md §6).
+    if (!(conversation && invite) && !inEarshot(target, earshot)) continue;
     await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
       source: "mention",
       meta: { placeKey: row.placeKey, where },
@@ -229,9 +246,25 @@ async function pushRow(row) {
   // room they cannot reach — the dead reaching into the world, which this seat must not do. Refused
   // by name rather than left to earshot returning nothing for an unknown kind.
   if (!deadchat) {
+    // And a BARE NAME is a mention too, on both faces (REDESIGN.md §2, §6): the
+    // nine lines out of ten that just say "Marrow, get down" rather than picking
+    // her out of the @ menu. Notify-only — see relayWebMentions — and the TEXT is
+    // left exactly as written, so Discord reads the words the room read.
+    // Best-effort: a mention relay has never been allowed to cost the post.
+    const named = identity.alias
+      ? [] // a hooded send relays nothing at all, so there is nothing to look up
+      : await charactersNamedNearby(prisma, {
+          placeKey: row.placeKey,
+          content: row.content,
+          speakerId: row.characterId,
+        }).catch((err) => {
+          console.error("Bare-name mention lookup failed:", err?.message ?? err);
+          return [];
+        });
     await relayWebMentions({
       row,
       characters,
+      named,
       concealed: Boolean(identity.alias),
       channelId: target.threadId ?? target.channelId,
       messageId: posted.id,

@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import DeskRail, { DeskRailGroup, DeskRailItem } from "@/app/components/DeskRail";
 import { SECTION_TIER, allows } from "@/lib/devAccess";
 
 // The Dev Panel's section rail — a plain server component, no usePathname:
@@ -57,35 +56,28 @@ export default function OpsNav({ section, tier }) {
   })).filter((group) => group.items.length > 0);
 
   return (
-    <nav className="ops-nav">
+    <DeskRail variant="sections" as="nav" ariaLabel="Dev Panel sections">
       {groups.map((group) => (
-        <div key={group.title} className="ops-nav-group">
-          <span className="ops-nav-title">{group.title}</span>
+        <DeskRailGroup key={group.title} title={group.title} dense>
           {group.items.map((item) => (
-            <Link
+            <DeskRailItem
               key={item.key}
               href={`/gm/dev?s=${item.key}`}
-              className="ops-nav-item"
-              data-active={section === item.key ? "true" : undefined}
+              active={section === item.key}
             >
               {item.label}
-            </Link>
+            </DeskRailItem>
           ))}
-        </div>
+        </DeskRailGroup>
       ))}
 
       {allows(tier, SECTION_TIER.danger) ? (
-        <div className="ops-nav-group">
-          <span className="ops-nav-title">Danger</span>
-          <Link
-            href="/gm/dev?s=danger"
-            className="ops-nav-item"
-            data-active={section === "danger" ? "true" : undefined}
-          >
+        <DeskRailGroup title="Danger" dense>
+          <DeskRailItem href="/gm/dev?s=danger" active={section === "danger"}>
             Archive &amp; restart
-          </Link>
-        </div>
+          </DeskRailItem>
+        </DeskRailGroup>
       ) : null}
-    </nav>
+    </DeskRail>
   );
 }

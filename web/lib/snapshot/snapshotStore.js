@@ -44,6 +44,13 @@ export function roundTrip(data) {
   return JSON.parse(JSON.stringify(data, replacer));
 }
 
+// The same read the hook does, outside React. Chat's row cache restores in a
+// state initializer rather than from a hook — it writes into a module store, so
+// subscribing to it would only cost a render (./chat/rowCache.js).
+export function peekSnapshot(scope, userId) {
+  return readSnapshot(scope, userId);
+}
+
 function readSnapshot(scope, userId) {
   if (!userId) return null;
   const key = keyFor(scope, userId);

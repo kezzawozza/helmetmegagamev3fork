@@ -221,7 +221,7 @@ export default function HereList({
         if (!wrapRef.current?.contains(event.relatedTarget)) close();
       }}
     >
-      <p className="chat-section-title">Here · {total}</p>
+      <p className="group-label chat-section-title">Here · {total}</p>
       {total === 0 && <EmptyState>Nobody is here.</EmptyState>}
 
       {named.map((person) => (
@@ -314,7 +314,7 @@ export default function HereList({
       {/* Across a modular gate: seen through the bars, so listed, but nothing can be done to them — no menu, no eye. */}
       {(people?.across ?? []).map((group) => (
         <div key={group.locationId}>
-          <p className="chat-section-title">
+          <p className="group-label chat-section-title">
             {group.locationName} · {group.named.length + group.concealed.length}
           </p>
           {group.named.map((person) => (

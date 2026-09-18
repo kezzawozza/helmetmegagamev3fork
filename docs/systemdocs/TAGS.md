@@ -94,14 +94,19 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 ## 3. Two relations that look similar but aren't
 
 
-- **`parentTag` (tier chain)** — sequential, replacing. Melee (Basic) ->
-  Melee (Trained) -> Melee (Skilled) -> ... Acquiring a tier is meant
+- **`parentTag` (tier chain)** — sequential, replacing. Melee I ->
+  Melee II -> Melee III -> ... Acquiring a tier is meant
   to replace the previous one on the character, not stack alongside it.
-  `Laborer (Skilled)` chains off `Laborer (Basic)` the same way.
+  `Laboring II` chains off `Laboring I` the same way. Each rung's `name`
+  is a Roman numeral by its position in its own chain — first rung is
+  always `I`, whatever tier the chain happens to start at: the `builder-skilled`
+  slug now names `Builder I` even though there is no lower building tier
+  below it. Slugs and `parentTag`/`requiredTag` links did not change, only
+  `name` (`docs/systemdocs/REDESIGN.md` §7).
 - **`requiredTag` (prerequisite)** — non-replacing. The character must
   already hold `requiredTag`, but acquiring this tag does **not** remove or
   replace it. Example in the catalog: `Ranged (Archer)` requires
-  `Ranged (Basic)` but coexists with `Ranged (Skilled)` — a character can
+  `Ranged I` but coexists with `Ranged III` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
   gated tag doesn't consume: `Manor` requires `Courtier`, `House`/`Shack`
   require `Ravenhearter`, and
@@ -293,7 +298,7 @@ Simple rung had been authored to match the wrong claim.
 
 Lazy's `requiredTag: laboring-basic` is how "Laboring OR Commoner" gets
 expressed without an OR gate that doesn't exist: `holdsRequirement` walks the
-tier chain, and a Commoner starts with Laboring (Skilled), which already sits
+tier chain, and a Commoner starts with Laboring II, which already sits
 above Basic — so the single FK is satisfied by either the bare skill or the
 role that starts with a higher rung of it.
 
@@ -375,7 +380,7 @@ pool*, never whether the tag is a good thing to have:
 | tag | `pointCost` | shown as | colour |
 |---|---|---|---|
 | Frail | `-5` | `+5 pts` | `--positive` (pool grows) |
-| Melee (Basic) | `7` | `-7 pts` | `--accent` (pool shrinks) |
+| Melee I | `7` | `-7 pts` | `--accent` (pool shrinks) |
 | Shack | `0` | `0 pts` | `--muted` |
 
 These two functions are the only place that flip lives — every caller
@@ -713,8 +718,8 @@ has since been deleted outright along with the channel it opened.
 - **Melee and Ranged are the one exception — 7 per rung, Legendary at 14.**
   The Combat Update split the old Fighting ladder into two trees,
   `melee-basic..melee-legendary` and `ranged-basic..ranged-legendary`, in the
-  `Combat` group. Rungs are still cumulative, so Melee (Legendary) and Ranged
-  (Legendary) are each 42 (7+7+7+7+14) — unreachable from a 12-point creation
+  `Combat` group. Rungs are still cumulative, so Melee V and Ranged
+  V are each 42 (7+7+7+7+14) — unreachable from a 12-point creation
   budget by design; you climb into it in play. Sidegrades cost 10 (~1.4x a
   rung) and use `requiredTag` on their tree's Basic, so they are *not*
   cumulative and stack with each other and with any rung: Melee (Shield Wall,
@@ -1086,9 +1091,9 @@ them).
   `requirementPerTurn` / `requirementSkills` (YAML: nested under
   `requirement:` as `turnsCost` / `resourceCost` / `gambit` / `perTurn` /
   `skills`) — what it costs a character to add
-  or remove this tag in play (e.g. curing Arthritis needs Medical (Skilled)
+  or remove this tag in play (e.g. curing Arthritis needs Medical II
   and some turns; forging the revolver tag costs turns, resources, and
-  Smithing; the `cart` tag costs turns, resources, and `Builder (Skilled)` —
+  Smithing; the `cart` tag costs turns, resources, and `Builder I` —
   there is no "Basic" rung of that family, it starts at Skilled).
   `requirementSkills` is a many-to-many self-relation onto `Tag`
   (multiple skill tags accepted), resolved in `syncTags.js`'s pass 5. This
@@ -1430,9 +1435,9 @@ worse.
 
 **Above your tier is still possible, and the Heal request now implements it.**
 The requirement names what a character does **as routine**, which is why the
-three Medical descriptions are phrased that way. A Serpent (Medical (Skilled))
+three Medical descriptions are phrased that way. A Serpent (Medical II)
 can attempt the tier-6 surgery a punctured lung needs; they just roll for it,
-while Esculap (Medical (Expert)) does not.
+while Esculap (Medical III) does not.
 
 Reaching above your tier — or treating a tag whose own `requirementGambit` is
 set, which is the whole of what separates tier 7 from tier 6, since they share
@@ -1535,10 +1540,10 @@ joining them at M6. They are exceptions to "pick a rung," not new reusable
 rungs; don't copy their numbers onto anything else.
 
 - **`minor-bleeding`, `dislocated-shoulder`** — 0 ⬢, 0 turns, Medical
-  (Basic). Below tier 1: a bandage or a shoulder pop is real medical
+  I. Below tier 1: a bandage or a shoulder pop is real medical
   knowledge, but it costs the doctor nothing to do.
 - **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 0.25 Move,
-  Medical (Skilled). Sits between tiers 3 and 4: stopping blood loss is
+  Medical II. Sits between tiers 3 and 4: stopping blood loss is
   urgent but simpler than the rest of what "Severe" covers.
 - **`choking`, `hypothermia`** — 2 ⬢, 0.25 Move, no skill. A Heimlich (or
   warming somebody back up) needs no training at all — the ⬢ buys the
@@ -1546,7 +1551,7 @@ rungs; don't copy their numbers onto anything else.
   by M2 (it used to cost a whole turn); Hypothermia was untreatable at all
   until M6 gave it the identical shape; both now bill the same flat 0.25 Move
   every other rung-2 tag does, never the free pool.
-- **`frostbite`** — 2 ⬢, 0.25 Move, Medical (Skilled). Also gained
+- **`frostbite`** — 2 ⬢, 0.25 Move, Medical II. Also gained
   `expiresInto: [necrosis]` — it now progresses like an untreated wound
   instead of sitting inert.
 
@@ -1700,7 +1705,7 @@ is.
 That turn is the whole design, and three wounds are exempt from it on purpose
 (the `dead` token above) because their descriptions promise otherwise.
 `dying` is visible and carries a tier-7 cure,
-so a heroic save is still on the table — a medic with Medical (Expert), a
+so a heroic save is still on the table — a medic with Medical III, a
 Gambit, 13 ⬢ and one turn can pull someone back. What went away is the version
 where a character sat on death's door indefinitely because no GM had got to
 the Kill button. The pass is also careful in one direction: a `dying` row with

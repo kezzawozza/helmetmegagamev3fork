@@ -291,7 +291,7 @@ each arrived at by getting them wrong first.
    god of chance and disorder collects. Every ALIVE holder of
    `{tag:old-ways-xom}` rolls once on a weighted table, and roughly half the
    time nothing happens. The rest of the table hands out an item, a Seizure,
-   Rage, Melee (Legendary), a scream, a teleport across the map, Madness on
+   Rage, Melee V, a scream, a teleport across the map, Madness on
    every clergy character at once, or a death. Audit action `xom_resolved`.
 
    **The table is code, in `db/lib/xom.js`, not a YAML master.** Six of its
