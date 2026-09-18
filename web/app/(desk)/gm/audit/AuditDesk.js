@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import { useRouter } from "next/navigation";
 import Pager from "@/app/components/Pager";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import { useRefresh } from "@/app/components/useRefresh";
 import AuditFeed from "./AuditFeed";
 import AuditFilters from "./AuditFilters";
@@ -35,7 +37,6 @@ export default function AuditDesk({
   typeCounts,
   actors,
   characters,
-  factions,
   zones,
   locations,
   turnNumbers,
@@ -172,6 +173,7 @@ export default function AuditDesk({
                 open" and "the chip has not loaded" looked the same. */}
             <DeskTurnChip turn={openTurn} />
             <LockChip />
+            <BascinetClock />
             {freshCount > 0 && (
               <button type="button" className="chip" onClick={acknowledge}>
                 {freshCount} new
@@ -212,19 +214,18 @@ export default function AuditDesk({
       />
 
       <div className="desk-body">
-        <div className="desk-rail">
+        <DeskRail variant="sections" as="div" ariaLabel="Audit filters">
           <AuditFilters
             filters={filters}
             set={set}
             typeCounts={typeCounts}
             actors={actors}
             characters={characters}
-            factions={factions}
             zones={zones}
             locations={locations}
             turnNumbers={turnNumbers}
           />
-        </div>
+        </DeskRail>
 
         <main className="desk-main audit-main">
           <AuditFeed
@@ -267,7 +268,6 @@ function hrefFor(next) {
   for (const v of next.actors) put("actor", v);
   put("actorKind", next.actorKind);
   for (const v of next.targets) put("target", v);
-  for (const v of next.factions) put("faction", v);
   for (const v of next.zones) put("zone", v);
   for (const v of next.locations) put("location", v);
   for (const v of next.rooms) put("room", v);
@@ -292,7 +292,6 @@ function emptyFilters() {
     actors: [],
     actorKind: "",
     targets: [],
-    factions: [],
     zones: [],
     locations: [],
     rooms: [],
@@ -316,7 +315,6 @@ function toQueryObject(f) {
     actor: f.actors,
     actorKind: f.actorKind,
     target: f.targets,
-    faction: f.factions,
     zone: f.zones,
     location: f.locations,
     room: f.rooms,

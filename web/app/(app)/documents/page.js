@@ -54,7 +54,6 @@ async function FreshDocuments() {
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
       include: {
         role: true,
-        faction: true,
         tags: { include: { tag: { select: { slug: true, name: true } } } },
       },
     }),
@@ -175,7 +174,6 @@ async function FreshDocuments() {
       docElementKeys.has(d.key) ||
       d.tagSlugs.length > 0 ||
       d.roleSlugs.length > 0 ||
-      d.factionSlugs.length > 0 ||
       d.flags.length > 0;
     return routed ? "Assigned" : "Unrouted";
   };

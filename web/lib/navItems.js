@@ -1,4 +1,5 @@
-import { prisma, MORTUS_SLUG, MERCHANT_LICENSE_SLUG } from "@lifeweb/db";
+import { prisma, MORTUS_SLUG } from "@lifeweb/db";
+import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { railKindSql } from "@/lib/dmThread";
@@ -7,7 +8,6 @@ export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
   { href: "/chat", label: "Chat", icon: "play" },
   { href: "/map", label: "Map", icon: "map" },
-  { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
   { href: "/handbook", label: "Handbook", icon: "help" },
@@ -30,10 +30,17 @@ export const GM_NAV = [
 
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
-const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
-// Not extended to every GM (no counter to trade at, /depot redirects them); a superadmin is the
-// one exception, /depot answers them with a read-only price list. See docs/systemdocs/DEPOT.md §2.
+const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "gm" };
+// On every player's rail, always. The Depot is a public market now and the page
+// is a shop window — read-only unless you are standing in it, which is the page's
+// own business, not the rail's. See docs/systemdocs/DEPOT.md §2.
 const DEPOT_NAV_ITEM = { href: "/depot", label: "Depot", icon: "store", section: "player" };
+// The Meister's terminal over the town's accounts. Follows PLACE AND KEY, the
+// same predicate the page itself gates on (db/lib/depotCounter.js), so the rail
+// can never offer an item that redirects. It comes and goes as its holder walks
+// in and out of the Keep, which is the cost of a terminal being a thing on a
+// desk. See docs/systemdocs/DEPOT.md §0h.
+const TREASURY_NAV_ITEM = { href: "/treasury", label: "Treasury", icon: "store", section: "player" };
 
 // Streamed separately (Suspense boundary in AppRail) — the live Discord role check and the
 // Mortus-tag lookup never block a navigation's paint.
@@ -53,18 +60,14 @@ async function loadUnreadConversationCount(discordUserId) {
 }
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, hasLicenceTag, config, gameConfig, pastGames] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, treasuryGate, gameConfig] = await Promise.all([
     getGmSession(),
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
     }),
-    prisma.characterTag.findFirst({
-      where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
-    }),
-    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
+    canReadTreasury(prisma, discordUserId),
     // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true, oraclePlaytest: true } }),
-    prisma.game.count({ where: { endedAt: { not: null } } }),
   ]);
   const superadmin = isSuperadmin(discordUserId);
   // The Lifeweb item follows the Mortus tag, not the GM role — a superadmin keeps it, host access
@@ -81,10 +84,10 @@ export async function loadNavItems(discordUserId) {
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
-  const withArchive =
-    gm || config?.archiveVisible || pastGames > 0 ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
-  const withDepot = hasLicenceTag || superadmin ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
-  if (!superadmin) return withDepot;
-  const lastGm = withDepot.findLastIndex((item) => item.section === "gm");
-  return [...withDepot.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withDepot.slice(lastGm + 1)];
+  const withArchive = gm ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
+  const withDepot = [...withArchive, DEPOT_NAV_ITEM];
+  const withTreasury = treasuryGate.ok || superadmin ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
+  if (!superadmin) return withTreasury;
+  const lastGm = withTreasury.findLastIndex((item) => item.section === "gm");
+  return [...withTreasury.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withTreasury.slice(lastGm + 1)];
 }

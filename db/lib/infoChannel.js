@@ -6,76 +6,41 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { getGuildChannels, fetchAllMessages, bulkDeleteMessages } = require("./discordRest");
-const { ROLE_GROUPS, ROLE_GROUP_OVERRIDES } = require("./roleGroups");
+const { ALL_GROUPS } = require("./roleGroups");
 const { docsPath } = require("./repoPaths");
 
 const YAML_PATH = docsPath("systemdocs", "infochannel.yaml");
 const ROLES_YAML_PATH = docsPath("roles.yaml");
 const DOCS_DIR = docsPath();
 
-// Generator for the Fates thread. Name + intro text only, grouped by the
-// seven social buckets of db/lib/roleGroups.js (imported, not duplicated, so
-// the thread and the picker can't disagree). Names NO ZONE on purpose — that
-// would tell readers where a faction camps before the game starts. A fate
-// whose faction is whitelisted-only wears a ★ (`whitelist:`, not `leader:`).
-// Bolded names are the two high-cap go-anywhere fates. Reads roles.yaml fresh
-// every run, so this thread can never drift from it.
-const BOLD_ROLE_NAMES = new Set(["Commoner", "Migrant"]);
-
-// "The Court" under a "Court" heading is just the heading again. Compared
-// normalized so the faction line is skipped there and kept everywhere it
-// carries something new ("The Sanctuary" under Saviors).
-function sameName(a, b) {
-  const strip = (v) => String(v ?? "").trim().toLowerCase().replace(/^the\s+/, "");
-  return strip(a) === strip(b);
-}
+// Generator for the Fates thread. Name + intro text only, under the social
+// buckets of db/lib/roleGroups.js (imported, not duplicated, so the thread and
+// the picker can't disagree). Names NO ZONE on purpose — that would tell
+// readers where a seat starts before the game does. A reserved fate wears a ★
+// (`whitelist:`). The bolded name is the high-cap go-anywhere fate. Reads
+// roles.yaml fresh every run, so this thread can never drift from it.
+const BOLD_ROLE_NAMES = new Set(["Migrant"]);
 
 function buildRolesIntroBody() {
   const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
 
-  const bucketOf = new Map();
-  for (const group of ROLE_GROUPS) {
-    for (const slug of group.factionSlugs) bucketOf.set(slug, group.slug);
-  }
   const ELSEWHERE = "other";
-  const order = [...ROLE_GROUPS, { slug: ELSEWHERE, name: "Elsewhere" }];
-  // bucket slug -> ordered list of { factionName, lines }, one per faction
-  const held = new Map(order.map((g) => [g.slug, []]));
+  // bucket slug -> its lines, in authoring order
+  const held = new Map(ALL_GROUPS.map((g) => [g.slug, []]));
 
-  // `factions`/`roles` are slug-keyed MAPPINGS in roles.yaml, read the same way by syncRoles.js.
-  for (const zone of rolesDoc.zones ?? []) {
-    for (const [factionSlug, faction] of Object.entries(zone.factions ?? {})) {
-      const home = bucketOf.get(factionSlug) ?? ELSEWHERE;
-      for (const [roleSlug, role] of Object.entries(faction.roles ?? {})) {
-        // Same precedence as groupRoles: a role may override its faction's bucket (Fisherman -> Soil).
-        const wanted = ROLE_GROUP_OVERRIDES[roleSlug] ?? home;
-        const bucket = held.has(wanted) ? wanted : ELSEWHERE;
-        const marker = BOLD_ROLE_NAMES.has(role.name) ? "**" : "*";
-        const whitelistMark = role.whitelist === true ? " (★)" : "";
-        const line = `${marker}${role.name}${marker}${whitelistMark} — ${role.intro}`;
-
-        const sections = held.get(bucket);
-        let section = sections.find((s) => s.factionName === faction.name);
-        if (!section) {
-          section = { factionName: faction.name, lines: [] };
-          sections.push(section);
-        }
-        section.lines.push(line);
-      }
+  // `groups`/`roles` are slug-keyed MAPPINGS in roles.yaml, read the same way by syncRoles.js.
+  for (const [groupSlug, roles] of Object.entries(rolesDoc.groups ?? {})) {
+    const bucket = held.has(groupSlug) ? groupSlug : ELSEWHERE;
+    for (const role of Object.values(roles ?? {})) {
+      const marker = BOLD_ROLE_NAMES.has(role.name) ? "**" : "*";
+      const whitelistMark = role.whitelist === true ? " (★)" : "";
+      held.get(bucket).push(`${marker}${role.name}${marker}${whitelistMark} — ${role.intro}`);
     }
   }
 
   // A heading is followed straight by its content; blank lines only separate groups.
-  return order
-    .filter((group) => held.get(group.slug).length > 0)
-    .map((group) => {
-      const sections = held.get(group.slug).map((section) =>
-        sameName(section.factionName, group.name)
-          ? section.lines.join("\n")
-          : [`***${section.factionName}***`, ...section.lines].join("\n"),
-      );
-      return `# ${group.name}\n${sections.join("\n\n")}`;
-    })
+  return ALL_GROUPS.filter((group) => held.get(group.slug).length > 0)
+    .map((group) => `# ${group.name}\n${held.get(group.slug).join("\n")}`)
     .join("\n\n");
 }
 

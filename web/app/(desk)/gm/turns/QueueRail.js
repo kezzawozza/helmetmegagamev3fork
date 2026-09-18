@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import CheckField from "@/app/components/CheckField";
 import StatusPill from "@/app/components/StatusPill";
 import Select from "@/app/components/Select";
@@ -41,7 +42,7 @@ const CAVING_STATUS_RANK = { "Needs attention": 0, Resolved: 1 };
 const CAVING_STATUS_OPTIONS = ["Needs attention", "Resolved"];
 
 const MOVE_FILTER_DEFS = [
-  { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
+  { key: "zone", label: "Zone", value: (r) => r.zoneName },
   { key: "kind", label: "Kind", value: (r) => r.kindLabel, options: MOVE_KIND_OPTIONS },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: MOVE_STATUS_OPTIONS },
 ];
@@ -52,8 +53,7 @@ function makeMoveSearchMap(tagsById) {
     name: r.characterName,
     username: r.discordUsername,
     role: r.roleTitle,
-    faction: r.factionName,
-    zone: `${r.factionZoneName ?? ""} ${r.locationLabel ?? ""}`,
+    zone: `${r.zoneName ?? ""} ${r.locationLabel ?? ""}`,
     tag: (r.tags ?? []).map((t) => tagsById?.[t.tagId]?.name ?? "").join(" "),
     kind: r.kindLabel,
     status: r.statusLabel,
@@ -101,8 +101,7 @@ const getFalse = () => false;
 // ever "Needs attention"; every roll shows by default, unresolved TROUBLE
 // just ranks first.
 const CAVING_FILTER_DEFS = [
-  // The zone the die rolled in, not the roller's faction seat — see
-  // cavingRollRow in web/lib/moveRows.js.
+  // The zone the die rolled in — see cavingRollRow in web/lib/moveRows.js.
   { key: "zone", label: "Zone", value: (r) => r.zoneName },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: CAVING_STATUS_OPTIONS },
 ];
@@ -110,7 +109,6 @@ const cavingSearchMap = (r) => ({
   name: r.characterName,
   username: r.discordUsername,
   role: r.roleTitle,
-  faction: r.factionName,
   zone: r.zoneName,
   kind: r.kindLabel,
   status: r.statusLabel,
@@ -1112,7 +1110,7 @@ export default function QueueRail({
   ]);
 
   return (
-    <aside className="desk-rail" ref={railRef}>
+    <DeskRail as="aside" scrollRef={railRef} ariaLabel="Turn queue">
       <div className="segmented desk-rail-lens" role="group" aria-label="Queue lens">
         <button type="button" aria-pressed={lens === "moves" || !lens} onClick={() => onLens?.("moves")}>
           Moves ({movesShown.length})
@@ -1383,6 +1381,6 @@ export default function QueueRail({
         </>
       )}
       <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c/d/h lens · esc close</p>
-    </aside>
+    </DeskRail>
   );
 }

@@ -1,8 +1,8 @@
 // Looking at whoever said one archived line — the Prisma half of
 // db/lib/examine.js, which stays deliberately pure. The ONE path behind every
 // look now (Discord 🔍/📸, the web feed eye, the HERE column, the camera),
-// replacing four copies that used to agree by hand on the doctor's-eye/
-// officer's-⬢/hood rules. Pressed against a SEQ, not a character id, so the
+// replacing four copies that used to agree by hand on the doctor's-eye and
+// hood rules. Pressed against a SEQ, not a character id, so the
 // server resolves the speaker itself and a page can offer a look at a hooded
 // line without being told who's under it (avoiding db/lib/whosHere.js#hoodToken).
 // AND IT ANSWERS FOR THE MOMENT THE LINE WAS SAID, not for now: a mask coming
@@ -13,11 +13,11 @@
 // falls back to the live character. `viewer` is a live Character loaded with
 // VIEWER_SELECT below. Returns { blocked } when they can't see, null when the
 // line/speaker is gone, { readout } otherwise.
-const { getMyFactionRole } = require("./factionPermissions");
 const { EXAMINE_TAG_SELECT, EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("./examine");
 const { readPresentedState, rehydrateSubject } = require("./examineSnapshot");
 const { buildSkillAncestry, satisfiedSkillIds } = require("./medicalVision");
 const { examineBlock } = require("./examineVision");
+const { isDaylight } = require("./turnClock");
 const { forcedNameFrom, wasHooded } = require("./presentedIdentity");
 const { feedWipeFloors, floorForPlace } = require("./feedWipe");
 const { mayReadPlace } = require("./feedAccess");
@@ -28,7 +28,6 @@ const { THANATI_SLUG } = require("./thanati");
 const VIEWER_SELECT = {
   id: true,
   locationId: true,
-  factionId: true,
   discordUserId: true,
   tags: { select: { tagId: true, equipped: true, tag: { select: { slug: true } } } },
   location: { select: { indoors: true } },
@@ -72,11 +71,11 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   if (row.kind !== "MESSAGE") return null;
   if (row.characterId === viewer.id) return null;
 
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, phase: true } });
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
 
   // Blindness first — nothing else can rescue it.
   const blocked = examineBlock(viewer.tags ?? [], {
-    phase: openTurn?.phase ?? null,
+    daylight: isDaylight(),
     indoors: viewer.location?.indoors ?? true,
   });
   if (blocked && !ghost) return { blocked };
@@ -105,21 +104,20 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   });
   if (!live) return null;
 
-  // The tag CATALOG (rules, not disguise — a rebalance should reach an old line) and the faction
-  // they were in then, gating both Role and ⬢.
-  const [catalog, faction] = state
-    ? await Promise.all([
-      prisma.tag.findMany({
-        where: { id: { in: state.tags.map((t) => t.tagId) } },
-        select: { id: true, ...EXAMINE_TAG_SELECT },
-      }),
-      state.factionId
-        ? prisma.faction.findUnique({ where: { id: state.factionId }, select: { name: true, slug: true } })
-        : null,
-    ])
-    : [[], null];
+  // The tag CATALOG — rules, not disguise: a rebalance should reach an old line.
+  const catalog = state
+    ? await prisma.tag.findMany({
+      where: { id: { in: state.tags.map((t) => t.tagId) } },
+      select: { id: true, ...EXAMINE_TAG_SELECT },
+    })
+    : [];
 
-  const subject = state ? rehydrateSubject({ live, state, tags: catalog, faction }) : live;
+  // A row with no snapshot falls back to the live character, which carries no
+  // `visibleRoleTitle` — so a line written before that key existed reads out no
+  // role, the same way it already drops the faction-era `r` and `f`. The live
+  // select above is deliberately NOT widened to fetch one: a live role read on a
+  // frozen line is the thing this whole file exists to prevent.
+  const subject = state ? rehydrateSubject({ live, state, tags: catalog }) : live;
 
   // Every duration counts against the turn the LINE was said, not today's — a
   // frozen `expiresTurn: 12` read on turn 20 would falsely render "expires
@@ -134,13 +132,8 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   const sightTags = bystander ? [] : (viewer.tags ?? []); // a camera gets none of the viewer's
 
   // A hood gets the impoverished read, so neither query below is worth running for one.
-  const [skillCatalog, officer, lastDesire] = await Promise.all([
+  const [skillCatalog, lastDesire] = await Promise.all([
     bystander ? [] : prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
-    // A Leader/Treasurer of the SUBJECT's faction sees their ⬢ — keyed on the faction they were
-    // in THEN, since that's the one the readout answers for.
-    !hooded && subject.factionId && viewer.discordUserId
-      ? getMyFactionRole(prisma, viewer.discordUserId, subject.factionId).then((r) => r.isOfficer)
-      : false,
     !hooded && canSeeDesire(sightTags)
       ? prisma.desire.findFirst({
         where: {
@@ -172,8 +165,6 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
         ),
       openTurnNumber: readoutTurn,
       lastDesire,
-      viewerFactionId: viewer.factionId ?? null,
-      viewerIsOfficer: officer,
       wasConcealedAs: hooded ? (row.concealedAlias ?? null) : null, // the hood the room SAW
       viewerIsThanati: !bystander && (viewer.tags ?? []).some((ct) => ct.tag?.slug === THANATI_SLUG),
     }),

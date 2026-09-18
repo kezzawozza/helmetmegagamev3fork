@@ -16,7 +16,6 @@ import { SignOutIcon } from "@/app/components/icons";
 import { signOutOfDiscord } from "@/app/actions";
 import { describeTurn } from "@/lib/turnFormat";
 import Feed from "./Feed";
-import FactionPanel from "./FactionPanel";
 import DmPane, { DM_PLACE_KEY } from "./DmPane";
 import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmStore";
 import NoticeCards from "./NoticeCards";
@@ -30,6 +29,13 @@ import { useSeen, markSeen, markAllSeen, seedSeenIfFresh, isUnread } from "./see
 import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
 import { useOpenPlace, setOpenPlace } from "./openPlace";
+import { seedCachedRows, startRowCache } from "./rowCache";
+import { useNotified, noteNotified, clearNotified, clearAllNotified } from "./notifiedStore";
+// By PATH, not through the @lifeweb/db barrel — the barrel pulls Prisma into
+// whatever imports it and this is a "use client" file. The module has zero
+// requires of its own precisely so both faces can ask it the same question
+// (db/lib/mentions.js).
+import { textNamesCharacter } from "@lifeweb/db/lib/mentions";
 import { useStreamState, noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { useRefresh } from "@/app/components/useRefresh";
 import {
@@ -118,11 +124,6 @@ export default function Chat({
   // gate themselves.
   letters = null,
   conceal = null,
-  // The faction this character is in, or null. A pseudo-place in the column
-  // rather than a place: it has no channel, so what its row opens is a panel
-  // (./FactionPanel.js), and the whole roster is decided on the server
-  // (web/lib/selfPools.js#loadFactionView).
-  faction = null,
   // The newest thing Bascinet said by DM, as epoch ms, for the Messages row's
   // dot before the pane has opened (./DmPane.js). The store takes over from
   // the first stream frame on.
@@ -144,13 +145,10 @@ export default function Chat({
   const wanted = useOpenPlace();
   const stream = useStreamState();
 
-  // The faction's row. `faction:<id>` is a place key the archive will never
-  // hold, which is exactly what makes it safe as a pseudo-key: it round-trips
-  // through the hash like any other, and nothing that reads a feed can ever
-  // match it.
-  const factionKey = faction ? `faction:${faction.id}` : null;
-  // And Bascinet's: the DM conversation, the same kind of pseudo-key (CHAT.md
-  // §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
+  // Bascinet's row: the DM conversation. `dm` is a place key the archive will
+  // never hold, which is exactly what makes it safe as a pseudo-key — it
+  // round-trips through the hash like any other, and nothing that reads a feed
+  // can ever match it (CHAT.md §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
   // and epoch ms is one — so the dot works without seenStore knowing.
   const dmState = useDmState();
   // Gated on the ACCOUNT, not on a living character. The DM thread belongs to
@@ -164,22 +162,14 @@ export default function Chat({
     const out = [];
     if (dmKey) out.push({ placeKey: dmKey, name: "Bascinet", kind: "dm", newestSeq: dmNewest, notableSeq: dmNewest });
     out.push(...places);
-    if (factionKey) {
-      out.push({ placeKey: factionKey, name: faction.name, kind: "faction", newestSeq: null, notableSeq: null });
-    }
     return out;
-  }, [places, factionKey, faction, dmKey, dmNewest]);
+  }, [places, dmKey, dmNewest]);
   const byKey = useMemo(() => new Map(navPlaces.map((place) => [place.placeKey, place])), [navPlaces]);
   // A remembered place you have since left falls back to the first place, so
   // a stale bookmark opens the street rather than a blank column.
   const selectedKey = (wanted && byKey.has(wanted) ? wanted : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
-  const factionOpen = Boolean(factionKey && selectedKey === factionKey);
   const dmOpen = Boolean(dmKey && selectedKey === dmKey);
-  // The silo is a Room, so the button only draws when that room is in this
-  // character's own place list — a shut door keeps it out of the list, and a
-  // button selecting a place they cannot read would be a dead end.
-  const siloOpen = Boolean(faction?.silo && byKey.has(faction.silo.placeKey));
 
   const onSelect = useCallback((placeKey) => {
     setOpenPlace(placeKey);
@@ -210,11 +200,32 @@ export default function Chat({
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);
 
+  // The notified counts, and what clears one: opening the place, or bringing the
+  // tab back to a place that was already open. Discord clears on read and so does
+  // this — a count you have to dismiss is a second chore.
+  //
+  // Nothing here sets state: clearNotified writes localStorage and notifies its
+  // own store, which is what useSyncExternalStore is for
+  // (react-hooks/set-state-in-effect is an error here).
+  const notified = useNotified();
+  useEffect(() => {
+    if (!selectedKey) return undefined;
+    const clear = () => {
+      if (document.visibilityState === "visible") clearNotified(selectedKey);
+    };
+    clear();
+    document.addEventListener("visibilitychange", clear);
+    return () => document.removeEventListener("visibilitychange", clear);
+  }, [selectedKey]);
+
   // The tick in the column's foot. Off the SAME `newest` every row's mark is
   // drawn from, so what it clears is exactly what was lit — a place whose
   // newest is null has nothing to mark and is skipped by markAllSeen.
   const onMarkAllSeen = useCallback(() => {
     markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) })));
+    // The tick says "I have read everywhere", which is a claim about the red
+    // counts too — leaving them lit would make the control a half-truth.
+    clearAllNotified();
   }, [navPlaces, newest]);
 
   // A browser opening Chat for the first time starts caught up rather
@@ -233,6 +244,15 @@ export default function Chat({
     // seedInitial rather than the three writes on their own: this runs during
     // a render, and that variant holds the store's notification for exactly
     // as long as it takes (feedStore.js#seedInitial).
+    try {
+      // What this browser last heard, before the server's own rows go in
+      // (./rowCache.js). Both only ADD, so the order costs nothing — and a
+      // place that was read on the last visit paints in the first frame
+      // instead of a skeleton while its history request is out.
+      seedCachedRows(self?.discordUserId ?? null);
+    } catch {
+      // A refused localStorage costs a skeleton, nothing more.
+    }
     try {
       seedInitial({ places: initialPlaces, place: initialPlace, rows: initialRows });
     } catch {
@@ -255,6 +275,11 @@ export default function Chat({
     }
     return null;
   });
+
+  // Keeps those stored windows in step with the store, coarsely. Sets no state
+  // of its own, which is what lets it live in an effect
+  // (react-hooks/set-state-in-effect is an error here).
+  useEffect(() => startRowCache(self?.discordUserId ?? null), [self?.discordUserId]);
 
   const [chimeMuted, setChimeMuted] = useChatChimeMuted();
 
@@ -583,20 +608,33 @@ export default function Chat({
           ) {
             setPlacesVersion((n) => n + 1);
           }
-          // Somebody said your name. The token is what the row is made of on
-          // both faces (CHAT.md §5), so this rings for a Discord-origin mention
-          // exactly as it does for a web one — and never for your own words.
-          // mentionsCharacter knows both spellings of the token, so the chime
-          // could not stop ringing when the grammar grew a name half.
+          // Somebody said your name. Two spellings count: the explicit
+          // `{char:…}` token, which is what a picked mention is made of on both
+          // faces (CHAT.md §5), and a BARE name, which is what nine lines out of
+          // ten actually use (db/lib/mentions.js, REDESIGN.md §6). Never your own
+          // words, and never your real name while you are hooded — under a hood
+          // the room does not know that name is yours, so being pinged by it
+          // would be the hood confirming itself.
           if (
             self?.characterId &&
             !isOwnRow(row, self.characterId, self.speakerKey) &&
             typeof row.content === "string" &&
-            mentionsCharacter(row.content, self.characterId) &&
-            !chatChimeMuted() &&
-            !chimedRecently()
+            row.source !== "SYSTEM" &&
+            (mentionsCharacter(row.content, self.characterId) ||
+              (!self.aliased && self.name && textNamesCharacter(row.content, self.name)))
           ) {
-            playChime(0.35);
+            // The count, unless they are already looking at the place — Discord
+            // clears on read, so raising a number on a scene under somebody's
+            // eyes only gives them something to dismiss. The notification itself
+            // is refused while the tab is in front (./notifiedStore.js).
+            const reading = key === selectedRef.current && document.visibilityState === "visible";
+            if (!reading) {
+              noteNotified(key, {
+                title: `${self.name ?? "You"} was named`,
+                body: row.name ? `${row.name} said your name` : "Somebody said your name",
+              });
+            }
+            if (!chatChimeMuted() && !chimedRecently()) playChime(0.35);
           }
         } catch {
           // A malformed frame is not worth tearing the stream down over.
@@ -672,8 +710,11 @@ export default function Chat({
           addDmRow(row);
           // Quiet only while the pane is open AND somebody is looking at it.
           const reading = selectedRef.current === DM_PLACE_KEY && document.visibilityState === "visible";
-          if (row?.direction === "OUTBOUND" && !reading && !chatChimeMuted() && !chimedRecently()) {
-            playChime(0.35);
+          if (row?.direction === "OUTBOUND" && !reading) {
+            // A line in your Bascinet mail is a notified event by definition —
+            // it was written to you and to nobody else (REDESIGN.md §6).
+            noteNotified(DM_PLACE_KEY, { title: "Bascinet wrote to you", body: "Open Chat to read it" });
+            if (!chatChimeMuted() && !chimedRecently()) playChime(0.35);
           }
         } catch {
           // Same.
@@ -696,15 +737,14 @@ export default function Chat({
       window.removeEventListener("online", wake);
       window.removeEventListener("pageshow", wake);
     };
-  }, [mountSeq, self?.characterId, self?.speakerKey, refresh]);
+  }, [mountSeq, self?.characterId, self?.speakerKey, self?.aliased, self?.name, refresh]);
 
   // What was said BEFORE the page opened, for a place the reader has just
   // chosen. The stream only ever carries what happens next, so without this a
   // room opened for the first time would look empty until somebody spoke.
   useEffect(() => {
-    // The two pseudo-places have no feed to load (./FactionPanel.js,
-    // ./DmPane.js — the pane fetches its own page).
-    if (!selectedKey || selectedKey.startsWith("faction:") || selectedKey === DM_PLACE_KEY || historyLoaded(selectedKey)) {
+    // The pseudo-place has no feed to load — ./DmPane.js fetches its own page.
+    if (!selectedKey || selectedKey === DM_PLACE_KEY || historyLoaded(selectedKey)) {
       return undefined;
     }
     // "loading" first, so Feed.js draws the skeleton instead of the empty
@@ -872,6 +912,7 @@ export default function Chat({
       places={navPlaces}
       selected={selectedKey}
       seen={seen}
+      notified={notified}
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
       viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}
@@ -923,6 +964,11 @@ export default function Chat({
   return (
     <div className="chat-body">
       {!narrow && placesColumn}
+      {/* The mockup's metal rails, as real grid tracks rather than pseudo-
+          elements pinned to a column-width custom property — see chat.css.
+          Rendered only alongside the column they border, the same condition
+          that column already mounts (or not) under. */}
+      {!narrow && <div className="chat-rail" aria-hidden="true" />}
       <div className="chat-centre" ref={centreRef}>
         {/* The live feed is down. Here rather than in the feed or the column
             foot: this row is on screen whichever pane is open, on a phone as
@@ -938,9 +984,7 @@ export default function Chat({
             The connection dropped. Reload to catch up.
           </p>
         )}
-        {factionOpen ? (
-          <FactionPanel faction={faction} siloOpen={siloOpen} onSelect={onSelect} drawers={drawers} />
-        ) : dmOpen ? (
+        {dmOpen ? (
           <DmPane self={self} drawers={drawers} />
         ) : (
         <Feed
@@ -992,6 +1036,10 @@ export default function Chat({
         />
         )}
       </div>
+      {/* The right rail, mounted alongside whichever aside is about to mount
+          below — same two conditions, ORed, since exactly one of the next two
+          blocks ever renders. */}
+      {(aside || gmZones) && !asideFolded && <div className="chat-rail" aria-hidden="true" />}
       {/* ONE of these ever mounts. The CSS hides the column under 900px, but
           hiding is not unmounting: both copies used to be live at once on a
           phone, which meant two travel loads, two stash reads and two

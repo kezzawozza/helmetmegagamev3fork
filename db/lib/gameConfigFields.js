@@ -23,7 +23,9 @@ const GROUPS = [
   { key: "discord", name: "Discord" },
 ];
 
-// type: "int" | "float" | "bool". min/max clamp an int or float on save.
+// type: "int" | "float" | "bool" | "select". min/max clamp an int or float on save; a select declares its `options` as
+// { value, label } and the parser takes the value's own type from the option, so one branch serves an Int column
+// (turnLengthHours) and an enum one (gameMode) alike.
 const FIELDS = [
   // --- Character creation --------------------------------------------------
   {
@@ -118,6 +120,21 @@ const FIELDS = [
   {
     key: "autoTurnAdvanceDisabled", type: "bool", group: "clock", default: false,
     label: "Pause automatic turn advance",
+  },
+  {
+    key: "turnLengthHours", type: "select", group: "clock", default: 24,
+    options: [6, 8, 12, 24].map((h) => ({ value: h, label: `${h} hours` })),
+    label: "Turn length",
+    info: "Takes effect at the next turn, never the open one. Adjudication window: 2 hours on 6 and 8, 3 on 12 and 24.",
+  },
+  {
+    key: "gameMode", type: "select", group: "clock", default: "PERSISTENT",
+    options: [
+      { value: "PERSISTENT", label: "Persistent" },
+      { value: "SESSIONS", label: "Sessions" },
+    ],
+    label: "Game type",
+    info: "Sessions freezes the whole game between sittings. Schedule one in the Sessions panel.",
   },
 
   // --- Catatonic -------------------------------------------------------------
@@ -218,6 +235,13 @@ function fieldsInGroup(groupKey) {
 // a GM who cleared a box did not ask for the launch setting back.
 function parseField(field, raw, current) {
   if (field.type === "bool") return raw === "on" || raw === "true";
+  if (field.type === "select") {
+    // Matched by string, returned as the option's own type. Anything not on the list falls back to `current` for the same
+    // reason a cleared number box does — a value the registry does not recognise is a bug or a tampered form, and neither
+    // is a request to reset the knob.
+    const hit = field.options.find((o) => String(o.value) === String(raw));
+    return hit ? hit.value : (current ?? field.default);
+  }
   const text = raw == null ? "" : String(raw).trim();
   if (text === "") return current ?? field.default;
   if (field.type === "string") return text;

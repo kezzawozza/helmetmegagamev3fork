@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sheet mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap">
+<style>
+/* ==========================================================================
+   Ravenheart — rusted industrial gothic, 2003 forum profile.
+   One texture tiled faintly under everything; system faces; square corners;
+   bevelled buttons. The class NAMES mirror web/app/globals.css on purpose:
+   this file is a preview of what changing THOSE rules would do.
+   ========================================================================== */
+:root {
+  --bg: #0d0b08;
+  --surface: #171310;
+  --surface-raised: #211b16;
+  --field-bg: #0a0806;
+  --border: #3a322a;
+  --border-hi: #55493d;      /* bevel light edge */
+  --border-lo: #0b0907;      /* bevel dark edge */
+  --text: #b3ada2;
+  --muted: #7d776c;
+  --accent: #7a2a24;         /* dried blood — fills and rules */
+  --accent-text: #d8806a;    /* dried blood — text and outlines */
+  --accent-solid: #5e201b;
+  --on-accent: #e8ddd4;
+  --positive: #7fa06a;
+  --warning: #c9a24a;
+  --danger: #fd5b5b;
+  --blackletter: #7a3c33;
+
+  /* Tag category rules, desaturated to sit on the warm black ladder. */
+  --tag-general: #6d7386;
+  --tag-skills:  #6d8265;
+  --tag-status:  #8a7a51;
+  --tag-health:  #8f6161;
+  --tag-items:   #547472;
+  --tag-assets:  #6f6a61;
+  --tag-demoness:#7d5672;
+
+  --font-ui: Verdana, Tahoma, Geneva, "DejaVu Sans", sans-serif;
+  --font-serif: "Times New Roman", Times, serif;
+  --font-mono: "Courier New", Courier, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.3;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* The ground: one tile, held back under a dark wash so the page reads as
+   textured rather than patterned. Fixed, so it does not scroll as wallpaper. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("tex/chatbg.png");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+.page { position: relative; z-index: 1; }
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  font-weight: bold;
+  margin: 0;
+  line-height: 1.2;
+  color: #c6bfb2;
+}
+h1 { font-size: 15px; }
+h2 { font-size: 14px; }
+h3 { font-size: 13px; }
+
+a { color: var(--accent-text); text-decoration: underline; }
+a:hover { color: #e9a08a; }
+
+:focus-visible { outline: 1px dotted var(--accent-text); outline-offset: 1px; }
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- shell ---------- */
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 10px 40px;
+}
+
+/* One metal strip as the header rule, and nothing else from the sprite sheet. */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0 7px;
+  border-bottom: 1px solid var(--border);
+  background-image: url("tex/bg.png");
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: auto 6px;
+}
+.app-header .crumbs { color: var(--muted); }
+.app-header .crumbs b { color: var(--text); font-weight: bold; }
+
+/* ---------- shared classes (mirrored names) ---------- */
+.panel {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0;
+  padding: 8px;
+}
+.panel + .panel { margin-top: 8px; }
+
+.panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: bold;
+  color: #c6bfb2;
+}
+.panel-header .note { font-family: var(--font-ui); font-size: 11px; font-weight: normal; color: var(--muted); }
+
+.section-title {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin: 0 0 4px;
+}
+
+.btn, .btn-secondary, .btn-danger, .btn-quiet {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 3px 8px;
+  border-radius: 0;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn {
+  border: 2px outset var(--border-hi);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-weight: bold;
+}
+.btn:hover { background: var(--accent); }
+.btn:active { border-style: inset; }
+
+.btn-secondary {
+  border: 2px outset var(--border-hi);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.btn-secondary:hover { background: #2a231c; color: #c9c2b6; }
+.btn-secondary:active { border-style: inset; }
+
+.btn-danger {
+  border: 2px outset #6a3232;
+  background: #2a1414;
+  color: var(--danger);
+  font-weight: bold;
+}
+.btn-danger:active { border-style: inset; }
+
+.btn-quiet {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 3px 4px;
+  text-decoration: underline;
+}
+.btn-quiet:hover { color: var(--text); }
+
+/* A gated verb: dashed, and it does not press. */
+.btn-secondary[aria-disabled="true"] {
+  border: 2px dashed #2e2823;
+  color: #5c574f;
+  background: #120f0c;
+  cursor: default;
+}
+
+.field { display: block; }
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.field input, .field select, .field textarea {
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text);
+  background: var(--field-bg);
+  border: 1px inset var(--border);
+  border-radius: 0;
+  padding: 2px 4px;
+}
+
+/* A chip is a bracketed label with a 3px category rule — no pill, no fill. */
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--tag-general);
+  border-radius: 0;
+  background: var(--surface-raised);
+  color: var(--text);
+  white-space: nowrap;
+}
+.chip[data-tag-category="skills"]   { border-left-color: var(--tag-skills); }
+.chip[data-tag-category="status"]   { border-left-color: var(--tag-status); }
+.chip[data-tag-category="health"]   { border-left-color: var(--tag-health); }
+.chip[data-tag-category="items"]    { border-left-color: var(--tag-items); }
+.chip[data-tag-category="assets"]   { border-left-color: var(--tag-assets); }
+.chip[data-tag-category="demoness"] { border-left-color: var(--tag-demoness); }
+.chip[data-tone="danger"] { color: var(--danger); border-color: #5a2626; }
+.chip .chip-note { color: var(--muted); font-size: 11px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.status-pill {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+.status-pill[data-tone="muted"]  { color: var(--muted); }
+.status-pill[data-tone="good"]   { color: var(--positive); }
+.status-pill[data-tone="warn"]   { color: var(--warning); }
+.status-pill[data-tone="bad"]    { color: var(--danger); }
+.status-pill[data-tone="accent"] { color: var(--accent-text); }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.data-table th, .data-table td {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.data-table th {
+  font-family: var(--font-ui);
+  font-weight: bold;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--surface-raised);
+  white-space: nowrap;
+}
+.data-table td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.data-table tr:hover td { background: #1c1712; }
+
+/* ---------- the band ---------- */
+.sheet-band { margin-top: 8px; }
+
+.ledger-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+.face {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: #100d0a;
+  background-image: url("tex/chatbg.png");
+  background-size: 200px 200px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  color: #4b443b;
+  font-size: 10px;
+  padding-bottom: 3px;
+}
+.identity-text { flex: 1 1 260px; min-width: 0; }
+
+.char-name {
+  font-family: "UnifrakturMaguntia", var(--font-serif);
+  font-weight: normal;
+  font-size: 34px;
+  line-height: 1.05;
+  color: var(--blackletter);
+  text-shadow: 0 2px 3px #000;
+  margin: 0 0 2px;
+}
+.identity-line { color: var(--muted); }
+.identity-line b { color: var(--text); font-weight: bold; }
+
+/* Five tiles, one row — free moves, ⬢, carrying, Mood, Gambit. */
+.ledger-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.tile {
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  padding: 5px 6px;
+}
+.tile .field-label { margin-bottom: 3px; }
+.tile-value {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: bold;
+  color: #c6bfb2;
+  font-variant-numeric: tabular-nums;
+}
+.tile-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+/* The load meter: a hard-edged bar, no radius, no gradient. */
+.meter {
+  height: 7px;
+  margin-top: 4px;
+  border: 1px inset var(--border);
+  background: var(--field-bg);
+}
+.meter > span { display: block; height: 100%; background: var(--accent); }
+.meter.warn > span { background: var(--warning); }
+
+.band-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+.band-box {
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  padding: 5px 6px;
+}
+.band-box p { margin: 3px 0 0; }
+.quote { color: var(--muted); }
+.quote::before { content: "» "; color: var(--accent-text); }
+
+.combat-rows {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 1px 8px;
+  align-items: baseline;
+  margin-top: 3px;
+}
+.combat-band { font-weight: bold; color: #c6bfb2; }
+.combat-band[data-band="legendary"] { color: var(--warning); text-shadow: 0 1px 2px #000; }
+.combat-band[data-band="pitiful"] { color: var(--danger); }
+.combat-armor { color: var(--muted); font-family: var(--font-mono); }
+.combat-situational { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+
+/* ---------- verb strip ---------- */
+.action-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.action-strip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 1px solid var(--border);
+}
+.action-strip-group:last-child { border-right: 0; }
+
+/* ---------- two columns ---------- */
+.ledger-body {
+  display: grid;
+  grid-template-columns: 1fr 22rem;
+  gap: 8px;
+  align-items: start;
+  margin-top: 8px;
+}
+@media (max-width: 720px) {
+  .ledger-body { grid-template-columns: 1fr; }
+  .char-name { font-size: 28px; }
+  .face { width: 64px; height: 64px; }
+}
+
+/* ---------- the rail ---------- */
+.rail-card + .rail-card { margin-top: 8px; }
+.tag-group-label {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 0 2px;
+}
+.tag-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 6px;
+  border-top: 1px solid #241e19;
+  border-left: 3px solid var(--tag-general);
+}
+.tag-row[data-tag-category="skills"]   { border-left-color: var(--tag-skills); }
+.tag-row[data-tag-category="status"]   { border-left-color: var(--tag-status); }
+.tag-row[data-tag-category="health"]   { border-left-color: var(--tag-health); }
+.tag-row[data-tag-category="items"]    { border-left-color: var(--tag-items); }
+.tag-row[data-tag-category="assets"]   { border-left-color: var(--tag-assets); }
+.tag-row:hover { background: #1c1712; }
+.tag-row .name { color: var(--text); }
+.tag-row .name .glyph { color: var(--muted); margin-right: 4px; }
+.tag-row .mark { color: var(--muted); font-size: 11px; }
+.tag-row .value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tag-row .value[data-tone="bad"] { color: var(--danger); }
+.tag-row .second {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* ---------- the rig ---------- */
+.equip-row { margin-top: 6px; }
+.equip-row-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.equip-cells { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.equip-cell {
+  flex: 1 1 100px;
+  min-width: 96px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  padding: 3px 5px;
+}
+.equip-cell.span2 { flex: 2 1 210px; }
+.equip-cell.empty {
+  border: 1px dashed #2e2823;
+  background: #120f0c;
+  color: #5c574f;
+}
+.equip-cell .cell-name { display: flex; justify-content: space-between; gap: 6px; }
+.equip-cell .cell-name b { font-weight: bold; color: #c6bfb2; }
+.equip-cell .cell-fact { color: var(--muted); font-size: 11px; }
+.equip-cell .x { color: var(--muted); text-decoration: none; font-family: var(--font-mono); }
+.equip-cell .x:hover { color: var(--danger); }
+.equip-cell .slot-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.carry-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- mood + desires ---------- */
+.mood-scale {
+  display: flex;
+  gap: 1px;
+  margin: 5px 0 4px;
+}
+.mood-scale i {
+  flex: 1 1 0;
+  height: 9px;
+  background: #241e19;
+  border: 1px solid #120f0c;
+}
+.mood-scale i[data-tone="bad"]  { background: #3a1c1c; }
+.mood-scale i[data-tone="warn"] { background: #3a3120; }
+.mood-scale i[data-tone="good"] { background: #24301f; }
+.mood-scale i[data-here] { background: var(--warning); }
+
+.desire {
+  padding: 4px 0;
+  border-top: 1px solid #241e19;
+}
+.desire:first-of-type { border-top: 0; }
+.desire .head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.desire .head b { color: #c6bfb2; }
+.desire p { margin: 2px 0 0; color: var(--muted); }
+
+.foot {
+  margin-top: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="app-header">
+    <div class="crumbs"><b>Character</b> — Ravenheart, day 14</div>
+    <div><a class="btn-quiet" href="#">← Back to the game · Esc</a></div>
+  </div>
+
+  <!-- ================= THE BAND ================= -->
+  <div class="panel sheet-band">
+    <div class="ledger-identity">
+      <div class="face">no portrait</div>
+      <div class="identity-text">
+        <h1 class="char-name">Solomon Baker</h1>
+        <div class="identity-line">
+          <b>Chandler</b> · <a href="#">Guild of the Wick</a>
+        </div>
+        <div class="identity-line">
+          Standing in <b>Town</b> — Tallow Row, the Back Bench
+        </div>
+        <div class="chip-row" style="margin-top:5px">
+          <span class="chip" data-tag-category="status">Literate</span>
+          <span class="chip" data-tag-category="status">Concealed <span class="chip-note">· hood up</span></span>
+          <span class="chip" data-tag-category="health" data-tone="danger">Bleeding <span class="chip-note">· 2 turns</span></span>
+          <span class="chip" data-tag-category="health">Bruised Ribs</span>
+          <span class="chip" data-tag-category="status">Well Fed</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ledger-tiles">
+      <div class="tile">
+        <span class="field-label">Free moves</span>
+        <div class="tile-value">1</div>
+        <div class="tile-sub">Gambit not yet filed</div>
+      </div>
+      <div class="tile">
+        <span class="field-label">Resources</span>
+        <div class="tile-value">12 ⬢</div>
+        <div class="tile-sub">cap 40 ⬢ · 8 ¢ on you</div>
+      </div>
+      <div class="tile">
+        <span class="field-label">Carrying</span>
+        <div class="tile-value">31 / 60 lb</div>
+        <div class="meter"><span style="width:52%"></span></div>
+      </div>
+      <div class="tile">
+        <span class="field-label">Mood</span>
+        <div class="tile-value" style="font-size:13px;color:var(--warning)">Uncomfortable</div>
+        <div class="tile-sub">−16 · press for why</div>
+      </div>
+      <div class="tile">
+        <span class="field-label">Gambit die</span>
+        <div class="tile-value">−1</div>
+        <div class="tile-sub">Bleeding −1</div>
+      </div>
+    </div>
+
+    <div class="band-row">
+      <div class="band-box">
+        <span class="field-label">This turn</span>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;margin-top:2px">
+          <span class="status-pill" data-tone="accent">Turn 14 — open</span>
+          <span class="status-pill" data-tone="muted">Gambit filed</span>
+          <a class="btn-secondary" href="#">Move…</a>
+          <a class="btn-quiet" href="#">History</a>
+        </div>
+        <p class="quote">Set a light in the Back Bench window and wait for the man who owes me.</p>
+      </div>
+
+      <div class="band-box">
+        <span class="field-label">Combat</span>
+        <span class="combat-rows">
+          <span class="field-label" style="margin:0">Melee</span>
+          <span class="combat-band" data-band="capable">Capable</span>
+          <span class="combat-armor">⛊ Light</span>
+          <span class="field-label" style="margin:0">Ranged</span>
+          <span class="combat-band" data-band="weak">Weak</span>
+          <span class="combat-armor">⛊ None</span>
+        </span>
+        <span class="combat-situational">Bruised Ribs · Concealed</span>
+      </div>
+
+      <div class="band-box">
+        <span class="field-label">Turn effects</span>
+        <p>Bleeding ends — becomes <b>Scarred</b> · Candle mould finishes · Dinner costs 1 ⬢ · <a class="btn-quiet" href="#">+2 more</a></p>
+      </div>
+    </div>
+
+    <!-- ================= THE VERB STRIP ================= -->
+    <div class="action-strip">
+      <div class="action-strip-group">
+        <a class="btn-secondary" href="#">Move</a>
+        <a class="btn-secondary" href="#">Examine</a>
+        <a class="btn-secondary" href="#">Search</a>
+        <a class="btn-secondary" href="#">Labor</a>
+        <a class="btn-secondary" href="#">Rest</a>
+      </div>
+      <div class="action-strip-group">
+        <a class="btn-secondary" href="#">Craft</a>
+        <a class="btn-secondary" href="#">Destroy</a>
+        <a class="btn-secondary" href="#">Give</a>
+        <a class="btn-secondary" href="#">Write</a>
+        <a class="btn-secondary" href="#">Heal</a>
+      </div>
+      <div class="action-strip-group">
+        <a class="btn-secondary" href="#">Attack</a>
+        <a class="btn-secondary" href="#">Intercept</a>
+        <a class="btn-secondary" href="#">Steal</a>
+        <a class="btn-secondary" href="#">Pickpocket</a>
+        <a class="btn-secondary" href="#">Bind</a>
+      </div>
+      <div class="action-strip-group">
+        <a class="btn-secondary" href="#">Kiss</a>
+        <a class="btn-secondary" href="#">Confess</a>
+        <a class="btn-secondary" href="#">Teach</a>
+        <span class="btn-secondary" aria-disabled="true" title="You have no Medical training.">Learn</span>
+        <span class="btn-secondary" aria-disabled="true" title="There is nothing here to butcher.">Butcher</span>
+      </div>
+      <div class="action-strip-group">
+        <a class="btn" href="#">Trumpet</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TWO COLUMNS ================= -->
+  <div class="ledger-body">
+
+    <!-- ---- the tag rail ---- -->
+    <div>
+      <div class="panel rail-card">
+        <div class="panel-header">
+          Tags
+          <span class="note">4 tag points · <a href="#">Spend Tag Points</a></span>
+        </div>
+        <div class="field" style="margin-bottom:6px">
+          <label class="field-label" for="tagfilter">Filter</label>
+          <input id="tagfilter" type="text" placeholder="name, description or group…">
+        </div>
+
+        <div class="tag-group-label">Skills</div>
+        <div class="tag-row" data-tag-category="skills">
+          <span class="name"><span class="glyph">✚</span>Crafting (Skilled)</span>
+          <span class="value">next: Expert · 8 ⬢</span>
+        </div>
+        <div class="tag-row" data-tag-category="skills">
+          <span class="name"><span class="glyph">⚒</span>Smithing I</span>
+          <span class="value">next: II · 5 ⬢</span>
+        </div>
+        <div class="tag-row" data-tag-category="skills">
+          <span class="name"><span class="glyph">⚔</span>Melee (Capable)</span>
+          <span class="value">next: Seasoned · 6 ⬢</span>
+        </div>
+        <div class="tag-row" data-tag-category="skills">
+          <span class="name"><span class="glyph">✒</span>Literacy</span>
+          <span class="value">—</span>
+        </div>
+
+        <div class="tag-group-label">Health</div>
+        <div class="tag-row" data-tag-category="health">
+          <span class="name"><span class="glyph">✚</span>Bleeding
+            <span class="second">→ Scarred · cure 2 ⬢ · Medical I</span>
+          </span>
+          <span class="value" data-tone="bad">1 turn left</span>
+        </div>
+        <div class="tag-row" data-tag-category="health">
+          <span class="name"><span class="glyph">✚</span>Bruised Ribs
+            <span class="second">→ nothing · cure 1 ⬢ · Medical I</span>
+          </span>
+          <span class="value">3 turns left</span>
+        </div>
+
+        <div class="tag-group-label">Status</div>
+        <div class="tag-row" data-tag-category="status">
+          <span class="name"><span class="glyph">◈</span>Well Fed</span>
+          <span class="value">2 turns left</span>
+        </div>
+        <div class="tag-row" data-tag-category="status">
+          <span class="name"><span class="glyph">◈</span>Concealed <span class="mark">· hood up</span></span>
+          <span class="value">—</span>
+        </div>
+      </div>
+
+      <div class="panel rail-card">
+        <div class="panel-header">
+          Items
+          <span class="note">31 lb carried</span>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Thing</th><th>Where</th><th>Each</th><th>Total</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="chip" data-tag-category="items">Tallow Candle</span> <span class="mark">×5</span></td>
+              <td>pack</td><td class="num">0.5 lb</td><td class="num">2.5 lb</td>
+            </tr>
+            <tr>
+              <td><span class="chip" data-tag-category="items">Padded Coat</span> <span class="mark">· worn</span></td>
+              <td>body, Over</td><td class="num">8 lb</td><td class="num">8 lb</td>
+            </tr>
+            <tr>
+              <td><span class="chip" data-tag-category="items">Hand Axe</span> <span class="mark">· drawn</span></td>
+              <td>held</td><td class="num">4 lb</td><td class="num">4 lb</td>
+            </tr>
+            <tr>
+              <td><span class="chip" data-tag-category="items">Hooded Cloak</span> <span class="mark">· worn</span></td>
+              <td>head</td><td class="num">3 lb</td><td class="num">3 lb</td>
+            </tr>
+            <tr>
+              <td><span class="chip" data-tag-category="items">Ration</span> <span class="mark">×3</span></td>
+              <td>pack</td><td class="num">2 lb</td><td class="num">6 lb</td>
+            </tr>
+            <tr>
+              <td><span class="chip" data-tag-category="items">Sheet of Paper</span> <span class="mark">· sealed</span></td>
+              <td>pack</td><td class="num">0 lb</td><td class="num">0 lb</td>
+            </tr>
+            <tr>
+              <td><span class="chip" data-tag-category="assets">Wick Trimmers</span></td>
+              <td>pack</td><td class="num">1 lb</td><td class="num">1 lb</td>
+            </tr>
+            <tr>
+              <td><span class="chip" data-tag-category="assets">Handcart</span> <span class="mark">· towed</span></td>
+              <td>ride</td><td class="num">6 lb</td><td class="num">6 lb</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">Bio</div>
+        <div class="field" style="margin-bottom:6px">
+          <label class="field-label" for="appearance">Appearance</label>
+          <textarea id="appearance" rows="3">A short, soot-marked man in a hooded cloak, hands shining with tallow.</textarea>
+        </div>
+        <div style="display:flex;gap:4px">
+          <a class="btn" href="#">Save</a>
+          <a class="btn-secondary" href="#">Revert</a>
+          <a class="btn-danger" href="#" style="margin-left:auto">Last words</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- right column: rig, mood, desires ---- -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">
+          Equipment
+          <span class="note">⛊ Light · ⛊ None</span>
+        </div>
+
+        <div class="equip-row">
+          <div class="equip-row-title"><span class="field-label" style="margin:0">Head</span><span class="mark" style="color:var(--muted)">one thing</span></div>
+          <div class="equip-cells">
+            <div class="equip-cell">
+              <span class="cell-name"><b>Hooded Cloak</b><a class="x" href="#" aria-label="Unequip Hooded Cloak">✕</a></span>
+              <span class="cell-fact">conceals you · 3 lb</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="equip-row">
+          <div class="equip-row-title"><span class="field-label" style="margin:0">Body</span><span class="mark" style="color:var(--muted)">Mail, then Over</span></div>
+          <div class="equip-cells">
+            <div class="equip-cell empty">
+              <span class="slot-label">Mail — empty</span>
+            </div>
+            <div class="equip-cell">
+              <span class="cell-name"><b>Padded Coat</b><a class="x" href="#" aria-label="Unequip Padded Coat">✕</a></span>
+              <span class="cell-fact">⛊ Light melee · 8 lb</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="equip-row">
+          <div class="equip-row-title"><span class="field-label" style="margin:0">Held</span><span class="mark" style="color:var(--muted)">4 hands</span></div>
+          <div class="equip-cells">
+            <div class="equip-cell">
+              <span class="cell-name"><b>Hand Axe</b><a class="x" href="#" aria-label="Unequip Hand Axe">✕</a></span>
+              <span class="cell-fact">one hand · 4 lb</span>
+            </div>
+            <div class="equip-cell span2 empty">
+              <span class="slot-label">3 slots — empty</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="equip-row">
+          <div class="equip-row-title"><span class="field-label" style="margin:0">Accessories</span><span class="mark" style="color:var(--muted)">4</span></div>
+          <div class="equip-cells">
+            <div class="equip-cell">
+              <span class="cell-name"><b>Wick Trimmers</b><a class="x" href="#" aria-label="Unequip Wick Trimmers">✕</a></span>
+              <span class="cell-fact">+2 labor · 1 lb</span>
+            </div>
+            <div class="equip-cell empty"><span class="slot-label">Add — empty</span></div>
+          </div>
+        </div>
+
+        <div class="equip-row">
+          <div class="equip-row-title"><span class="field-label" style="margin:0">Ride</span><span class="mark" style="color:var(--muted)">Ridden, Towed</span></div>
+          <div class="equip-cells">
+            <div class="equip-cell empty"><span class="slot-label">Ridden — empty</span></div>
+            <div class="equip-cell">
+              <span class="cell-name"><b>Handcart</b><a class="x" href="#" aria-label="Unequip Handcart">✕</a></span>
+              <span class="cell-fact">+20 lb carry</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="carry-line">
+          <span class="field-label" style="margin:0">Carrying</span>
+          <span class="mono">31 / 60 lb</span>
+        </div>
+        <div class="meter"><span style="width:52%"></span></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          Mood
+          <span class="note status-pill" data-tone="warn">Uncomfortable · −16</span>
+        </div>
+        <div class="mood-scale" aria-hidden="true">
+          <i data-tone="bad"></i><i data-tone="bad"></i><i data-tone="warn"></i>
+          <i data-tone="warn"></i><i data-tone="warn" data-here></i><i></i>
+          <i data-tone="good"></i><i data-tone="good"></i><i data-tone="good"></i>
+        </div>
+        <div class="tile-sub">Panicking · Afraid · Anxious · Stressed · <b style="color:var(--warning)">Uncomfortable</b> · Fine · Content · Pleased · Happy · Ecstatic</div>
+        <p style="margin:5px 0 0">The ribs ache when you lift the mould, and the Back Bench is colder than the row. You keep the hood up and tell yourself it is the draught.</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          Desires
+          <span class="note">2 open</span>
+        </div>
+        <div class="desire">
+          <div class="head">
+            <b>Light the Row</b>
+            <span class="status-pill" data-tone="good">+3 ⬢ on completion</span>
+          </div>
+          <p>Set a burning candle in six different windows on Tallow Row before the Lifeweb sputters again. Four to go.</p>
+        </div>
+        <div class="desire">
+          <div class="head">
+            <b>The Man Who Owes Me</b>
+            <span class="status-pill" data-tone="warn">locked until turn 16</span>
+          </div>
+          <p>Get Ordric Vane alone and take back the 9 ¢ he carried off, by whatever hand you like.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>Ravenheart · the year of our Lord God, 1210</span>
+    <span>Mockup only — nothing here presses.</span>
+  </div>
+</div>
+</body>
+</html>

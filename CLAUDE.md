@@ -2,6 +2,47 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
+## There is no live game. Read this before anything else in this file
+
+**v3 has not launched.** There are no players, no live Discord guild, no
+Railway services, no deployed anything, and — most importantly — **no
+database you can hurt**. Nothing in this checkout is serving a person.
+
+That means the ordinary run of destructive things is simply fine here. Wipe
+it, reset it, re-migrate it, rebuild it from the YAML masters, break the
+schema on purpose to see what happens. Nothing is lost, because there is
+nothing there to lose.
+
+**Much of this file was written for the live game and is kept on purpose** —
+it is a good record of how this project is run once it is running, and that
+is much harder to re-learn on launch day than to keep. Those parts are
+written as **"once the game launches"** and are marked that way. They are
+describing a future, not this checkout. When a section says a thing is
+dangerous, it means it will be dangerous the day v3 opens.
+
+Three things are true here and now, and only these:
+
+- **Nothing deploys.** `npm run deploy`, `npm run redeploy` and `./migrate.sh`
+  drive Railway services this project does not have. Do not run them.
+- **`npm run push` is wrong here.** It writes `CHANGELOG.md` and posts the
+  entry to a channel id hardcoded in `scripts/changelog/log.js` — the *other*
+  game's Discord. Push with plain `git push origin master`.
+- **`echo $DATABASE_URL` before anything that writes.** Not because this
+  project has a database worth protecting — it does not — but because a
+  session working here has been observed carrying a connection string
+  inherited from somewhere else entirely. There is no `.env` in this checkout,
+  so nothing overrides whatever the shell already exports, and
+  `dotenv.config()` does not override an exported variable. "This is only the
+  prototype" is a statement about the repo, never about the connection string.
+  If `$DATABASE_URL` does not name localhost, find out why before you run
+  anything.
+
+And one habit worth keeping even with nothing at stake: **author migrations so
+`migrate deploy` can apply them.** That habit is much harder to pick up under
+pressure than to keep now. See the `migrate diff` note under **Notes for
+future work** for the drops Prisma proposes on every run, which every
+migration here has had to decline by hand.
+
 ## The double-dagger convention is retired
 
 Every piece of prose Claude wrote used to end in a double dagger (U+2021), so
@@ -174,7 +215,8 @@ you pick the right doc — they are never enough to change code with.
 |---|---|
 | [`ARCHITECTURE.md`](docs/systemdocs/ARCHITECTURE.md) | You're deciding where a new module goes, or touching anything that talks to Discord from both faces |
 | [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) | You're adding or changing a slash command, button, modal or reaction |
-| [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, auto-labor, turn banners, the side-effect thunk |
+| [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — the turn length (6/8/12/24), the Chicago boundary grid, hunger, the mining-yield drift, turn banners, the side-effect thunk |
+| [`SESSIONS.md`](docs/systemdocs/SESSIONS.md) | You're touching the game type, a sitting's schedule, or **anything that asks whether a player may act right now** (`db/lib/turnGate.js`) — read it before adding a Move gate |
 | [`LAUNCH.md`](docs/systemdocs/LAUNCH.md) | You're opening a game or running a Restart Game wipe — the order that keeps players from being locked out |
 | [`BACKUPS.md`](docs/systemdocs/BACKUPS.md) | You're touching backups or restoring one — point-in-time recovery, the nightly dump service in `ops/backup/`, or **anything that has just gone badly wrong with the database** |
 | [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) | You're setting up a local Postgres, testing a GM-gated page with no real Discord credentials, or about to run anything against the live database |
@@ -204,10 +246,8 @@ you pick the right doc — they are never enough to change code with.
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, notes |
-| [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
-| [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
-| [`LABORDROPS.md`](docs/systemdocs/LABORDROPS.md) | You're touching the labor drop die — `docs/labordrops.yaml`, `db/lib/laborDrops.js`, or the `laborDrop` entry in `db/lib/moveEffects.js` |
+| [`MINING.md`](docs/systemdocs/MINING.md) | You're touching the Mine button — the two rates and what Prospecting actually buys, the prospecting loot table (in `db/lib/cavingLoot.js`, beside the Caving Die's), a Location's `mining:` coefficient and its drift, the tools (`miningBonus`), or the Examine button |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, seed bags and their sowing licences, the wither roll, the `soilery` Location attribute, Fertilizer, or **anything that asks what eating restores** (`db/lib/hunger.js`) |
 | [`ARELITZ.md`](docs/systemdocs/ARELITZ.md) | You're touching arelitz — the Stable's turn pass, `Room.stable`, breeding/hatching/maturing, breaking one in (the Gambit), butchering livestock, or mount mechanics generally (`db/lib/mounts.js`). Horses are gone; do not add one back |
@@ -232,7 +272,7 @@ you pick the right doc — they are never enough to change code with.
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
 | [`ORACLE.md`](docs/systemdocs/ORACLE.md) | You're touching the per-turn chronicle — `/gm/oracle`, the zone writers and the editor, the prompts, or **anything that calls a language model** |
-| [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
+| [`REDESIGN.md`](docs/systemdocs/REDESIGN.md) | You want the record of the game 3 redesign — what it was going for, the decisions Bascinet made, and which phase landed what. `DESIGN-SYSTEM.md` holds the rules now; this doc no longer duplicates them |
 
 Other reference docs, outside `systemdocs/`:
 
@@ -260,9 +300,10 @@ This is an npm-workspaces monorepo with three packages:
 If both faces need something, put it in `db/lib/` — don't write it twice.
 Add the dependency with `npm install @lifeweb/db --workspace=<bot|web>`.
 
-Deployment is on Railway, built straight from this GitHub repo
-(`peace-lock/helmetmegagame`). `bot` and `web` run as two separate Railway services
-from the same repo, and both point at one Railway Postgres instance.
+Deployment, **once the game launches**, is on Railway built straight from this
+GitHub repo: `bot` and `web` as two separate services from the same repo, both
+pointing at one Railway Postgres instance. v3 has no Railway project yet, so
+today nothing is deployed anywhere.
 
 See `ARCHITECTURE.md` for the barrel rules, the REST/gateway twin convention,
 the returned-side-effects pattern, rate-limit discipline, and why log tables
@@ -271,6 +312,14 @@ store snapshot columns instead of foreign keys.
 ## Commands
 
 Run from the repo root unless noted.
+
+**A good third of this list needs infrastructure v3 does not have.** Anything
+that deploys, backs up, mirrors to Discord or exports an archive wants a
+Railway project, a bot token, a guild or a storage bucket, and none of those
+exist yet — those entries are here for **once the game launches**. What works
+today, with nothing configured, is: `npm install`, `dev:web`, `db:generate`,
+the lint/build/test scripts, `dev:setup` (a local Postgres seeded from the
+YAML masters), and every sync and audit script pointed at that local database.
 
 ```
 npm install                          # installs all workspaces (bot, web, db)
@@ -316,13 +365,13 @@ npm run db:backups                   # what is in the bucket. EXITS 1 if the
                                      #   how a dead backup system announces
                                      #   itself. See BACKUPS.md.
 
-# YAML masters -> DB. `db:sync` runs the five routine ones in the working
+# YAML masters -> DB. `db:sync` runs the four routine ones in the working
 # order, then a Discord mirror pass; the individual scripts exist for one
 # master at a time. See SYNC.md.
-npm run db:sync                      # tags, roles, desires, documents, labor
-                                     #   drops, then db:mirror -- --apply.
+npm run db:sync                      # tags, roles, desires, documents, then
+                                     #   db:mirror -- --apply.
 npm run db:import-zones              # docs/zones.yaml -> Zone/Location/Room/
-                                     #   LocationLink/LocationYield/Structure.
+                                     #   LocationLink/LocationMining/Structure.
                                      #   One-shot, additive: creates what's
                                      #   missing, skips what exists, never
                                      #   updates or deletes, never writes a
@@ -334,8 +383,6 @@ npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
                                      #   retires a template absent from the
                                      #   YAML — see DESIRES.md §10)
 npm run db:sync-documents            # docs/documents.yaml  (destructive)
-npm run db:sync-labor-drops          # docs/labordrops.yaml (destructive; last)
-                                     #   — see LABORDROPS.md
 npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile —
                                      #   db:mirror also provisions this now,
                                      #   this is the scoped standalone.
@@ -403,10 +450,6 @@ npm run db:prune-stale-channels      # deletes categories, channels and zone/
 npm run db:check-config              # the GameConfig field registry vs. the
                                      #   schema (db/lib/gameConfigFields.js).
                                      #   push.sh runs it; exits 1 on drift.
-npm run db:audit-labor-drops         # read-only: prices docs/labordrops.yaml
-                                     #   off disk (no sync needed first) — each
-                                     #   entry's Depot sell value and every
-                                     #   pool's ⬢ expected value. LABORDROPS.md §6a.
 npm run db:inspect-character -- "Ada"  # read-only: one character's two hiding
                                      #   switches and what they RESOLVE to —
                                      #   discordMirrored and its cooldown, the
@@ -549,8 +592,7 @@ disabled input or a hidden button is a hint, not a lock.
 
 There is no single unified permission system. A few independent kinds of
 Discord role each control one thing, each synced from a different piece of
-state, plus one env-configured admin role. `Faction` is **not** one of them
-(`FACTIONS.md` §1).
+state, plus one env-configured admin role.
 
 | Role | Source | What it gates |
 |---|---|---|
@@ -885,16 +927,27 @@ pulls every player-facing string into `worksheets/`, and `npm run copy:reinject`
 writes edits back, refusing anything that would break a Discord length cap. It
 knows what is copy and what is a code comment, which a grep does not.
 
-### `⬢` and `¢` are two currencies, not one
+### `⬢` is a material and `¢` is the money
 
-`⬢` is Resources. `¢` is obols, the physical coin. **One obol is one ⬢**
-(`DEPOT.md` §0) — that is parity, not identity, and the game converts between
-them: `DepotOrderTab.js` renders `{cartResources} ⬢ = {cartTotal} ¢`.
+`⬢` is Resources. `¢` is obols, the coin. **One obol is one ⬢** (`DEPOT.md`
+§0) — parity, not identity, and the two stopped being interchangeable in
+9/2026 even though they stayed equal.
 
-So **never swap one glyph for the other in bulk.** A value read off an
-`*Obols`/`obols` field prints `¢`; `resources` prints `⬢`. Getting this wrong
-is quiet — the GM's Depot page spent a while showing the station account in ⬢
-while the player's own Bank tab showed the same number in ¢.
+**`⬢` has exactly one job: `resourceCost`.** What a recipe charges to make
+something, and what a cure charges to treat somebody. Labour still pays it,
+because what a day's work produces is material.
+
+**`¢` is everything else**: `depotPrice`, `sellablePrice`, a `BankAccount`
+balance, the Vault, the sell tax, the credit line, and every wage figure in
+`DEPOT.md` §4's tables. It used to be that ⬢ was the unit everything was
+denominated in, which made it a currency that happened to weigh a pound each.
+It is not that any more.
+
+So **never swap one glyph for the other in bulk**, and never on the reasoning
+that they are the same number. A value read off an `*Obols`/`obols` field or a
+price column prints `¢`; a `resourceCost` or a labour yield prints `⬢`. Getting
+it wrong is quiet — the GM's Depot page spent a while showing the station
+account in ⬢ while the player's own Bank tab showed the same number in ¢.
 
 ### Editing Bascinet's text
 
@@ -937,7 +990,8 @@ it before writing any UI. Four rules apply everywhere:
   `PageHeader` for every top-level page, `DataTable`/`useTableState` +
   `Pager` for every long list, `.panel` / `.btn` / `.field` / `.chip` for
   everything else. A bare `<select>` outside `.field` visibly breaks the
-  theme.
+  theme. `.panel-header` draws the metal header strip on its own — don't
+  hand-add a border under a heading that already carries one.
 - **`--font-mono` is for data only** (numbers, IDs, timestamps), applied with
   `.mono`. Headings get their serif automatically from the tag — never
   hand-apply a font class. `--font-display` (blackletter) is for a handful of
@@ -953,30 +1007,25 @@ it before writing any UI. Four rules apply everywhere:
 
 ## Game state
 
-### v3 has not launched yet, so none of the below is load-bearing right now
+### Right now: there is nothing to protect
 
-**This repo is pre-launch.** There is no live game, no real characters, no
-turns anybody played and nothing in the database that belongs to a person. So
-the caution below — ask before a wipe, back up first, never reset — is about
-protecting players, and there are no players yet. Rebuild from the YAML
-masters, wipe, reset, re-migrate, break the schema on purpose. Nothing is
-lost, because there is nothing there to lose.
+Pre-launch, so the whole of the next subsection is describing a future. No
+real characters, no turns anybody played, nothing in any database that belongs
+to a person. Wipe it, reset it, re-migrate it, rebuild it from the YAML
+masters.
 
-Two things are still worth keeping even now, because neither is about the
-data: don't reach for the live database when a local one would answer the
-question ([`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md)), and prefer a
-migration `migrate deploy` can apply, because that habit is much harder to
-re-learn on launch day than to keep.
+Two habits are worth keeping anyway, because neither is about the data: work
+against a local database rather than reaching for a hosted one
+([`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md)), and write migrations
+`migrate deploy` can apply.
 
-**Put this section back in force the day v3 opens** — delete this subsection,
-and everything below becomes true again exactly as written.
+### Once the game launches: the live data is real — ask before anything destructive
 
-### Once it is live: the live data is real — ask before anything destructive
-
-**There is a single live production site, and the characters, turns and
-messages in it are real.** Do not treat production as a sandbox you can
-rebuild from the YAML masters and a wipe — someone's afternoon is in that
-database.
+**The day v3 opens, everything in this subsection becomes true as written, and
+this is the paragraph to delete.** There will be a single live production
+site, and the characters, turns and messages in it will be real people's
+afternoons. Production is not a sandbox you rebuild from the YAML masters and
+a wipe.
 
 - **Stop and ask before anything that can lose data on the live database.**
   A migration that drops a column, `db:sync-documents`,
@@ -1048,11 +1097,11 @@ a commit author or a display name, check the remotes:
 git remote -v
 ```
 
-- `origin` resolves to `peace-lock/helmetmegagame` → this is **Bascinet's own
-  checkout**. Follow "Bascinet: master-only" below.
+- `origin` resolves to `peace-lock/helmetmegagamev3` → this is **Bascinet's
+  own checkout**. Follow "Bascinet: master-only" below.
 - `origin` resolves to somewhere else — a fork, e.g. a contributor's own
   GitHub account — typically alongside an `upstream` remote pointing at
-  `peace-lock/helmetmegagame` → this is a **contributor's checkout**. Follow
+  `peace-lock/helmetmegagamev3` → this is a **contributor's checkout**. Follow
   "Contributors: fork's master, then a PR into upstream" instead.
 
 ### Bascinet: master-only
@@ -1161,7 +1210,7 @@ request #24 from Erdromian/master" in the git log — not a new convention.
 ```
 # ...commit straight onto master, same as Bascinet's own flow...
 git push origin master                                       # push to YOUR fork's master
-gh pr create --repo peace-lock/helmetmegagame --base master \
+gh pr create --repo peace-lock/helmetmegagamev3 --base master \
   --head <your-github-username>:master                       # fork:master -> upstream:master
 ```
 
@@ -1199,8 +1248,8 @@ second one, and the Discord post goes out after the push succeeds.
 
 **The changelog is GM-facing, and it says what changed in the game — never
 which files moved.** A path means nothing to a GM. Write the sentence you would
-say out loud: "the good labor spots now wear out as they are worked", not
-`✎ db/lib/autoLaborPass.js`. The heading is that sentence; each note under it is
+say out loud: "the good seams now wear out as they are worked", not
+`✎ db/lib/hungerPass.js`. The heading is that sentence; each note under it is
 one more.
 
 ```
@@ -1215,14 +1264,14 @@ The first argument is the heading. Every plain argument after it is one note.
 Three glyphs, and a note with none is a change:
 
 ```
-## 2026-09-03 · Laboring wears the good spots out
+## 2026-09-03 · The good seams wear out as they are worked
 
-✎ The best labor Locations now drift down as they are worked, so nobody camps one
-✚ A Labor? button on the turn console
+✎ The best mining Locations now drift down as they are worked, so nobody camps one
+✚ An Examine button on every Location anchor
 − The old /labor command
 ```
 
-A note may lead with its own glyph — `"+A Labor? button"`, `"-The old /labor
+A note may lead with its own glyph — `"+An Examine button"`, `"-The old /labor
 command"`, plain text for `✎`. The glyphs are `✚ − ✎` rather than `+ - ~`
 because none of those three is a Markdown list marker, so the lines render
 literally with no code fence around them — and prose inside a fence does not
@@ -1253,16 +1302,22 @@ The channel id is hardcoded in `scripts/changelog/log.js` for the reason
 `db/lib/roleIds.js` gives: a channel id is not a secret, there is one guild, and
 a missing env var would have failed silently.
 
-## Deploy workflow
+## Deploy workflow — once the game launches
 
-**Bascinet's checkout only** — see "Git workflow" above for how to tell.
-`npm run deploy` pushes straight to `master` and touches the live Railway
-services and database; a contributor's checkout has no business running it
-and almost certainly lacks the `RAILWAY_TOKEN` to anyway. A contribution
-gets deployed when Bascinet merges and pushes it, not by the contributor.
+**None of this runs today.** v3 has no Railway project, so `npm run deploy`,
+`npm run redeploy` and `./migrate.sh` all point at services that do not exist.
+Finish a set of changes by pushing to `master` and stop there.
 
-Unless the user says otherwise, after finishing a set of changes, run
-`npm run deploy` from the repo root.
+The rest of this section is kept because it is the hard-won shape of how this
+project deploys, and each rule below is written down because its absence
+caused an outage. It becomes true the day v3 gets a Railway project.
+
+Once that happens: `npm run deploy` pushes straight to `master` and touches
+the live services and database, so it is Bascinet's alone — a contributor's
+checkout has no business running it and almost certainly lacks the
+`RAILWAY_TOKEN` to anyway. A contribution gets deployed when Bascinet merges
+and pushes it, not by the contributor. Unless the user says otherwise, run it
+from the repo root after finishing a set of changes.
 
 ```
 npm run deploy      # git push origin master, ./migrate.sh, redeploy web + bot
@@ -1282,9 +1337,9 @@ Railway services make that deploy correct, and both are set:
 - **Pre-Deploy Command on `web`: `npm run db:migrate:deploy && npm run
   db:sync-deploy`.** It runs after the build and before the new version takes
   traffic, so a failed migration aborts the deploy instead of shipping a
-  half-migrated app. `db:sync-deploy` runs tags, desires, documents, then labor
-  drops — the four syncs that touch no Discord and hold no player state (tags
-  and desires upsert; documents and labor drops rebuild pure config tables), so
+  half-migrated app. `db:sync-deploy` runs tags, desires and documents — the three
+  syncs that touch no Discord and hold no player state (tags and desires
+  upsert; documents rebuilds a pure config table), so
   a YAML edit to any of them lands with the push, no hand sync. A YAML error
   there fails the deploy loudly, which is the point. Zones and #info still move
   Discord objects, and stay hand-run steps. Scoped to `web`
@@ -1339,8 +1394,18 @@ Railway project.
 
 ## Cloud session setup (Claude Code on the web, and similar)
 
-A fresh remote container clones the repo and nothing else — no `.env`, no
-global CLIs. To make one able to build, run, and deploy:
+A fresh remote container clones the repo and nothing else — no `node_modules`,
+no `.env`, no global CLIs. `npm install` first; nothing builds, lints or tests
+until it has run.
+
+For ordinary work here that is the whole setup: there is no database to reach
+and nothing to deploy, so a cloud session can build the web app, run
+`npm test --workspace=db` and push, with no secrets at all. `npm run dev:setup`
+(a local Postgres, seeded from the YAML masters) is what to reach for when a
+change actually needs data under it.
+
+The rest of this list is for **once the game launches**, when a cloud session
+might need to reach a real environment:
 
 1. **Secrets.** Set every key from `.env.example` as an environment variable,
    plus `RAILWAY_TOKEN`. The bot and the Prisma CLI read a root `.env` file,
@@ -1392,6 +1457,11 @@ global CLIs. To make one able to build, run, and deploy:
   game entirely (`PROXYING.md` §8) — the column stays, but it is listed in
   `INTERNAL_KEYS` rather than as a knob, so `/gm/dev` no longer offers a switch
   for something nothing reads. Do not wire a nickname write back up.
+  `Character.hungerStreak` is the newest of them, orphaned when the 0–100
+  hunger meter replaced the streak it counted (`SOILERY.md`). Hunger is
+  `Character.hungerValue` now, and the Gambit penalty comes off the
+  `hungry`/`starving` tags rather than off a streak — nothing reads the column,
+  and nothing should start.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
@@ -1405,14 +1475,12 @@ global CLIs. To make one able to build, run, and deploy:
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
-  `FactionApplication_pending_unique` is the same shape of ghost: a PARTIAL
-  unique index (`WHERE status = 'PENDING'`), which Prisma's schema language
-  cannot express. Decline that drop too — without it a character could hold
-  two live applications to one faction. `ThreatSpawn_pending_unique` is the
-  third of these, and the same answer: without it a player could hold two live
-  spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
+  `ThreatSpawn_pending_unique` is the same shape of ghost: a PARTIAL unique
+  index (`WHERE status = 'PENDING'`), which Prisma's schema language cannot
+  express. Decline that drop too — without it a player could hold two live
+  spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the third,
   and the reason `/gm/audit`'s text search is not a full-table scan.
-  `DirectMessage_clientNonce_key` is the fifth and the same answer: a PARTIAL
+  `DirectMessage_clientNonce_key` is the fourth and the same answer: a PARTIAL
   unique index (`WHERE "clientNonce" IS NOT NULL`), so every DM writer with no
   composer behind it can go on passing null. Decline that drop too — without
   it a retried send can reach a player twice. The

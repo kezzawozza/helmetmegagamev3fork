@@ -161,21 +161,24 @@ fall back to resolving live, and are not backfilled: stamping today's names
 onto them would be the rewrite the freeze exists to prevent.
 
 `presentedState` is the newest of the four and the widest: what the room could
-*see* of the speaker — their appearance, the tags they held and which were worn
+*see* of the speaker — their appearance, the tags they held and which were worn,
+and their role title where the seat is one a look may read (`CHARACTERS.md` §2)
 — so that looking at an old line answers for that moment rather than for now
-(`PROXYING.md` §4a). It rides in a packet like any other scalar column, since
+(`PROXYING.md` §4a). A seat nobody reads off a look writes no title here at all,
+which matters because of the next sentence: the blob leaves in a packet
+verbatim, so filtering on the way *out* would have put the four opaque seats in
+plaintext in every export. It rides in a packet like any other scalar column, since
 the exporter reads its field list off Prisma's own datamodel rather than a
 hardcoded array. It is deliberately **not** a strict field: a packet written
 before it existed imports fine and those rows simply read live, which is the
 behaviour they had anyway.
 
-**The gate.** A past game is any signed-in user's to read. The current game is
-`GameState.archiveVisible` — GMs always, players only when it's on, enforced
-in the page and mirrored in the nav (which also shows the link whenever a
-finished game exists). Ending the game flips it, and it is **effectively a
-one-way door**: the archive shows every zone regardless of where a character
-stood and names the character behind every `/conceal`, so opening it mid-game
-unmasks the lot.
+**The gate.** A GM tool, always — every game, current or past, requires a GM
+(`web/lib/archiveAccess.js`), enforced in the page and mirrored in the nav
+(which shows the link only to a GM). There is no toggle that opens it to
+players: the archive shows every zone regardless of where a character stood
+and names the character behind every `/conceal`, and a GM could already see
+through both of those everywhere else on the desk.
 
 ## 6. Packets: a finished game as one file
 

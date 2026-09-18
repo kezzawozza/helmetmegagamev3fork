@@ -1,15 +1,14 @@
 // Every YAML master into the database, in the one order that works: tags
-// before roles, desires, documents, labor drops last, then a structure mirror
-// pass to pick up whatever any of that touched (narrowcast channels and
-// Deadchat included — the mirror provisions both now). Same sequence as
-// wipeGameData's re-sync.
+// before roles, desires, documents, then a structure mirror pass to pick up
+// whatever any of that touched (narrowcast channels and Deadchat included —
+// the mirror provisions both now). Same sequence as wipeGameData's re-sync.
 //
 //   npm run db:sync
 //
 // Zones are no longer part of this run: docs/zones.yaml is a one-shot
 // additive importer now (`npm run db:import-zones`), not a routine sync.
-// sync-documents and sync-labor-drops delete rows dropped from their YAML;
-// see SYNC.md §1 before running against a live game.
+// sync-documents deletes rows dropped from its YAML; see SYNC.md §1 before
+// running against a live game.
 require("dotenv").config();
 const {
   prisma,
@@ -17,7 +16,6 @@ const {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
-  syncLaborDropsFromYaml,
 } = require("../../index");
 const { runDiscordMirror } = require("../../lib/discordMirror");
 
@@ -33,9 +31,8 @@ async function main() {
     }],
     ["roles", async () => {
       const s = await syncRolesFromYaml(prisma);
-      const pruned = [...s.rolesPruned, ...s.factionsPruned];
-      return `factions +${s.factionsCreated}/~${s.factionsUpdated}, roles +${s.rolesCreated}/~${s.rolesUpdated}` +
-        (pruned.length ? `, pruned ${pruned.join(", ")}` : "");
+      return `roles +${s.rolesCreated}/~${s.rolesUpdated}` +
+        (s.rolesPruned.length ? `, pruned ${s.rolesPruned.join(", ")}` : "");
     }],
     ["desires", async () => {
       const s = await syncDesiresFromYaml(prisma);
@@ -44,10 +41,6 @@ async function main() {
     ["documents", async () => {
       const s = await syncDocumentsFromYaml(prisma);
       return `+${s.created}/~${s.updated}` + (s.pruned.length ? `, pruned ${s.pruned.join(", ")}` : "");
-    }],
-    ["labor drops", async () => {
-      const s = await syncLaborDropsFromYaml(prisma);
-      return `${s.total} options`;
     }],
     ["discord mirror", async () => {
       const s = await runDiscordMirror(prisma, { apply: true, scope: "structure" });

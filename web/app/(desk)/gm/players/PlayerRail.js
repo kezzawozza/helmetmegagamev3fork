@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import ZoneChip from "@/app/components/ZoneChip";
 import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Select from "@/app/components/Select";
@@ -144,7 +145,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
         setContentHits({ q, hits: data.hits ?? [] });
       } catch {
         // Aborted by the next keystroke, or offline. The rail still filters on
-        // name, role, faction, handle, zone and tag without this — content
+        // name, role, handle, zone and tag without this — content
         // hits only ever widen the result.
       }
     }, CONTENT_SEARCH_DEBOUNCE_MS);
@@ -276,9 +277,8 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
           match: scoreMatch(q, {
             name: c.name,
             role: c.roleTitle,
-            faction: c.factionName,
             username: [c.username, c.globalName].filter(Boolean).join(" "),
-            zone: `${c.zoneName ?? ""} ${c.factionZoneName ?? ""}`.trim(),
+            zone: c.zoneName ?? "",
             tag: c.tag,
             preview: c.preview,
           }),
@@ -356,7 +356,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   const searching = query.trim().length > 0;
 
   return (
-    <div className="desk-rail">
+    <DeskRail as="div" ariaLabel="Player inbox">
       {/* Two bands of chrome, then the inbox. It used to be up to five rows
           — search, a note, a zone row, a chip row, and a button per quiet
           verb, each on its own line — so on a laptop the first conversation
@@ -368,7 +368,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="name, role, faction, tag, zone, @handle, message text…"
+              placeholder="name, role, tag, zone, @handle, message text…"
             />
           </label>
           {zoneOptions.length > 0 && (
@@ -530,7 +530,6 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                     match={match}
                     values={{
                       role: row.roleTitle,
-                      faction: row.factionName,
                       zone: row.zoneName,
                       tag: matchedTagNames(row.tagNames, query),
                     }}
@@ -546,7 +545,6 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
         })}
         {visible.length === 0 && <p className="text-sm text-muted p-4">Nobody matches.</p>}
       </div>
-
-    </div>
+    </DeskRail>
   );
 }

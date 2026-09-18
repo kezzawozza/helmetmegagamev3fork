@@ -2,15 +2,21 @@
 
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
-import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
+import TranscriptLine from "@/app/components/TranscriptLine";
+import nameHue from "@/app/components/nameHue";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
 import useComposerAutosize from "./useComposerAutosize";
-import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
+import { formatTurnLabel } from "@/lib/turnFormat";
+// Safe from a client file: db/lib/decreeText.js has zero requires, the same rule
+// db/lib/dmKinds.js keeps — see EDIT_WINDOW_MS below for what one require of
+// @lifeweb/db would drag into the browser bundle.
+import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
+import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
@@ -59,7 +65,6 @@ import {
   slashQueryAt,
   textArgOf,
 } from "./commands";
-import { MOVE_KINDS } from "./MoveDialog";
 
 // One place's scene: what has been said here, and — where the place allows it
 // — the box to say something.
@@ -122,24 +127,48 @@ function timeLabel(iso) {
 // (`"shout-near"`, still fully audible on Discord too) draws at ordinary
 // size, and anything past that keeps no tag and falls through to the default
 // subtext — matching its muffled `-#` treatment on Discord.
-const SystemRow = memo(function SystemRow({ row }) {
-  const shout = row.channelKind === "shout";
-  const shoutNear = row.channelKind === "shout-near";
-  const intercom = row.channelKind === "intercom";
-  const ooc = row.channelKind === "ooc";
-  const className = shout
-    ? "chat-shout"
-    : shoutNear
-      ? "chat-shout-near"
-      : intercom
-        ? "chat-intercom"
-        : ooc
-          ? "chat-ooc"
-          : "chat-subtext";
+// Discord's copy of an intercom line opens with the words the PA is wearing as a
+// heading here, so the body would say it twice. Cut on the web only — the row
+// itself is untouched, and Discord still reads what it always read (REDESIGN.md
+// §9, "a web-only feature is presentation").
+const INTERCOM_PREFIX = /^you hear a voice from the intercom:\s*/i;
+
+// The two rows that are a NOTICE rather than a line: the PA and a decree. One
+// component, two heading faces (TranscriptLine's variant="block").
+const BLOCK_KINDS = new Set(["intercom", "decree"]);
+
+const SystemRow = memo(function SystemRow({ row, zone = null }) {
+  // The intercom and the decree draw as a bordered block across the log
+  // (REDESIGN.md §6): a heading, the words at reading size, a rule top and
+  // bottom. Everything else is one line, and its channelKind goes straight onto
+  // data-kind for the CSS to key off — the five-way branch that used to live here.
+  if (BLOCK_KINDS.has(row.channelKind)) {
+    const decree = row.channelKind === "decree";
+    // A decree carries its own title, written by the GM: the row is the title,
+    // a blank line, then the words (db/lib/decreeText.js, which has zero
+    // requires precisely so a client file may read it). The title is the
+    // blackletter heading and the byline says what kind of thing this is and
+    // where it was read — the intercom's heading says both in one line because
+    // a PA has no title of its own.
+    const parts = decree ? splitDecree(row.content) : null;
+    const body = decree ? parts.body : String(row.content ?? "").replace(INTERCOM_PREFIX, "");
+    return (
+      <TranscriptLine
+        variant="block"
+        channelKind={row.channelKind}
+        headingFace={decree ? "blackletter" : "caps"}
+        heading={decree ? (parts.title || zone || "Ravenheart") : zone ? `Intercom · ${zone}` : "Intercom"}
+        byline={decree ? (zone ? `${DECREE_LABEL} · ${zone}` : DECREE_LABEL) : null}
+        seq={row.seq}
+      >
+        <ChatMarkdown content={body} />
+      </TranscriptLine>
+    );
+  }
   return (
-    <li className={className} data-seq={row.seq ?? undefined}>
+    <TranscriptLine variant="system" channelKind={row.channelKind} seq={row.seq}>
       <ChatMarkdown content={row.content} />
-    </li>
+    </TranscriptLine>
   );
 });
 
@@ -165,6 +194,14 @@ function NewLine() {
       <span>NEW</span>
     </li>
   );
+}
+
+// The mockup's .daybreak: a rule wherever the scene crosses into a new turn
+// (withRuns above decides WHERE; this only draws it). v3 turns carry no
+// phase word — they run 6/8/12/24 hours, not "Morning"/"Evening"
+// (TURN-ENGINE.md) — so the label is the turn number alone.
+function Daybreak({ turnNumber }) {
+  return <li className="daybreak">{formatTurnLabel(turnNumber)}</li>;
 }
 
 // What a place looks like while its backlog is on the wire. Three faded rows
@@ -245,7 +282,7 @@ const FeedRow = memo(function FeedRow({
   // somebody can act against. A system line with no seq still has nothing.
   const anyAction = mine || canLook || canPhoto || canRemove || canStar;
   // WHETHER the bar exists is decided here; whether it is SEEN is decided in
-  // CSS, by .chat-row:hover and :focus-within. It used to be a useState set
+  // CSS, by .tline:hover and :focus-within. It used to be a useState set
   // from onMouseEnter/onMouseLeave, which re-rendered the row on every mouse
   // crossing and — worse — meant a keyboard could never reveal the bar at
   // all, because a keyboard produces no mouseenter. Rendering it always and
@@ -256,8 +293,7 @@ const FeedRow = memo(function FeedRow({
   const verbs = ROW_VERBS.filter((v) => v.show(guards));
 
   return (
-    <li
-      className="chat-row"
+    <TranscriptLine
       // Focusable by a tap, never by Tab: on a touch screen there is no
       // hover, so the action bar shows for the row that was tapped
       // (:focus-within, globals.css) — Discord's long-press, one gesture
@@ -265,129 +301,117 @@ const FeedRow = memo(function FeedRow({
       // buttons are still reached by keyboard, and focusing one of them
       // reveals the bar the same way.
       tabIndex={showActions ? -1 : undefined}
-      data-seq={row.seq ?? undefined}
-      data-run={startsRun ? "start" : undefined}
-      data-pending={row.pending ? "true" : undefined}
+      seq={row.seq}
+      startsRun={startsRun}
+      pending={row.pending}
+      // A send that came back refused. The line STAYS — losing what you typed
+      // is worse than watching it sit there marked unsent — so the mark is what
+      // has to say it went nowhere, beside the Try again below.
+      failed={row.failed}
       // Only a line that ARRIVED gets the fade. See `liveAfter` below.
-      data-live={live ? "true" : undefined}
-    >
-      <div className="chat-row-face">
-        {startsRun && (
-          <CharacterAvatar
-            characterId={row.characterId}
-            name={row.name ?? ""}
-            version={row.avatarVersion}
-            src={row.avatarPath ?? undefined}
-            // A line said under an alias before the game recorded what was
-            // over the speaker's face. It cannot be given one now — the sprite
-            // lived on the tag they were wearing then — so it keeps its secret
-            // and draws the plate (db/lib/archive.js#feedRowShape).
-            unknown={row.unknownFace}
-            size={32}
-            zoomable
-          />
-        )}
-      </div>
-      <div className="chat-row-body">
-        {/* A real class family rather than .chat-* mixed with loose Tailwind
-            utilities, so restyling a row is a CSS edit and not a JSX one.
-            data-alias tints the name where somebody is speaking under one, so
-            a scene is scannable by who is in it — a hood reads as a hood at a
-            glance instead of as one more name in the column. */}
-        {startsRun && (
-          <div className="chat-row-head">
-            <span className="chat-row-name" data-alias={row.alias ? "true" : undefined}>
-              {realName ? `${row.name} (${realName})` : row.name}
-            </span>
-            <span className="chat-row-time mono">{timeLabel(row.sentAt)}</span>
-            {row.editedAt && <span className="chat-row-edited">(edited)</span>}
-          </div>
-        )}
-
-        {editing ? (
-          <div className="field">
-            <textarea
-              rows={2}
-              value={draft}
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  onCancelEdit();
-                  return;
-                }
-                if (e.key !== "Enter" || e.shiftKey) return;
-                e.preventDefault();
-                onSaveEdit(row.seq, draft);
-              }}
-            />
-            <div className="chat-buttons">
-              <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
-                Save
-              </button>
-              <button type="button" className="btn-quiet" onClick={onCancelEdit}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <ChatMarkdown content={row.content} />
-        )}
-
-        {/* The bar FLOATS over the row's top-right corner (.chat-row-actions),
-            so it never pushes the sentence around when a mouse crosses the
-            line. Everything it offers is re-decided by the server when it is
-            pressed: the five-minute window, the camera in your hands, whether
-            that person is still standing beside you. */}
-        {showActions && (
-          <div className="chat-row-actions">
-            {verbs.map((v) => (
+      live={live}
+      // The mockup's log names EVERY line, not just the first of a run — a
+      // scene read a name at a time, never a face (TranscriptLine.js,
+      // density="feed" draws no gutter at all). The real name behind an alias
+      // is printed in the parentheses and nowhere else — no tooltip, no
+      // second element.
+      name={realName ? `${row.name} (${realName})` : row.name}
+      alias={Boolean(row.alias)}
+      // The speaker's own colour out of the six (REDESIGN.md §3). Hashed off the
+      // character id, or off the hood token when the row carries no id — either
+      // way it is the same colour every session, which is what makes it worth
+      // reading. The alias tint wins in the CSS for a hooded line.
+      hue={nameHue(row.characterId ?? row.speakerKey ?? null)}
+      time={timeLabel(row.sentAt)}
+      edited={Boolean(row.editedAt)}
+      // The bar FLOATS over the row's top-right corner (.tline-actions), so it
+      // never pushes the sentence around when a mouse crosses the line.
+      // Everything it offers is re-decided by the server when it is pressed:
+      // the five-minute window, the camera in your hands, whether that person
+      // is still standing beside you.
+      actions={
+        showActions
+          ? verbs.map((v) => (
               <IconButton
                 key={v.key}
                 icon={v.icon}
                 label={v.label}
                 onClick={() => v.run(handlers, { seq: row.seq, sentAt: row.sentAt })}
               />
-            ))}
-          </div>
-        )}
-
-        {/* Same verbs as the hover bar above, as a ⋯ that opens a bottom
-            sheet — a touch screen has no hover, so this is the one action a
-            tap can reach. CSS decides which of the two shows (globals.css). */}
-        {showActions && (
-          /* The wrapper carries the position, not the button: IconButton
-             wraps its button in the tooltip's own span, and an absolutely
-             positioned button inside that span pins to the span, not the
-             row — which put the ⋯ over the avatar. */
-          <span className="chat-row-more">
-            <IconButton
-              icon={MoreIcon}
-              label="Actions"
-              size="lg"
-              onClick={() =>
-                onOpenMenu({
-                  seq: row.seq,
-                  sentAt: row.sentAt,
-                                    mine,
-                  canLook,
-                  canPhoto,
-                  canStar,
-                  canRemove,
-                })
+            ))
+          : null
+      }
+      trailing={
+        <>
+          {/* Same verbs as the hover bar above, as a ⋯ that opens a bottom
+              sheet — a touch screen has no hover, so this is the one action a
+              tap can reach. CSS decides which of the two shows (globals.css).
+              The wrapper carries the position, not the button: IconButton
+              wraps its button in the tooltip's own span, and an absolutely
+              positioned button inside that span pins to the span, not the
+              row — which put the ⋯ over the avatar. */}
+          {showActions && (
+            <span className="tline-more">
+              <IconButton
+                icon={MoreIcon}
+                label="Actions"
+                size="lg"
+                onClick={() =>
+                  onOpenMenu({
+                    seq: row.seq,
+                    sentAt: row.sentAt,
+                    mine,
+                    canLook,
+                    canPhoto,
+                    canStar,
+                    canRemove,
+                  })
+                }
+              />
+            </span>
+          )}
+          {row.failed && (
+            <p className="chat-unsent">
+              <span>Not sent.</span>
+              <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
+                Try again
+              </button>
+            </p>
+          )}
+        </>
+      }
+    >
+      {editing ? (
+        <div className="field">
+          <textarea
+            rows={2}
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onCancelEdit();
+                return;
               }
-            />
-          </span>
-        )}
-
-        {row.failed && (
-          <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
-            Try again
-          </button>
-        )}
-      </div>
-    </li>
+              if (e.key !== "Enter" || e.shiftKey) return;
+              e.preventDefault();
+              onSaveEdit(row.seq, draft);
+            }}
+          />
+          <div className="chat-buttons">
+            <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
+              Save
+            </button>
+            <button type="button" className="btn-quiet" onClick={onCancelEdit}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ChatMarkdown content={row.content} />
+      )}
+    </TranscriptLine>
   );
 });
 
@@ -489,28 +513,6 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 
   if (!arg) return null;
 
-  if (arg.kind === "moveKind") {
-    return (
-      <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
-        {MOVE_KINDS.map((kind) => (
-          <button
-            key={kind.value}
-            type="button"
-            role="radio"
-            aria-checked={values[arg.name] === kind.value}
-            className="chip"
-            data-active={values[arg.name] === kind.value ? "true" : undefined}
-            // The textarea must not lose focus to a chip: the next thing the
-            // player types is the command's text argument.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onPick(arg.name, kind.value)}
-          >
-            {kind.label}
-          </button>
-        ))}
-      </div>
-    );
-  }
 
   if (arg.kind === "destination") {
     if (!destinations) return <p className="text-sm text-muted">Reading the road…</p>;
@@ -686,14 +688,23 @@ export default function Feed({
   // brought a deleted line back: take the only line in a quiet street down,
   // the store empties, and the server's copy from page-load slid in behind it
   // as though nothing had happened.
-  const rows =
+  //
+  // `stored.some(row => row.seq)` rather than `stored.length === 0`, and that is
+  // load-bearing for the optimistic row: sending the first line into a place
+  // whose history was still loading put ONE row in the store, which flipped this
+  // off the fallback and blanked the whole scene down to your own sentence. A
+  // pending row carries no seq, so this asks whether the store holds anything
+  // CONFIRMED and keeps the server's copy underneath until it does.
+  const usingFallback =
     historyState !== "loaded" &&
-    stored.length === 0 &&
-    placeKey &&
+    Boolean(placeKey) &&
     placeKey === fallbackPlace &&
-    fallbackRows?.length
-      ? fallbackRows
-      : stored;
+    Boolean(fallbackRows?.length) &&
+    !stored.some((row) => row.seq);
+  const rows = useMemo(
+    () => (usingFallback ? [...fallbackRows, ...stored] : stored),
+    [usingFallback, fallbackRows, stored],
+  );
   const [searchOpen, setSearchOpen] = useState(false);
   // The `at` of a jump whose failure the reader has already waved away, so
   // closing the search box after a miss actually closes it.
@@ -704,9 +715,9 @@ export default function Feed({
   // Carries the same booleans the hover bar branches on (FeedRow), so the
   // sheet re-decides nothing the row hadn't already worked out.
   const [menuRow, setMenuRow] = useState(null);
-  // The phone (useNarrow.js): a one-line box, the send as a glyph, and the
-  // ✉ and the hood folded behind a + the way Discord's composer does it.
   const narrow = useNarrow();
+  // The ✉ menu (Write/Seal/Bird), the one composer control with no home of
+  // its own in the mockup's say row — folded behind a single ⋯.
   const [toolsOpen, setToolsOpen] = useState(false);
   const confirm = useConfirm();
   // The box's text. Seeded from what this tab last left unsent in THIS place
@@ -795,9 +806,6 @@ export default function Feed({
   // the server tells a 32-hex token from a cuid itself, so the browser never
   // learns which it sent (play/actions.js#lookAt).
   const [look, setLook] = useState(null);
-  // The ✉ menu beside the composer. The composer's, not the scene's, so it
-  // lives here.
-  const [lettersOpen, setLettersOpen] = useState(false);
   const [refresh] = useRefresh();
   const {
     run: runCommand,
@@ -1128,7 +1136,10 @@ export default function Feed({
   const speechModes = useMemo(
     () =>
       [
-        { mode: "speak", label: "Speak", command: null },
+        // "Say", not "Speak" — the mockup's own word for it
+        // (docs/design/mockups/chat/index.html, `.mode`), and the shortest of
+        // the three so the picker never has to be wider than "Say" needs.
+        { mode: "speak", label: "Say", command: null },
         { mode: "shout", label: "Shout", command: "shout" },
         { mode: "ooc", label: "OOC", command: "ooc" },
       ].filter((m) => !m.command || available.some((entry) => entry.name === m.command)),
@@ -1192,99 +1203,41 @@ export default function Feed({
   const sendLabel = command ? (command.entry.verb ?? "Run") : "Send";
 
   // Paperwork — Write, Seal, the bird. Not a place's affordance: these are
-  // things you do with your own hands wherever you are standing. Folded INSIDE
-  // the box when there is a box, which is Discord's shape and the whole point
-  // of this row; beside the sentence when there isn't one, because a ghost has
-  // no composer and still has hands.
-  //
-  // The hood used to sit here too. It is /conceal now and only /conceal.
+  // things you do with your own hands wherever you are standing, and the
+  // mockup's say row has no home for them — so they fold behind one ⋯,
+  // the same shape on a phone and a desktop. The hood used to sit here too.
+  // It is /conceal now and only /conceal.
   const composerTools =
-    lettersMenu.length > 0 || (narrow && speechModes.length > 1) ? (
-      <span className={narrow ? "chat-composer-tools chat-composer-tools--folded" : "chat-composer-tools"}>
-        {narrow ? (
-          <span className="chat-tool-wrap">
-            <IconButton
-              icon={PlusIcon}
-              label="More"
-              size="lg"
-              aria-haspopup="menu"
-              aria-expanded={toolsOpen}
-              onClick={() => setToolsOpen((was) => !was)}
-            />
-            {toolsOpen && (
-              <div className="chat-menu chat-menu--left" role="menu" aria-label="More">
-                {/* The phone's Speak / Shout / OOC. Radios rather than
-                    buttons — they are three states of one thing, and one
-                    of them is always on — so the menu says which voice
-                    the box is currently in without a second control. */}
-                {speechModes.length > 1 &&
-                  speechModes.map((m) => (
-                    <button
-                      key={m.mode}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={speechMode === m.mode}
-                      className="menu-item"
-                      onClick={() => {
-                        setToolsOpen(false);
-                        pickSpeechMode(m.mode);
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                {lettersMenu.map((entry) => (
-                  <button
-                    key={entry.mode}
-                    type="button"
-                    role="menuitem"
-                    className="menu-item"
-                    disabled={entry.disabled}
-                    onClick={() => {
-                      setToolsOpen(false);
-                      openAction?.(entry.mode);
-                    }}
-                  >
-                    {entry.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </span>
-        ) : (
-          <>
-            {lettersMenu.length > 0 && (
-              <span className="chat-tool-wrap">
-                <IconButton
-                  icon={QuillIcon}
-                  label="Letters"
-                  aria-haspopup="menu"
-                  aria-expanded={lettersOpen}
-                  onClick={() => setLettersOpen((was) => !was)}
-                />
-                {lettersOpen && (
-                  <div className="chat-menu" role="menu" aria-label="Letters">
-                    {lettersMenu.map((entry) => (
-                      <button
-                        key={entry.mode}
-                        type="button"
-                        role="menuitem"
-                        className="menu-item"
-                        disabled={entry.disabled}
-                        onClick={() => {
-                          setLettersOpen(false);
-                          openAction?.(entry.mode);
-                        }}
-                      >
-                        {entry.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </span>
-            )}
-          </>
+    lettersMenu.length > 0 ? (
+      <span className="chat-composer-tools">
+      <span className="chat-tool-wrap">
+        <IconButton
+          icon={MoreIcon}
+          label="More"
+          aria-haspopup="menu"
+          aria-expanded={toolsOpen}
+          onClick={() => setToolsOpen((was) => !was)}
+        />
+        {toolsOpen && (
+          <div className="chat-menu" role="menu" aria-label="More">
+            {lettersMenu.map((entry) => (
+              <button
+                key={entry.mode}
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                disabled={entry.disabled}
+                onClick={() => {
+                  setToolsOpen(false);
+                  openAction?.(entry.mode);
+                }}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
         )}
+      </span>
       </span>
     ) : null;
 
@@ -1356,6 +1309,27 @@ export default function Feed({
     if (pieces > MAX_SAY_PIECES) return { label: tooManyPieces(pieces), over: true };
     return { label: `sends as ${pieces} messages`, over: false };
   }, [draft]);
+
+  // ArrowUp on an EMPTY box recalls the last thing you said here, the way a
+  // shell recalls the last command (REDESIGN.md §6). It opens the row's own
+  // editor rather than putting the words back in the composer: that editor is
+  // what actually saves an edit, and two ways of changing a line would be two
+  // places for the five-minute window to be checked.
+  //
+  // Only a confirmed row of your own, and only speech — a pending row has no
+  // seq to edit and the world's lines are not yours. The window is checked by
+  // onEdit, which says so out loud when it has passed.
+  const lastOwnLine = useMemo(() => {
+    if (!self?.characterId && !self?.speakerKey) return null;
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const row = rows[i];
+      if (!row?.seq || row.pending || row.failed) continue;
+      if (row.source === "SYSTEM") continue;
+      if (!isOwnRow(row, self.characterId ?? null, self.speakerKey ?? null)) continue;
+      return { seq: row.seq, sentAt: row.sentAt ?? null };
+    }
+    return null;
+  }, [rows, self?.characterId, self?.speakerKey]);
 
   const submit = useCallback(() => {
     const content = draft.trim();
@@ -1586,9 +1560,9 @@ export default function Feed({
   // the rows arriving and React laying them out, which is this component's
   // own render. Chat.js loads the FIRST page of a place; this loads the rest.
   const reachBack = useCallback(() => {
-    // The two pseudo-places never reach this component at all — Chat.js
-    // draws ./FactionPanel.js and ./DmPane.js instead — so a real place is
-    // the only thing a mounted Feed can be looking at.
+    // The pseudo-place never reaches this component at all — Chat.js draws
+    // ./DmPane.js instead — so a real place is the only thing a mounted Feed
+    // can be looking at.
     if (!placeKey) return;
     const state = backlogOf(placeKey);
     if (state.loading || state.exhausted) return;
@@ -1919,6 +1893,13 @@ export default function Feed({
         // null there and the alias stands alone, which is the whole point of
         // wearing one.
         const realName = gm && row.alias && row.speakerKey ? (speakers?.[row.speakerKey] ?? null) : null;
+        // The mockup's .daybreak: a rule wherever the scene crosses into a
+        // new turn. v3 has no turn-of-day phase to print beside it (turns are
+        // 6/8/12/24h, not "Morning"/"Evening" — TURN-ENGINE.md), so the label
+        // is just the turn number. Never on the first row of a place: there
+        // is no "before" to have crossed from.
+        const dayBreak =
+          Boolean(prev) && row.turnNumber != null && row.turnNumber !== prev?.turnNumber;
         return {
           row,
           realName,
@@ -1930,6 +1911,7 @@ export default function Feed({
           canRemove,
           canStar,
           newLine: Boolean(row.seq) && row.seq === newAt,
+          dayBreak,
         };
       }),
     [rows, self.characterId, newAt, gm, speakers, ghost, hasCamera, openAction],
@@ -1964,16 +1946,16 @@ export default function Feed({
     setDismissedJump(jump?.at ?? null);
   };
 
-  // The head is ChatHead.js: the name, where you are standing above it, the
-  // place's own words under it as one line you open, and — on a phone — the
-  // two drawer buttons either side. Search is the head's trailing control.
-  const description = place?.description?.trim() || "";
+  // The head is ChatHead.js: the mockup's one `.bar` — the name, where you
+  // are standing above it, a spacer, then how many are here — and, on a
+  // phone, the two drawer buttons either side. Search is the head's trailing
+  // control. The place's own words are PlaceCard's line in the aside now, not
+  // this bar's (CHAT.md).
   return (
     <div className="chat-main">
       <ChatHead
         name={place.name}
         crumb={crumb}
-        description={description}
         onOpenPlaces={onOpenPlaces}
         onOpenAside={onOpenAside}
         unreadElsewhere={unreadElsewhere}
@@ -2063,19 +2045,22 @@ export default function Feed({
               exhausted={backlog.exhausted}
               floored={backlog.floored}
             />
-            {withRuns.map(({ row, realName, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine }) => {
+            {withRuns.map(
+              ({ row, realName, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine, dayBreak }) => {
               const key = row.clientId ?? row.seq;
               if (system) {
                 return (
                   <Fragment key={key}>
+                    {dayBreak && <Daybreak turnNumber={row.turnNumber} />}
                     {newLine && <NewLine />}
-                    <SystemRow row={row} />
+                    <SystemRow row={row} zone={crumb[0] ?? null} />
                   </Fragment>
                 );
               }
               const editing = Boolean(row.seq) && row.seq === editingSeq;
               return (
                 <Fragment key={editing ? `${row.seq}:edit` : key}>
+                  {dayBreak && <Daybreak turnNumber={row.turnNumber} />}
                   {newLine && <NewLine />}
                   <FeedRow
                     // Keyed by the CLIENT id where there is one, which the
@@ -2149,6 +2134,31 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
+              {/* The mockup's say row, one row of three: the voice picker,
+                  the black well with the words in it, one bevelled Send
+                  (docs/design/mockups/chat/index.html). Select.js rather than
+                  a bare <select> — a bare one breaks the theme
+                  (DESIGN-SYSTEM.md) — and one control rather than the old
+                  three-way segmented toggle, since a dropdown reads the same
+                  on a phone and a desktop and needed no separate folded
+                  version for either. Hidden entirely when there is only Speak
+                  to pick: a control with one option is decoration. */}
+              <div className="chat-say-col">
+              <div className="chat-say-row">
+              {speechModes.length > 1 && (
+                <Select
+                  className="chat-mode-select"
+                  aria-label="How to talk"
+                  value={speechMode ?? "speak"}
+                  onChange={(e) => pickSpeechMode(e.target.value)}
+                >
+                  {speechModes.map((m) => (
+                    <option key={m.mode} value={m.mode}>
+                      {m.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
               <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
                 {/* COMMAND MODE reads as a strip across the top of the box —
                     what you are running, what it does, and a way out. It used
@@ -2177,33 +2187,10 @@ export default function Feed({
                     orange slab as tall as both — which is three objects to read
                     before you can type into one of them. */}
                 <div className="chat-composer-row">
-                  {/* Speak / Shout / OOC. Hidden when there is only Speak to
-                      pick — a control with one option is decoration. Desktop
-                      only: on a phone the same three sit under the + with the
-                      rest of the composer's verbs.
-
-                      The shared Select, never a bare <select>: it draws its own
-                      popup rather than OS chrome that ignores the theme. It
-                      already puts `.control` on its trigger, and inside this
-                      container that is a frame around a frame, so the CSS takes
-                      its surface and border off and leaves a label you press. */}
-                  {!narrow && speechModes.length > 1 && (
-                    <Select
-                      className="chat-mode-select"
-                      aria-label="How to talk"
-                      value={speechMode ?? "speak"}
-                      onChange={(e) => pickSpeechMode(e.target.value)}
-                    >
-                      {speechModes.map((m) => (
-                        <option key={m.mode} value={m.mode}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
                   {composerTools}
                   <textarea
                     id="chat-composer"
+                    className="say"
                     ref={textareaRef}
                     aria-label={
                       concealed && alias ? `Say something as ${alias}` : `Say something in ${place.name}`
@@ -2295,6 +2282,14 @@ export default function Feed({
                           return;
                         }
                       }
+                      // Nothing typed, and Up: recall your own last line into
+                      // its editor. Only on an EMPTY box, so Up inside a draft
+                      // still moves the caret through what you are writing.
+                      if (e.key === "ArrowUp" && draft.length === 0 && lastOwnLine) {
+                        e.preventDefault();
+                        onEdit(lastOwnLine.seq, lastOwnLine.sentAt);
+                        return;
+                      }
                       // A phone keyboard's Enter is a newline, as it is in
                       // Discord's app; the button beside the box is the send
                       // there. On a keyboard Enter sends and Shift+Enter breaks
@@ -2303,26 +2298,6 @@ export default function Feed({
                       e.preventDefault();
                       submit();
                     }}
-                  />
-                  {/* ONE send for both faces now. On a phone it is the 44px
-                      accent glyph a thumb aims at; on a desktop the same glyph,
-                      quiet, inside the box — it was a filled .btn stretched to
-                      the full height of the box beside it, which made the
-                      heaviest object on the page a control almost nobody
-                      presses, since Enter sends. The verb (/shout says "Send",
-                      most commands say "Run") rides in the label, which
-                      IconButton puts in both the aria-label and the tooltip. */}
-                  <IconButton
-                    icon={SendIcon}
-                    label={sendLabel}
-                    className={narrow ? "icon-btn chat-send" : "icon-btn chat-composer-send"}
-                    size={narrow ? "lg" : "sm"}
-                    onClick={command ? runCurrent : submit}
-                    disabled={
-                      command
-                        ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                        : !draft.trim() || waitSeconds > 0
-                    }
                   />
                 </div>
                 {mention && (
@@ -2357,42 +2332,62 @@ export default function Feed({
                   />
                 )}
               </div>
-              {/* Slowmode, said as a clock rather than as a refusal — and
-                  said BEFORE it bites. It only appeared once the wait was
-                  already running, so the first a player knew of a slowmode was
-                  being stopped by one. The zone summary is the only place that
-                  has one at all. */}
-              {slowmodeMs > 0 && (
-                <span
-                  className="chat-countdown mono"
-                  data-nudge={nudge ? "true" : undefined}
-                  data-waiting={waitSeconds > 0 ? "true" : undefined}
-                  aria-live="polite"
-                >
-                  {waitSeconds > 0 ? `${waitSeconds} s` : `${Math.round(slowmodeMs / 1000)} s`}
-                </span>
-              )}
-              {/* The count, drawn only where a limit actually exists to run
-                  into — the refusal used to be the first mention of one. A
-                  keyboard hint used to sit here beside it, then inside the
-                  box's placeholder; it is gone entirely now. */}
-              {command && textArgOf(command.entry)?.maxLength && (
-                <span
-                  className="chat-composer-count mono"
-                  data-over={draft.trim().length > textArgOf(command.entry).maxLength ? "true" : undefined}
-                >
-                  {draft.trim().length}/{textArgOf(command.entry).maxLength}
-                </span>
-              )}
-              {/* The same readout for ordinary speech, which had none — a
-                  player typed a goods list, the box let them, and the refusal
-                  was the first they heard of a limit. Silent until they are
-                  near it, then the count, then what it will actually do. */}
-              {!command && sayCount && (
-                <span className="chat-composer-count mono" data-over={sayCount.over ? "true" : undefined}>
-                  {sayCount.label}
-                </span>
-              )}
+              {/* One bevelled Send, the mockup's `.btn`, outside the well
+                  rather than a quiet glyph inside it — the verb (/shout says
+                  "Send", most commands say "Run") is the whole point of a
+                  labelled button. Enter still sends; this is for a mouse and
+                  for anybody who wants to see the word. */}
+              <button
+                type="button"
+                className="btn chat-composer-send-btn"
+                onClick={command ? runCurrent : submit}
+                disabled={
+                  command
+                    ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                    : !draft.trim() || waitSeconds > 0
+                }
+              >
+                {sendLabel}
+              </button>
+              </div>
+              {/* The mockup's one hint line, plus whatever the box already
+                  needed to say below it — slowmode counted down rather than
+                  refused, and the length counter — sharing one footer row so
+                  none of it costs the composer a row of its own. */}
+              <div className="chat-composer-foot">
+                <p className="hint">
+                  Enter sends · Shift+Enter is a new line · {EDIT_WINDOW_MS / 60_000} minutes to edit
+                </p>
+                {slowmodeMs > 0 && (
+                  <span
+                    className="chat-countdown mono"
+                    data-nudge={nudge ? "true" : undefined}
+                    data-waiting={waitSeconds > 0 ? "true" : undefined}
+                    aria-live="polite"
+                  >
+                    {waitSeconds > 0 ? `${waitSeconds} s` : `${Math.round(slowmodeMs / 1000)} s`}
+                  </span>
+                )}
+                {/* The count, drawn only where a limit actually exists to run
+                    into — the refusal used to be the first mention of one. */}
+                {command && textArgOf(command.entry)?.maxLength && (
+                  <span
+                    className="chat-composer-count mono"
+                    data-over={draft.trim().length > textArgOf(command.entry).maxLength ? "true" : undefined}
+                  >
+                    {draft.trim().length}/{textArgOf(command.entry).maxLength}
+                  </span>
+                )}
+                {/* The same readout for ordinary speech, which had none — a
+                    player typed a goods list, the box let them, and the
+                    refusal was the first they heard of a limit. */}
+                {!command && sayCount && (
+                  <span className="chat-composer-count mono" data-over={sayCount.over ? "true" : undefined}>
+                    {sayCount.label}
+                  </span>
+                )}
+              </div>
+              </div>
             </>
           ) : place.vantage ? (
             // A street you walked out of earlier this turn and are still

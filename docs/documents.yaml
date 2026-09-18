@@ -8,12 +8,12 @@ documents:
     name: Courtier
     public: false
     tags: []
-    description: As a member of the Baron's retinue, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don't steal. If you'd like to steal, arrange it with a GM).
+    description: As a member of the Baron's retinue, you may take food from a fellow member whenever you please — within reason. If you'd like to steal, arrange it with a GM.
   church:
     name: Church
     public: false
     tags: []
-    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don't steal. If you'd like to steal, arrange it with a GM).
+    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason. If you'd like to steal, arrange it with a GM.
   independent:
     name: Independent
     public: false
@@ -31,18 +31,6 @@ documents:
     tags: []
     description: |-
       Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
-  treasurer:
-    name: Treasurer
-    public: true
-    tags:
-      - Treasurer
-      - Leader
-    description: |-
-      As Treasurer or Leader, you can see each faction member's Resources.
-
-      **Transferring Resources**
-
-      You may transfer Resources from any source to any recipient, provided you are in the same Location as both.
   sanctuary:
     name: Sanctuary
     public: true
@@ -62,33 +50,10 @@ documents:
     name: Producing Resources
     public: true
     tags:
-      - Laboring (Basic)
-      - Laboring (Skilled)
-      - Laboring (Hunting)
-      - Laboring (Farming)
-      - Laboring (Fishing)
-      - Laboring (Prospecting)
-    description: |-
-      Labor is how Resources are produced, and it needs one of the tags below.
-
-      Pick **Labor** as your Move. It pays according to the best skill you hold for the Location, and it is your only action that turn. Labor is the default Move if no other Move is submitted.
-
-      | Skill | Per turn | Where |
-      |---|---|---|
-      | {tag:laboring-basic} | {resource:labor:basic} | Anywhere |
-      | {tag:laboring-skilled} | {resource:labor:skilled} | Anywhere |
-      | {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
-      | {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
-      | {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
-      | {tag:laboring-prospecting} | {resource:labor:prospecting} | Somewhere worth searching, scaled by the place |
-
-      The bottom four need {tag:laboring-skilled} behind them and are side-grades. There is no limit on the number of Labor tags a Character may hold. Laboring always pays the best result for where you stand.
-
-      The Per Turn ranges are what an ordinary spot pays. What a Location pays **changes over the course of the game**. Press **Examine** in any Location's channel to see what it yields right now. Hunting is typically the most variable; Farming the most steady.
-
-      Tools raise a yield while you carry them — bows and guns for hunting, a Pitchfork or a Plow for farming, a Rod for fishing. Each says so in its own description.
-
-      If the Lifeweb fails, laboring nearly stops.
+      - Prospecting
+      - Soilery
+    # [PLAYER TEXT — Bascinet to rewrite]
+    description: ""
   combat:
     name: Combat
     public: true
@@ -213,10 +178,22 @@ documents:
       You can also harvest {tag:cave-fungus} in just about every location (by doing a Gambit, or just through the encounter roll). The caves hold many secrets, requiring certain character traits or knowledge to gain access to.
 
   # The Merchant Update filled this in — it was an empty stub for as long as
-  # the seat was unfinished. Reached by doc_element from both The Company
-  # roles, so the Dockers read it too: they are the ones hauling the goods.
-  # The canonical numbers are docs/systemdocs/DEPOT.md §3-4; this is the
-  # player-facing half and only carries the bands, never the full table.
+  # the seat was unfinished. Reached by both The Company roles, so the
+  # Dockers read it too: they are the ones hauling the goods. The canonical
+  # numbers are docs/systemdocs/DEPOT.md §3-4; this is the player-facing
+  # half and only carries the bands, never the full table.
+  merchant:
+    name: The Merchant's Depot
+    public: false
+    tags: []
+    description: |-
+      The Depot is open to anyone now. Your License still opens the whole manifest, sealed goods included; everyone else gets a shorter shelf gated by what they hold — the general shelf needs nothing, the black market wants a Silver Chip.
+
+      Goods don't move the moment somebody pays. A cargo train runs every other day on its own. An order placed today lands as crates in the Railyard at the end of today or tomorrow, depending on where the train is — a Docker's job, or yours, to unload and haul on to the name stamped on the box. The Railyard is open to anyone, so a crate left there can walk.
+
+      Whoever's selling drops the thing in the dropbox, and it's gone — the money lands when the train next leaves, into their own account or, with your License or a Depot Keycard, into yours. The Meister takes a cut off every sale before it settles, into the treasury.
+
+      Prices hold to bands: a brew sells for close to what it cost to make plus a margin, smithed gear pays better the more skill and turns went into it, cave loot and bulk goods hold their price, and body parts stay cheap on purpose. The full table lives on the price list at the counter.
 
   charon:
     name: The Charon
@@ -275,21 +252,21 @@ documents:
 
       | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
       |---|---|---|---|---|
-      | {tag:white-honey} | Brewing (Skilled) | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 4 ⬢, and a rare fishing catch |
-      | {tag:graga-sweat} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:invisibility-potion} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:dreamers-draught} | Brewing (Skilled) | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
-      | {tag:pure-luck} | Brewing (Skilled) | 0 | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
-      | {tag:raven-draught} | Brewing (Skilled) | 2 | {tag:ravens-eye} | foraged while hunting |
-      | {tag:honeyed-cakes} | Cooking (Skilled) | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
+      | {tag:white-honey} | Brewing II | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 4 ⬢, and a rare fishing catch |
+      | {tag:graga-sweat} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:invisibility-potion} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
+      | {tag:dreamers-draught} | Brewing II | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
+      | {tag:pure-luck} | Brewing II | 0 | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
+      | {tag:raven-draught} | Brewing II | 2 | {tag:ravens-eye} | foraged while hunting |
+      | {tag:honeyed-cakes} | Cooking II | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
       | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:minted-charm} | Smithing | 15, 3-turn project | {tag:old-coin} | caving loot |
+      | {tag:minted-charm} | Smithing I | 15, 3-turn project | {tag:old-coin} | caving loot |
       | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
-      | {tag:autoinjector} | Brewing (Expert) | 3, 1 turn | {tag:antidote}, {tag:fever-draught} and {tag:brackenmoss} | foraged — GM-granted until the loot pass wires it |
-      | {tag:last-breath} | Brewing (Expert) | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
-      | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Brewing (Expert) | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
+      | {tag:autoinjector} | Brewing III | 3, 1 turn | {tag:antidote}, {tag:fever-draught} and {tag:brackenmoss} | foraged — GM-granted until the loot pass wires it |
+      | {tag:last-breath} | Brewing III | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
+      | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Brewing III | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
       | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
-      | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
+      | {tag:heartforged-blade} | Smithing II | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
 
       The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey.
@@ -362,11 +339,10 @@ documents:
     name: Godard Factory
     public: false
     tags: []
-    factions: [the-factory]
     description: |-
       Godard's beauty days are over, but it still functions. The Banneret's lineage, one of the Baron's cadet houses, has (usually grudgingly) employed refugees to extract {tag:godflesh} from the marshes and refine it into {tag:squeeze}, which is then shipped off to the merchant. It is generally unknown what Squeeze does or why it's so valuable. Unfortunately, due to the working conditions, most refugees don't stay for long and usually try to make it to the town. They're easily replaced, so it doesn't matter.
 
-      Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Extract button from the character panel while in a marsh wilderness location. You can only do it once per turn. To turn it into {tag:squeeze}, simply labor while in the factory. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
+      Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Harvest Godflesh button from the character panel while in a marsh wilderness location. You can only do it once per turn. To turn it into {tag:squeeze}, press Refine while in the factory. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
 
       Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. On the upside, working at the Factory gives you a chance of social mobility — a good Banneret will pay you much more than the average commoner would make, if only to keep you around.
 
@@ -394,7 +370,7 @@ documents:
     description: |-
       This reality is flawed to its core! Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.
 
-      You and your fellow cultists must obey the instructions of your leader and ultimately, Tzchernobog. You can see who your fellow cultists are in the faction tab.
+      You and your fellow cultists must obey the instructions of your leader and ultimately, Tzchernobog. You can see who your fellow cultists are with the Recall Comrades button.
 
       Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cults position has been tenuous. The capture of one of you will result in your exposure, death is preferable to what the sadistic inquisition will do to you.
 
@@ -431,8 +407,8 @@ documents:
       You oversee management of the cults resources and stockpile. Equip your cultists however you see fit.
 
       Your presence is required for the most important rites. Good luck.
-  # Readable by the cult and by the two religious factions — the Church and
-  # the Order — through `roles:`, the same way elevatorkey reaches the Baron.
+  # Readable by the cult and by the clergy — the Church's seats and the
+  # Order's — through `roles:`, the same way elevatorkey reaches the Baron.
   thanati:
     name: Thanati
     public: false

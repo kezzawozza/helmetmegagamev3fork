@@ -21,6 +21,9 @@ import { endGameInDb, resumeGameInDb, postGameEnded } from "@lifeweb/db/lib/game
 import { formatEpilogue } from "@lifeweb/db/lib/epilogue";
 import { syncSpectatorAccess } from "@lifeweb/db/lib/spectatorAccess";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
+import { openSession, closeSession } from "@lifeweb/db/lib/session";
+import { speakIntoTurns } from "@lifeweb/db/lib/sessionNotice";
+import { zonedTimeToUtc, TIME_ZONE } from "@lifeweb/db/lib/turnClock";
 import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { listGuildMembers, sendDm } from "@/lib/discordGuild";
@@ -234,5 +237,94 @@ export async function resumeGame() {
   if (!result.resumed) return { ok: false, error: "Only an ended game can be resumed." };
   refresh();
   sweepSpectators();
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// SESSIONS (docs/systemdocs/SESSIONS.md)
+//
+// A session is a sitting, and it sits BESIDE the lifecycle above rather than
+// inside it: none of these four touch GameState.phase, so one RUNNING game can
+// hold four sessions and still be ended by the End Game button. They are here
+// with the lifecycle actions because they are the same kind of thing — a
+// superadmin moving the game between states — and they share its guard,
+// its audit helper, and its revalidation.
+//
+// All four write through db/lib/session.js, the same two functions the bot's
+// per-minute clock calls, so a GM pressing the button and the schedule coming
+// due cannot leave the row in two different shapes.
+
+// A GM types a local wall-clock time; it means Chicago, because that is the
+// game's clock (SESSIONS.md). Parsing it as the SERVER's local time would put
+// a session an hour or six out depending on where the container happens to run.
+function chicagoDateTimeLocal(raw) {
+  const text = String(raw ?? "").trim();
+  if (!text) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(text);
+  if (!m) return null;
+  const [, y, mo, d, h, min] = m.map(Number);
+  return new Date(zonedTimeToUtc(y, mo, d, h, min, 0, TIME_ZONE));
+}
+
+export async function scheduleSession(formData) {
+  const session = await requireSuperadmin();
+  const startAt = chicagoDateTimeLocal(formData.get("sessionStartAt"));
+  const endAt = chicagoDateTimeLocal(formData.get("sessionEndAt"));
+  // Both may legitimately be cleared — a GM taking the schedule off is how a
+  // session becomes hand-driven, so an empty box is an instruction, not a slip.
+  if (startAt && endAt && endAt <= startAt) {
+    return { ok: false, error: "The session has to end after it starts." };
+  }
+  await prisma.gameState.update({
+    where: { id: 1 },
+    data: { sessionScheduledStartAt: startAt, sessionScheduledEndAt: endAt },
+  });
+  await audit(session, "session_scheduled", {
+    startAt: startAt?.toISOString() ?? null,
+    endAt: endAt?.toISOString() ?? null,
+  });
+  refresh();
+  return { ok: true };
+}
+
+export async function startSessionNow() {
+  const session = await requireSuperadmin();
+  const result = await openSession(prisma);
+  if (!result.ok) {
+    return {
+      ok: false,
+      error:
+        result.reason === "NOT_SESSIONS"
+          ? "The game type is Persistent. Switch it to Sessions in Configuration first."
+          : "A session is already running.",
+    };
+  }
+  await audit(session, "session_opened", { scheduled: false });
+  // Best-effort and after the write, the posture every other Discord call on
+  // this page takes: the row is the truth and the line is a courtesy.
+  after(() =>
+    speakIntoTurns(prisma, result.line).catch((err) => console.error("Session notice failed:", err)),
+  );
+  refresh();
+  return { ok: true };
+}
+
+export async function closeSessionNow() {
+  const session = await requireSuperadmin();
+  const result = await closeSession(prisma);
+  if (!result.ok) {
+    return {
+      ok: false,
+      error:
+        result.reason === "NOT_SESSIONS"
+          ? "The game type is Persistent. There is no session to close."
+          : "No session is running.",
+    };
+  }
+  await audit(session, "session_closed", { scheduled: false });
+  after(() =>
+    speakIntoTurns(prisma, result.line).catch((err) => console.error("Session notice failed:", err)),
+  );
+  refresh();
   return { ok: true };
 }

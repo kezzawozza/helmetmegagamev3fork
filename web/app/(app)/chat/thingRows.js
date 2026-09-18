@@ -26,7 +26,9 @@ export function thingVerbSets(characterTags = []) {
   return {
     consumable: new Set(consumableTags(characterTags).map((t) => t.id)),
     tradeable: new Set(transferableTags(characterTags).map((t) => t.id)),
-    removable: new Set(destroyableTags(characterTags).map((t) => t.id)),
+    // ⬢ shows as an item now, but never with Destroy: a one-click burn of a
+    // character's whole savings is a verb nothing else in the game offers.
+    removable: new Set(destroyableTags(characterTags).filter((t) => !isResourcesRow(t)).map((t) => t.id)),
   };
 }
 
@@ -47,9 +49,9 @@ export function thingGroups(characterTags = [], composeTag = (tag) => tag) {
   const canSmellPoison = canDetectPoison(characterTags);
 
   const rows = characterTags
-    // ⬢ has its own chip in StatusStrip.js — it doesn't belong in the Things
-    // drawer too, now that it is a stack sitting in this same tag list.
-    .filter((ct) => !isResourcesRow(ct) && GROUPS.includes(canonicalCategory(ct.tag?.category)))
+    // ⬢ is a stack in this same tag list and shows here like any other thing
+    // (Bascinet: "it should show as item"); StatusStrip keeps the figure too.
+    .filter((ct) => GROUPS.includes(canonicalCategory(ct.tag?.category)))
     .map((ct) => ({
       // characterTagId is what an equip toggle acts on; tagId preselects dialogs.
       characterTagId: ct.id ?? null,

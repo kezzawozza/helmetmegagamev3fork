@@ -104,14 +104,6 @@ const RITES = [
     description: "After fulfilling, you will be asked for a location. That place will become haunted, causing all of its denizens to panic and receive -2 to their Gambits.",
   },
   {
-    key: "famine",
-    name: "Rite of Famine",
-    minChanters: 4,
-    ingredients: [{ tag: "feces", count: 1 }, { tag: "lavish-meal", count: 1 }, { resources: 10 }],
-    ingredientsText: "1 {tag:feces}, 1 {tag:lavish-meal}, 10 ⬢",
-    description: "Causes a blight to descend upon the stores of Ravenheart, destroying 100 resources in every faction silo.",
-  },
-  {
     key: "reflection",
     name: "Rite of Reflection",
     minChanters: 2,

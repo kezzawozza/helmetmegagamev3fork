@@ -20,12 +20,10 @@ import { savePreferences, setReady, setUnready } from "../lobbyActions";
 
 const LEVEL_LABEL = { OFF: "Off", LOW: "Low", MEDIUM: "Med", HIGH: "High" };
 const JOBLESS_OPTIONS = [
-  { value: "COMMONER", label: "Join as Commoner" },
   { value: "MIGRANT", label: "Join as Migrant" },
   { value: "RETURN_TO_LOBBY", label: "Return to lobby" },
 ];
 const NOTHING_LINE = {
-  COMMONER: "Every role is Off: you'll start as a Commoner.",
   MIGRANT: "Every role is Off: you'll start as a Migrant.",
   RETURN_TO_LOBBY: "Every role is Off: you'll go back to the lobby.",
 };
@@ -57,7 +55,7 @@ function PriorityControl({ slug, level, onChange }) {
 export default function Lobby({ groups, initial, entry, readyCount, whitelisted, canSkip }) {
   const [priorities, setPriorities] = useState(initial.rolePriorities ?? {});
   const [optIns, setOptIns] = useState(initial.antagonistOptIns ?? []);
-  const [jobless, setJobless] = useState(initial.joblessRole ?? "COMMONER");
+  const [jobless, setJobless] = useState(initial.joblessRole ?? "MIGRANT");
   const [readyAt, setReadyAt] = useState(entry?.readyAt ?? null);
   const [openIntro, setOpenIntro] = useState(null);
   const [, startSaving] = useTransition();
@@ -74,7 +72,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   const draft = useRef({
     priorities: initial.rolePriorities ?? {},
     antagonistOptIns: initial.antagonistOptIns ?? [],
-    joblessRole: initial.joblessRole ?? "COMMONER",
+    joblessRole: initial.joblessRole ?? "MIGRANT",
   });
   // Bumped by every edit, captured when a save goes out. The other half of
   // the same bug: the server's echo used to land unconditionally, so a reply
@@ -271,9 +269,9 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
                           aria-expanded={openIntro === role.id}
                         >
                           {role.name}
-                          {role.grantsLeader ? <span title="Leader"> ★</span> : null}
+                          {role.requiresWhitelist ? <span title="Reserved seat"> ★</span> : null}
                         </button>
-                        <span className="text-xs text-muted">{role.factionName}</span>
+                        <span className="text-xs text-muted">{role.startingZoneName}</span>
                       </div>
                       {openIntro === role.id && role.intro ? (
                         <p className="mt-1 text-sm text-muted">{role.intro}</p>

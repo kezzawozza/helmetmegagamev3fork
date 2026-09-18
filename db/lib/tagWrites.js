@@ -169,7 +169,7 @@ async function clampEquippedQuantity(tx, characterId, tagId) {
   `;
 }
 
-// A chain replaces upward (TAGS.md §3): gaining Melee (Trained) takes Melee (Basic) off the sheet. Drops every held ancestor of `tagId` and returns snapshots for Undo. Reads the catalog itself, so a caller with no chain map needs nothing loaded.
+// A chain replaces upward (TAGS.md §3): gaining Melee II takes Melee I off the sheet. Drops every held ancestor of `tagId` and returns snapshots for Undo. Reads the catalog itself, so a caller with no chain map needs nothing loaded.
 async function replaceLowerTiers(tx, characterId, tagId) {
   const catalog = await tx.tag.findMany({ select: { id: true, name: true, parentTagId: true } });
   const byId = new Map(catalog.map((t) => [t.id, t]));

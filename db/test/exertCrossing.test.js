@@ -7,7 +7,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { exertOutcome, exertedThisTurn, exertRefusal, exertResultLine, exertEdgeFor, exertEdgeSentence } = require("../lib/locationTravel");
 
-const NAMES = { "sprained-ankle": "Sprained Ankle", horse: "Horse", "fishing-boat": "Fishing Boat", overburdened: "Overburdened", tired: "Tired", exhausted: "Exhausted", "punctured-lung": "Punctured Lung", "blind-drunk": "Blind Drunk" };
+const NAMES = { "sprained-ankle": "Sprained Ankle", arelitz: "Arelitz", overburdened: "Overburdened", tired: "Tired", exhausted: "Exhausted", "punctured-lung": "Punctured Lung", "blind-drunk": "Blind Drunk" };
 const withTags = (...slugs) => ({ tags: slugs.map((slug) => ({ equipped: true, tag: { slug, name: NAMES[slug] ?? slug } })) });
 const turn = { id: "t1", number: 4 };
 const config = { freeZoneMovesPerTurn: 1 };
@@ -30,10 +30,10 @@ test("exertedThisTurn: the base pool over the base allowance, and nothing else",
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(1) }, config, turn), false);
   // One over the allowance: yes.
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(2) }, config, turn), true);
-  // A boat's water crossing was charged to the bonus pool, then the land
-  // crossing to the base: still no. Then a push on: yes.
-  assert.equal(exertedThisTurn({ ...withTags("fishing-boat"), ...counters(2, 1) }, config, turn), false);
-  assert.equal(exertedThisTurn({ ...withTags("fishing-boat"), ...counters(3, 1) }, config, turn), true);
+  // A mount's crossing was charged to the bonus pool, then the land crossing
+  // to the base: still no. Then a push on: yes.
+  assert.equal(exertedThisTurn({ ...withTags("arelitz"), ...counters(2, 1) }, config, turn), false);
+  assert.equal(exertedThisTurn({ ...withTags("arelitz"), ...counters(3, 1) }, config, turn), true);
   // No open turn: never.
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(2) }, config, null), false);
 });
@@ -41,10 +41,6 @@ test("exertedThisTurn: the base pool over the base allowance, and nothing else",
 test("exertRefusal: the reasons, in the order a player can read them off their sheet", () => {
   const spent = counters(1);
   assert.match(exertRefusal({ ...withTags("arelitz"), ...spent }, config, turn, { left: 0, acted: true }), /arelitz has ridden/);
-  const water = { crossing: { fromZoneSlug: "forest", toZoneSlug: "hills" }, left: 0, acted: true };
-  assert.match(exertRefusal({ ...withTags("fishing-boat"), ...spent }, config, turn, water), /push the boat/);
-  // The same boat on a land leg is on foot.
-  assert.equal(exertRefusal({ ...withTags("fishing-boat"), ...spent }, config, turn, { crossing: { fromZoneSlug: "town", toZoneSlug: "forest" }, left: 0, acted: true }), null);
   assert.match(exertRefusal({ ...withTags("sprained-ankle"), ...spent }, config, turn, { left: 0, acted: true }), /Sprained Ankle/);
   // Too hurt to march, though none of these restrict ACT.
   assert.match(exertRefusal({ ...withTags("punctured-lung"), ...spent }, config, turn, { left: 0, acted: true }), /Punctured Lung prevents you/);

@@ -39,14 +39,14 @@ import {
 import OracleForm from "@/app/(app)/gm/dev/OracleForm";
 import { loadOracleSettings } from "@/app/(app)/gm/dev/oracleActions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
+import SessionPanel from "./SessionPanel";
+import { TIME_ZONE } from "@lifeweb/db/lib/turnClock";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
 import QuestsSection from "@/app/(app)/gm/dev/quests/QuestsSection";
 import CharactersTable from "@/app/(app)/gm/dev/characters/CharactersTable";
-import FactionsTable from "@/app/(app)/gm/dev/factions/FactionsTable";
 import ZonesTable from "@/app/(app)/gm/dev/zones/ZonesTable";
 import DevTagsSection from "./DevTagsSection";
-import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import { turnsRemaining } from "@lifeweb/db/lib/quests";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
@@ -73,6 +73,7 @@ import AssignmentPreview from "./AssignmentPreview";
 import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import OpsNav from "./OpsNav";
 import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
@@ -130,6 +131,40 @@ function stamp(date) {
   return new Date(date).toISOString().slice(0, 16).replace("T", " ");
 }
 
+// The game's own clock, for the Sessions panel — America/Chicago, and with no
+// zone suffix, because in Ravenheart that is simply the time (SESSIONS.md).
+function chicagoStamp(date) {
+  if (!date) return null;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
+
+// The same instant as a <input type="datetime-local"> value: "YYYY-MM-DDTHH:mm"
+// read in Chicago, which is how gameActions.js#scheduleSession parses it back.
+function chicagoInputValue(date) {
+  if (!date) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .formatToParts(new Date(date))
+    .reduce((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
 // rows. That is how the message wipe says which zone ate the hour.
@@ -184,7 +219,7 @@ export default async function DevPanelPage({ searchParams }) {
   const isMaster = tier === "super";
 
   // Always fetched: the header needs the open turn regardless of section,
-  // and the turn section derives day and phase from the same rows.
+  // and the turn section derives the day and turn number from the same rows.
   const [config, state, openTurnRecord, lastTurn, depot, readyCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: {
@@ -219,8 +254,16 @@ export default async function DevPanelPage({ searchParams }) {
     : [];
   const gmCharacterByUserId = new Map(gmCharacters.map((c) => [c.discordUserId, c]));
 
-  const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
-  const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
+  const currentDay = openTurnRecord?.dayNumber ?? (lastTurn?.dayNumber ?? 0) + 1;
+  const currentNumber = openTurnRecord?.number ?? (lastTurn?.number ?? 0) + 1;
+
+  // Sessions. Every stamp is formatted HERE, in Chicago, so the client panel
+  // never has to agree with the server about what time it is (SESSIONS.md).
+  const sessionsOn = config.gameMode === "SESSIONS";
+  const sessionOpen = Boolean(state.sessionOpenedAt);
+  const sessionNextLabel = state.sessionScheduledStartAt
+    ? `Next opens ${chicagoStamp(state.sessionScheduledStartAt)}.`
+    : "Nothing scheduled.";
 
   let locations = [];
   let bulkCharacters = [];
@@ -241,7 +284,6 @@ export default async function DevPanelPage({ searchParams }) {
   // was already a client table fed a flat DTO, so moving it here is the fetch
   // and the table — no shell, no sub-nav, no second header.
   let devCharacters = [];
-  let devFactions = null;
   let devZones = [];
   let inactiveList = [];
   let inactiveTurn = null;
@@ -315,7 +357,7 @@ export default async function DevPanelPage({ searchParams }) {
           low: levels.filter(([, l]) => l === "LOW").length,
           optIns: antagonistNames(p?.antagonistOptIns ?? []),
           whitelisted: Boolean(m?.roles.includes(LEADER_WHITELIST_ROLE_ID)),
-          jobless: { COMMONER: "Commoner", MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "COMMONER"],
+          jobless: { MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "MIGRANT"],
           status: e.status,
           assigned: e.assignedRole?.name ?? null,
           expiresAt: e.expiresAt ? e.expiresAt.toISOString().slice(5, 16).replace("T", " ") : null,
@@ -543,7 +585,7 @@ export default async function DevPanelPage({ searchParams }) {
           orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
           // RESOURCES_SELECT rides along inside the include — ⬢ are a stack
           // row now, so the count comes off the tag rather than a column.
-          include: { faction: true, zone: true, ...RESOURCES_SELECT },
+          include: { zone: true, ...RESOURCES_SELECT },
           // Safety net against unbounded growth, not a real limit — far above
           // any realistic roster size for this game (100+ players).
           take: 1000,
@@ -554,87 +596,11 @@ export default async function DevPanelPage({ searchParams }) {
         // No Date objects across the boundary, so updatedAt travels as the
         // epoch CharacterAvatar's `version` prop wants.
         avatarVersion: c.updatedAt.getTime(),
-        factionId: c.factionId,
-        factionName: c.faction?.name ?? "-",
         zoneName: c.zone?.name ?? "-",
         status: c.status,
         resources: resourcesOf(c),
       }));
       break;
-    case "factions": {
-      const [factions, allRooms, characters, pendingApplications] = await Promise.all([
-        prisma.faction.findMany({
-          orderBy: { name: "asc" },
-          include: {
-            zone: { select: { name: true } },
-            _count: { select: { characters: true } },
-          },
-        }),
-        prisma.room.findMany({
-          orderBy: [{ name: "asc" }],
-          select: {
-            id: true,
-            name: true,
-            accessTagSlugs: true,
-            location: { select: { name: true, zone: { select: { name: true } } } },
-          },
-        }),
-        prisma.character.findMany({
-          where: { status: "ALIVE" },
-          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-          select: { id: true, name: true, factionId: true, isLeader: true, isTreasurer: true },
-          take: 1000,
-        }),
-        prisma.factionApplication.findMany({
-          where: { status: "PENDING" },
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            kind: true,
-            note: true,
-            factionId: true,
-            faction: { select: { name: true } },
-            character: { select: { id: true, name: true } },
-          },
-        }),
-      ]);
-
-      // Flat DTOs for the client table — flat strings/numbers only.
-      devFactions = {
-        rows: factions.map((f) => ({
-          id: f.id,
-          name: f.name,
-          zoneName: f.zone?.name ?? "",
-          parentFactionId: f.parentFactionId,
-          siloRoomId: f.siloRoomId,
-          memberCount: f._count.characters,
-          foundedInPlay: Boolean(f.foundedById),
-          deletable: !isUnaffiliated(f),
-        })),
-        rooms: allRooms.map((r) => ({
-          id: r.id,
-          name: r.name,
-          locationName: r.location.name,
-          zoneName: r.location.zone?.name ?? "",
-          locked: r.accessTagSlugs.length > 0,
-        })),
-        members: characters.map((c) => ({
-          id: c.id,
-          name: c.name,
-          isLeader: c.isLeader,
-          isTreasurer: c.isTreasurer,
-        })),
-        applications: pendingApplications.map((a) => ({
-          id: a.id,
-          kind: a.kind,
-          note: a.note,
-          factionName: a.faction.name,
-          characterId: a.character.id,
-          characterName: a.character.name,
-        })),
-      };
-      break;
-    }
     case "zones":
       devZones = (
         await prisma.zone.findMany({
@@ -976,12 +942,13 @@ export default async function DevPanelPage({ searchParams }) {
           <>
             <DeskTurnChip turn={openTurnRecord} />
             <LockChip />
+            <BascinetClock />
           </>
         }
       />
       <div className="desk-body desk-body--ops">
         <OpsNav section={section} tier={tier} />
-        <main className="ops-main">
+        <main className="desk-main desk-main--ops">
           {section === "game" ? (
             <div className="flex flex-col gap-8">
               <section className="ops-section">
@@ -1072,15 +1039,16 @@ export default async function DevPanelPage({ searchParams }) {
 
                 <form action={updateCurrentTurn} className="flex flex-wrap items-end gap-3">
                   <label className="field">
+                    <span className="field-label">Turn</span>
+                    <input type="number" name="number" min="1" defaultValue={currentNumber} className="max-w-24" />
+                  </label>
+                  <label className="field">
                     <span className="field-label">Day</span>
                     <input type="number" name="day" min="1" defaultValue={currentDay} className="max-w-24" />
                   </label>
                   <label className="field">
-                    <span className="field-label">Phase</span>
-                    <Select name="phase" defaultValue={currentPhase}>
-                      <option value="DAWN">DAWN</option>
-                      <option value="DUSK">DUSK</option>
-                    </Select>
+                    <span className="field-label">Re-roll banner</span>
+                    <Switch name="rerollBanner" defaultChecked={false} />
                   </label>
                   <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                 </form>
@@ -1092,6 +1060,16 @@ export default async function DevPanelPage({ searchParams }) {
                 )}
 
               </section>
+
+              <SessionPanel
+                sessions={sessionsOn}
+                open={sessionOpen}
+                openedAtLabel={chicagoStamp(state.sessionOpenedAt)}
+                closedAtLabel={chicagoStamp(state.sessionClosedAt)}
+                startAtValue={chicagoInputValue(state.sessionScheduledStartAt)}
+                endAtValue={chicagoInputValue(state.sessionScheduledEndAt)}
+                nextLabel={sessionNextLabel}
+              />
 
               <section className="ops-section">
                 <div className="ops-section-head">
@@ -1139,63 +1117,28 @@ export default async function DevPanelPage({ searchParams }) {
               <form action={updateDepot} className="flex flex-col gap-4">
                 <div className="ops-grid">
                   <DepotField
-                    name="accountObols"
-                    label="Account (¢)"
-                    value={depot.accountObols}
-                  />
-                  <DepotField
                     name="debtObols"
                     label="Drawn on the line (¢)"
                     value={depot.debtObols}
-                  />
-                  <DepotField
-                    name="generatorFuel"
-                    label="Fuel in the tank"
-                    value={depot.generatorFuel}
-                  />
-                </div>
-
-                <div className="ops-toggles">
-                  <div className="ops-toggle">
-                    <Switch name="generatorOn" defaultChecked={depot.generatorOn}>
-                      Generator running
-                    </Switch>
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="turretArmed" defaultChecked={depot.turretArmed}>
-                      Turret armed
-                    </Switch>
-                  </div>
-                </div>
-
-                <div className="ops-grid">
-                  <DepotField name="fuelMax" label="Tank size" value={depot.fuelMax} />
-                  <DepotField
-                    name="fuelBurnPerTurn"
-                    label="Fuel burned per turn"
-                    value={depot.fuelBurnPerTurn}
-                  />
-                  <DepotField name="coalFuel" label="Fuel per Coal" value={depot.coalFuel} />
-                  <DepotField
-                    name="saltpeterFuel"
-                    label="Fuel per Saltpeter"
-                    value={depot.saltpeterFuel}
-                  />
-                  <DepotField
-                    name="shuttleMaxTurns"
-                    label="Shuttle stays (turns)"
-                    value={depot.shuttleMaxTurns}
-                  />
-                  <DepotField
-                    name="shuttleCooldown"
-                    label="Shuttle cooldown (turns)"
-                    value={depot.shuttleCooldown}
                   />
                   <DepotField
                     name="creditCapObols"
                     label="Credit cap (¢)"
                     value={depot.creditCapObols}
                   />
+                  <DepotField
+                    name="sellTaxRate"
+                    label="Sell tax (%)"
+                    value={depot.sellTaxRate}
+                  />
+                </div>
+
+                <div className="ops-toggles">
+                  <div className="ops-toggle">
+                    <Switch name="turretArmed" defaultChecked={depot.turretArmed}>
+                      Turret armed
+                    </Switch>
+                  </div>
                 </div>
 
                 <div className="ops-actions">
@@ -1249,21 +1192,6 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Characters ({devCharacters.length})</h2>
               </div>
               <CharactersTable rows={devCharacters} />
-            </section>
-          ) : null}
-
-          {section === "factions" ? (
-            <section className="ops-section ops-section--wide">
-              <div className="ops-section-head">
-                <h2 className="section-title">Factions ({devFactions?.rows.length ?? 0})</h2>
-              </div>
-              <FactionsTable
-                rows={devFactions?.rows ?? []}
-                rooms={devFactions?.rooms ?? []}
-                members={devFactions?.members ?? []}
-                applications={devFactions?.applications ?? []}
-                canDelete={isMaster}
-              />
             </section>
           ) : null}
 

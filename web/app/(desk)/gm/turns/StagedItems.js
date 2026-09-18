@@ -44,7 +44,7 @@ export function StagedEffectRow({
   const state = effectState(effect);
   const frozen = effect.applied || Boolean(effect.appliedError);
   // A transfer with no character end — targetCharacterId is null, which can
-  // still happen for an old pre-removal faction-to-faction row — has nothing
+  // still happen for an old pre-removal room-to-room row — has nothing
   // for the row's name/avatar button to open in the inspector. It also isn't
   // editable in place: it's 1:1 by nature, not a fit for EffectComposer's
   // multi-target/multi-field form, so Delete and re-stage stands in for Edit.

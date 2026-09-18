@@ -1,5 +1,5 @@
 import "server-only";
-import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import {
   evaluateDesireCatalog,
   slotStates,
@@ -25,11 +25,8 @@ import {
   birdAllowanceFrom,
 } from "@lifeweb/db/lib/rookery";
 import { structuresAt, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
-import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
-import { placeKeyForRoom } from "@lifeweb/db/lib/placeKey";
 import { describeTurn } from "@/lib/turnFormat";
-import { loadFaction } from "@/lib/factionView";
-import { getMyFactionRole } from "@/lib/factionPermissions";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -149,7 +146,7 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
   const hasBird = holdsBirdAndLetters(tags);
   // Letters AND eyes — the same predicate the tag chips, the noticeboard and paperActions.js all use.
   const canReadNow = canRead(tags, {
-    phase: openTurn?.phase ?? null,
+    daylight: isDaylight(),
     indoors: character.location?.indoors ?? true,
   });
   // Something to write ON: a blank sheet, a blank book, or a note already started; a sealed letter doesn't count.
@@ -279,51 +276,3 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
   };
 }
 
-// ---- The faction, for Chat's Faction panel ------------------------------
-// The same loaders /faction runs (factionView.js#loadFaction, factionPermissions.js), so the two
-// surfaces can never disagree about who may see a member's ⬢ (FACTIONS.md §5-6). `resources` is left
-// off the roster object entirely rather than nulled, since this crosses into a client component and an
-// absent key can't be read out of the page source. Returns null for no faction, or Unaffiliated (FACTIONS.md §1a).
-export async function loadFactionView(session, character) {
-  if (!session?.discordUserId || !character?.id) return null;
-
-  let factionId = character.factionId;
-  if (factionId === undefined) {
-    const row = await prisma.character.findUnique({
-      where: { id: character.id },
-      select: { factionId: true },
-    });
-    factionId = row?.factionId ?? null;
-  }
-  if (!factionId) return null;
-
-  const faction = await loadFaction(factionId);
-  if (!faction || isUnaffiliated(faction)) return null;
-
-  // Only the officer bit is read: the roster below already marks the Leader and the Treasurer.
-  const { isOfficer } = await getMyFactionRole(session.discordUserId, faction.id);
-
-  return {
-    id: faction.id,
-    name: faction.name,
-    isOfficer,
-    roster: faction.characters.map((c) => ({
-      characterId: c.id,
-      name: c.name,
-      roleTitle: c.roleTitle,
-      isLeader: c.isLeader,
-      isTreasurer: c.isTreasurer,
-      catatonic: c.tags.some((t) => t.tag?.slug === CATATONIC_SLUG),
-      avatarVersion: c.updatedAt?.getTime?.() ?? null,
-      ...(isOfficer ? { resources: c.resources } : {}),
-    })),
-    // The silo is a Room with its own place key; the panel's Silo button just selects it.
-    silo: faction.siloRoom
-      ? {
-          roomId: faction.siloRoom.id,
-          name: faction.siloRoom.name,
-          placeKey: placeKeyForRoom(faction.siloRoom.id),
-        }
-      : null,
-  };
-}

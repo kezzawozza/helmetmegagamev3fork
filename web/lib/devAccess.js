@@ -23,10 +23,9 @@ export const SECTION_TIER = {
   // Deleting a quest takes the record of who touched it, so THAT verb asks for super (questActions.js).
   quests: "gm",
   // The four lists that used to be pages of their own. Every GM reads them;
-  // the narrower verbs inside each (delete a faction, delete a custom tag,
+  // the narrower verbs inside each (delete a custom tag,
   // hard-delete a place) ask for super at the call site instead.
   characters: "gm",
-  factions: "gm",
   tags: "gm",
   zones: "gm",
 

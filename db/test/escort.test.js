@@ -14,9 +14,6 @@ const HERE = "loc-1";
 const leader = (over = {}) => ({
   id: "L",
   locationId: HERE,
-  isLeader: true,
-  factionId: "f1",
-  faction: { slug: "reeves" },
   ...over,
 });
 const person = (over = {}) => ({
@@ -36,23 +33,11 @@ test("a body and the helpless come without asking", () => {
   assert.equal(escortAuthority(leader(), person({ tags: [tag("catatonic-afk", "Catatonic")] })), "FORCED");
 });
 
-test("a leader commands their own faction, and nobody else's", () => {
-  assert.equal(escortAuthority(leader(), person({ factionId: "f1" })), "FORCED");
-  assert.equal(escortAuthority(leader(), person({ factionId: "f2" })), "ASK");
-  assert.equal(escortAuthority(leader({ isLeader: false }), person({ factionId: "f1" })), "ASK");
-});
-
-test("a Leader of Unaffiliated commands nobody — it is not a faction", () => {
-  const unaffiliated = leader({ faction: { slug: "unaffiliated" } });
-  assert.equal(escortAuthority(unaffiliated, person({ factionId: "f1" })), "ASK");
-});
-
-test("faction authority needs the faction RELATION, not just its id", () => {
-  // The trap this guards: locationTravel's CHARACTER_SELECT loaded factionId
-  // alone, so isUnaffiliated(undefined) came back true and every faction
-  // leader was quietly refused. ESCORT_SELECT loads the relation for this.
-  const noRelation = leader({ faction: undefined });
-  assert.equal(escortAuthority(noRelation, person({ factionId: "f1" })), "ASK");
+test("nobody outranks anybody: a healthy, conscious person is always asked", () => {
+  // Factions used to make this a FORCED verdict for a Leader over their own
+  // members. There is no rank left that walks somebody anywhere.
+  assert.equal(escortAuthority(leader(), person()), "ASK");
+  assert.equal(escortAuthority(leader(), person({ status: "ALIVE" })), "ASK");
 });
 
 test("anyone else living gets asked", () => {
@@ -75,7 +60,7 @@ test("nobody is taken from across the map, from the ground, or off a friend", ()
   assert.equal(escortAuthority(leader(), person({ locationId: "loc-2" })), null);
   assert.equal(escortAuthority(leader(), person({ status: "DEAD", buriedAt: new Date() })), null);
   // A WILLING follower is somebody else's, and stays theirs.
-  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", factionId: "f2" })), null);
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z" })), null);
   // Already yours is still yours.
   assert.equal(escortAuthority(leader(), person({ escortedById: "L" })), "ASK");
   assert.equal(escortAuthority(leader(), person({ id: "L" })), null);
@@ -88,7 +73,6 @@ test("force beats an arrangement: a captor takes their prisoner off whoever has 
   // before the FORCED branches ever did.
   assert.equal(escortAuthority(leader(), person({ escortedById: "Z", tags: [tag("bound", "Bound")] })), "FORCED");
   assert.equal(escortAuthority(leader(), person({ escortedById: "Z", status: "DEAD" })), "FORCED");
-  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", factionId: "f1" })), "FORCED");
   // Consent is not force: a standing agreement to YOU does not outrank
   // somebody who is holding them right now.
   assert.equal(
@@ -112,12 +96,10 @@ test("a passenger cannot bring anyone along themselves", () => {
   // sub-party once they walked with their own leader.
   const passenger = leader({ escortedById: "Z" });
   assert.equal(escortAuthority(passenger, person()), null);
-  // No exception for FORCED — a passenger cannot drive even a corpse, their
-  // own faction, or the helpless off somebody else while being carried
-  // themselves.
+  // No exception for FORCED — a passenger cannot drive even a corpse, or the
+  // helpless off somebody else, while being carried themselves.
   assert.equal(escortAuthority(passenger, person({ status: "DEAD" })), null);
   assert.equal(escortAuthority(passenger, person({ tags: [tag("bound", "Bound")] })), null);
-  assert.equal(escortAuthority(passenger, person({ factionId: "f1" })), null);
   assert.equal(escortRefusal(passenger, person()), "You're being brought along yourself.");
 });
 
@@ -130,7 +112,6 @@ test("a hood is off the list, the way it is off every other picker", () => {
 test("the reason says why they follow, not why they cannot", () => {
   assert.equal(escortReason(person({ status: "DEAD" }), "FORCED"), "a body");
   assert.equal(escortReason(person({ tags: [tag("bound", "Bound")] }), "FORCED"), "bound");
-  assert.equal(escortReason(person({ factionId: "f1" }), "FORCED"), "your faction");
   assert.equal(escortReason(person(), "CONSENTED"), "willing");
 });
 
@@ -138,7 +119,7 @@ test("the reason says why they follow, not why they cannot", () => {
 
 const held = (...slugs) => ({ tags: slugs.map((slug) => ({ equipped: true, tag: { slug, name: slug } })) });
 const CONFIG = { freeZoneMovesPerTurn: 1 };
-const allowance = (character, partySize) => freeZoneMoves(character, CONFIG, null, partySize);
+const allowance = (character, partySize) => freeZoneMoves(character, CONFIG, partySize);
 
 test("on foot, any number of people is free", () => {
   // There is no bonus to lose without a mount, so the seat rule never bites.

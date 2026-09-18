@@ -159,6 +159,15 @@ groups:
   items-gear:
     name: Gear
     category: items
+  # What comes out of the ground (MINING.md). Every member is there for one
+  # reason — a smith slots it into a Trinket for its `inlayValue` — so they
+  # read better as one shelf than scattered through Gear, where a player
+  # could not tell an ore from a lockpick. The three ores are also the input
+  # half of the smelting recipes, so the group is where a prospector and a
+  # smith both go looking.
+  items-mining:
+    name: Mining
+    category: items
   items-armor:
     name: Armor
     category: items
@@ -281,8 +290,8 @@ groups:
   # belong to any family and would just be noise in a one-tag group. The one
   # exception is Teaching (Drill Instructor), a Skill that borrows
   # general-cerberon purely for its requiredTag gate.
-  skills-labor:
-    name: Labor
+  skills-work:
+    name: Work
     category: skills
   skills-fighting:
     name: Combat

@@ -24,13 +24,12 @@ async function runLobbySweep(prisma, { origin = "https://ravenheart.quest", now 
 
   const unnotified = await prisma.lobbyEntry.findMany({
     where: { status: "ASSIGNED", notifiedAt: null, assignedAt: { lte: new Date(now.getTime() - RESEND_AFTER_MS) }, expiresAt: { gt: now } },
-    include: { assignedRole: { include: { faction: { select: { name: true } }, startingLocation: { include: { zone: { select: { name: true } } } } } } },
+    include: { assignedRole: { include: { startingLocation: { include: { zone: { select: { name: true } } } } } } },
   });
   for (const entry of unnotified) {
     await prisma.lobbyEntry.update({ where: { id: entry.id }, data: { notifiedAt: now } });
     const seat = {
       roleName: entry.assignedRole?.name ?? "your role",
-      factionName: entry.assignedRole?.faction?.name ?? null,
       zoneName: entry.assignedRole?.startingLocation?.zone?.name ?? null,
       expiresAt: entry.expiresAt,
     };

@@ -11,7 +11,7 @@
 // handoff it replaces, which dropped the prefill on any reload.
 //
 // The strip is .tab-bar / .tab-item, the house form for navigating between
-// panels (DESIGN-SYSTEM.md §5). It used to borrow .chat-tabstrip from Chat's
+// panels (DESIGN-SYSTEM.md §5). It used to borrow Chat's private tab strip's
 // narrow aside, which is a different control on a surface a third the width.
 // Keyed on data-active rather than aria-pressed: this is navigation, not a
 // control holding a value.

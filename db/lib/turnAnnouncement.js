@@ -7,7 +7,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require("./discordRest");
 const { buildTurnAnnouncement } = require("../turnCalendar");
-const { clockFrozen, readGameState } = require("./gameState");
+const { clockStatus, readGameState } = require("./gameState");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
 const { clearMessagesExcept } = require("./discordRest");
@@ -32,9 +32,10 @@ async function postTurnsAnnouncement(prisma, newTurn, note, { push = true } = {}
   if (!turnsChannel) return;
 
   // Move-cutoff clause omitted when frozen: no scheduled end to count back
-  // from (db/lib/turnClock.js).
+  // from (db/lib/turnClock.js). Out of session it says so outright instead.
+  const clock = await clockStatus(prisma);
   const text = [
-    buildTurnAnnouncement(newTurn, note, { clockFrozen: await clockFrozen(prisma) }),
+    buildTurnAnnouncement(newTurn, note, { clockFrozen: clock.frozen, frozenReason: clock.reason }),
     CONSOLE_TEXT,
   ].join("\n");
 
@@ -93,7 +94,7 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
   const bannerFile = turnBannerPath(turn, state);
   if (turn && !bannerFile) {
     console.error(
-      `Turn announcement: no banner for ${turn.banner ?? "(unset)"}/${turn.phase} in ${TURN_BANNER_DIR}`,
+      `Turn announcement: no banner for ${turn.banner ?? "(unset)"} in ${TURN_BANNER_DIR}`,
     );
   }
 

@@ -24,7 +24,7 @@ export default async function CharacterLayout({ children }) {
         title="Character"
         actions={
           backToChat ? (
-            <Link href="/chat" className="btn-secondary">
+            <Link href="/chat" className="btn-quiet">
               ← Back to the game · Esc
             </Link>
           ) : null

@@ -24,12 +24,12 @@ import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import { waitingOnYou, myMove } from "./actions";
-import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
+import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
 import { DM_PLACE_KEY } from "@/lib/dmSources";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
-import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
+import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
@@ -154,7 +154,7 @@ async function FreshChat({ userId }) {
   // backlog down the stream.
   // The wipe watermarks, read before the rows so the first paint and the
   // stream's catch-up agree about where the day starts (db/lib/feedWipe.js).
-  // Two of them: a zone summary clears at Dawn, everywhere else every turn.
+  // Two of them: a zone summary clears once a game-day, everywhere else every turn.
   const floors = await feedWipeFloors(prisma);
   const floor = floorForPlace(floors, first.placeKey);
 
@@ -266,6 +266,10 @@ async function FreshChat({ userId }) {
                 },
               },
               role: { select: { slug: true } },
+              // The you-frame's role line and mood word (chat.css `.you-frame`) —
+              // neither was read here before shard 3.
+              roleTitle: true,
+              mood: true,
               // Which in-game DAY the bird last left on, and how many of that
               // day's flights are spent — a Rookery is worth several
               // (db/lib/rookery.js). (docs/systemdocs/PAPERWORK.md §Bird.)
@@ -273,14 +277,14 @@ async function FreshChat({ userId }) {
               birdDaySends: true,
               // Which in-game DAY they last cut Godflesh. Extract costs no
               // Move, so this is its whole cooldown (FACTORY.md §3).
-              extractDayKey: true,
+              extractTurnKey: true,
             },
           }),
           prisma.turn.findFirst({
             where: { status: "OPEN" },
             // `number` for the Desire gates and the turn card's label,
             // `startedAt` for the Move window (db/lib/turnClock.js).
-            select: { id: true, number: true, phase: true, startedAt: true },
+            select: { id: true, number: true, dayNumber: true, turnLengthHours: true, endsAt: true, startedAt: true },
           }),
         ]);
         const character = { ...viewer.character, ...sheet };
@@ -397,6 +401,10 @@ async function FreshChat({ userId }) {
           affordances,
           place: viewer.character.location ?? null,
           zone: viewer.character.location?.zone ?? null,
+          // The you-frame's own line (chat.css `.you-name`/`.you-role`) —
+          // everything else it draws is already on `sheet`/`carry` below.
+          name: character.name,
+          roleTitle: character.roleTitle ?? null,
           placeLines: examine?.ok ? examine.lines : [],
           waiting: waiting.ok ? waiting.rows : [],
           selfId: character.id,
@@ -433,13 +441,13 @@ async function FreshChat({ userId }) {
           // reason to hide the button.
           canSeeExtract: hasAttribute(boardLocation, GODFLESH_ATTRIBUTE),
           canExtract:
-            Boolean(extractToolFor(sheet?.tags ?? [])) && !extractedToday(sheet, openTurn),
+            Boolean(extractToolFor(sheet?.tags ?? [])) && !extractedThisTurn(sheet, openTurn),
           // Two reasons the button can grey, and having already cut today is
           // the one that outranks the tool — telling somebody to go find a
           // hatchet they cannot use until tomorrow is the wrong sentence.
           extractBlocked: !hasAttribute(boardLocation, GODFLESH_ATTRIBUTE)
             ? null
-            : extractedToday(sheet, openTurn)
+            : extractedThisTurn(sheet, openTurn)
               ? "You already harvested Godflesh today."
               : !extractToolFor(sheet?.tags ?? [])
                 ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
@@ -457,14 +465,6 @@ async function FreshChat({ userId }) {
           })),
         };
       })()
-    : null;
-
-  // The faction, for the ⚑ row at the foot of the places column. The SAME
-  // loaders /faction runs (web/lib/factionView.js), so the two surfaces cannot
-  // disagree about the roster — and a member's ⬢ is on the rows only for that
-  // faction's own Leader or Treasurer (FACTIONS.md §6).
-  const factionView = viewer.character
-    ? await loadFactionView({ discordUserId: viewer.discordUserId }, viewer.character)
     : null;
 
   // The newest thing Bascinet said to this player, for the Messages row's
@@ -580,7 +580,6 @@ async function FreshChat({ userId }) {
           hasBirdReply: (aside.letters.birdReplies ?? []).length > 0,
         }
       : null,
-    faction: factionView,
     dmNewestMs: newestDm?.createdAt?.getTime?.() ?? null,
     navItems: await navItemsPromise,
     // Not a control any more — only what the composer CALLS itself while a

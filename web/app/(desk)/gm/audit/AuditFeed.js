@@ -12,8 +12,6 @@ import { dialogHoldsKeyboard } from "@/app/components/Modal";
 // Rows are buttons, not table rows, because selection is the verb — the same
 // reasoning .desk-queue-row carries on the adjudication desk.
 
-const PHASE = { DAWN: "Dawn", DUSK: "Dusk" };
-
 function headingFor(entry) {
   const day = new Date(entry.createdAt).toLocaleDateString(undefined, {
     weekday: "short",
@@ -22,7 +20,7 @@ function headingFor(entry) {
   });
   const turn =
     entry.turnNumber != null
-      ? `Turn ${entry.turnNumber}${entry.turnPhase ? ` · ${PHASE[entry.turnPhase] ?? entry.turnPhase}` : ""}`
+      ? `Turn ${entry.turnNumber}${entry.dayNumber != null ? ` · Day ${entry.dayNumber}` : ""}`
       : "Before the game opened";
   return `${turn} — ${day}`;
 }

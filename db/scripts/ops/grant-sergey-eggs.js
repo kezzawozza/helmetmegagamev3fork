@@ -1,4 +1,4 @@
-// One-off: grants Sergey Waters two Arelitz Eggs and the Cooking (Basic) skill.
+// One-off: grants Sergey Waters two Arelitz Eggs and the Cooking I skill.
 //
 //   node db/scripts/ops/grant-sergey-eggs.js           # dry run
 //   node db/scripts/ops/grant-sergey-eggs.js --apply   # write

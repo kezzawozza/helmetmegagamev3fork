@@ -176,11 +176,10 @@ turn in a Location that still holds a rotten body takes −5 mood (`MOOD.md`).
 A new button, gated on the `butcher` tag (now a Mercenary starting tag).
 **Free — no ⬢, no Move — and it consumes the body.**
 
-The tag pays twice: it also carries `laborBonus: { kind: hunting, amount: 1 }`,
-so a Butcher hunting produces +1 ⬢. That bonus used to apply to every kind of
-laboring except farming and was hardcoded in `db/lib/laborAccess.js`; it is
-hunting-only now and lives in `docs/tags.yaml` like every other tool
-(`LABORING.md` §5). It needs no equipping — it is a skill, not a kit.
+It carried a labor bonus once — +1 ⬢ to a hunting Labor, and before that a
+hardcoded bonus to every kind of Laboring but farming. Laboring is gone, and
+only three tags carry a `miningBonus` now (`MINING.md` §4); Butcher is not one
+of them. What it buys is the button, and the button is the whole of it.
 
 | Corpse | Yields |
 |---|---|

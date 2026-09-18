@@ -4,10 +4,11 @@
 // closes any Move no GM touched (OPEN -> PASSED), with a canned DM for a
 // Routine that closes with nothing written to its player. Sends nothing
 // itself — deliveries are handed back for advanceTurn()'s side-effect thunk.
-// A LABOR Move is already paid by the time this runs — it settles at confirm
-// now (db/lib/moveConfirm.js) and arrives with `appliedEffects` stamped, which
-// the §2 query filters out. What still pays here is a GM-adjudicated Gambit
-// and any Routine the game filed on a player's behalf.
+// A Mine is already paid by the time this runs — it settles at the press
+// (web/app/(app)/character/actions/mine.js) and arrives with `appliedEffects`
+// stamped, which the §2 query filters out. What still pays here is a
+// GM-adjudicated Gambit and any Routine the game filed on a player's behalf,
+// Refine and Farm among them.
 // Every mutation is claimed first (appliedAt / appliedEffects written from
 // null) so the crash-resume path can never apply a row twice.
 // Position in TURN_PASSES is load-bearing, see resolveNeeds().
@@ -33,15 +34,13 @@ const NO_NOTES_TAIL =
   "receive adjudications, typically. If you need additional information or " +
   "believe this was in error, message the GMs.*";
 
-// The Routine close DM. Mirrors the auto-labor DM (db/lib/autoLaborPass.js) and is the
-// only place the payout of a Routine the GAME filed is reported. A player's own Labor
-// never reaches this: it pays at confirm and says so there. sendDm writes the » prefix,
-// so don't write one here.
+// The Routine close DM — the only place the payout of a Routine the GAME filed is
+// reported. A Mine never reaches this: it pays at the press and says so there.
+// sendDm writes the » prefix, so don't write one here.
 function formatRoutineCloseDm(turn, action, applied, adjudicated) {
   const effects = describeMoveEffects(applied);
-  const kind = action.moveKind === "LABOR" ? "Labor" : "Routine";
   const lines = [
-    `*Your ${kind} for turn ${turn.number}.*`,
+    `*Your Routine for turn ${turn.number}.*`,
     `» ${action.description}`,
     ...(effects ? [`**Applied:** ${effects}`] : []),
     // A refining shift pays no ⬢ and its range is a literal 0-0, so this
@@ -140,7 +139,7 @@ async function applyOneStagedEffect(prisma, row, turn) {
           actorCharacterId: null,
           actorName: "GM (Adjudication)",
           turnNumber: turn.number,
-          turnPhase: turn.phase,
+          dayNumber: turn.dayNumber ?? null,
           note: `Staged transfer, turn ${turn.number}`,
         },
       }, {
@@ -450,14 +449,12 @@ async function runStagedPushPass(prisma, turn) {
           (e) => e.targetCharacterId === action.characterId,
         );
         // Neither suppresses the DM, only its "no notes" tail. The remaining
-        // skip is the "auto:" family (auto-labor / travel stub each send
-        // their own DM) — reads pre-update gmNotes so the auto:silent_close
-        // appended above can't mute the notice it's meant to accompany.
-        //
-        // LABOR closes the same way a Routine does: it is never arbitrated,
-        // but the player still needs to be told what their day paid.
+        // skip is the "auto:" family (the travel stub and the day-spending
+        // buttons each say their own piece) — reads pre-update gmNotes so the
+        // auto:silent_close appended above can't mute the notice it's meant to
+        // accompany.
         if (
-          (action.moveKind === "ROUTINE" || action.moveKind === "LABOR") &&
+          action.moveKind === "ROUTINE" &&
           !(action.gmNotes ?? "").includes("auto:") &&
           action.character?.discordUserId
         ) {
@@ -467,7 +464,7 @@ async function runStagedPushPass(prisma, turn) {
           };
         } else if (action.farmPlan && applied.farmed && action.character?.discordUserId) {
           // Farming files as "auto:farm" (web/lib/moves.js), which the generic "auto:" skip above
-          // would otherwise swallow the way it does auto-labor/travel — but the wither die IS the
+          // would otherwise swallow the way it does the travel stub — but the wither die IS the
           // whole point of the Farm button, so it gets its own narrow carve-out rather than
           // loosening that skip for every other auto: Routine.
           notice = {
@@ -481,6 +478,15 @@ async function runStagedPushPass(prisma, turn) {
           notice = {
             discordUserId: action.character.discordUserId,
             content: breakInDm(turn.number, applied.brokeIn),
+          };
+        } else if (applied.refined && action.character?.discordUserId) {
+          // Refining is the same shape and gets the same carve-out: the Refine button files
+          // "auto:refine" and its cubes only exist once the turn closes, so this is the one
+          // place the worker is told what the shift produced — or that the floor was bare by
+          // the time they started.
+          notice = {
+            discordUserId: action.character.discordUserId,
+            content: `*Your day on the Factory floor, turn ${turn.number}.*\n**Applied:** ${describeMoveEffects({ refined: applied.refined })}`,
           };
         }
       });

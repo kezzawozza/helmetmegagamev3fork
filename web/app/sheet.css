@@ -1,0 +1,1195 @@
+/* ── /character ──────────────────────────────────────────────────────────────
+   The character sheet (docs/systemdocs/SHEET.md): a band of numbers, then
+   three columns — bio, the working column, the tag rail.
+
+   It is an ORDINARY SCROLLING PAGE. There is no 100dvh shell and nothing here
+   scrolls inside itself: the band scrolls away with everything else and the
+   document is the one scrollbar, so a player reaches the bottom of the tag
+   rail the way they reach the bottom of any other page. It was built the
+   other way — a fixed shell over three independent scroll regions, the way
+   Chat still works — and a sheet is not a chat: nothing on it arrives while
+   you read, so nothing had to be pinned.
+
+   Numbers are laid out here rather than with utility classes because the tile
+   row and the band share one measure. */
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  /* Room at the bottom for the last card's shadow and the mobile bar. */
+  padding: var(--sp-2) var(--sp-3) var(--sp-4);
+  /* The mockup's own `.page` cap (1180px, centred). Scoped here rather than
+     on the app's global page shell: the sheet draws no PageShell of its own
+     (CharacterView.js), so without this the sheet is the one page in the app
+     that spreads across the whole viewport instead of reading as one
+     instrument panel. */
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
+.sheet-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+/* TWO columns as of phase 4, not three: the rail plus the inventory and the
+   bio on the left, the rig, the mood and the desires on the right. The mockup
+   draws it that way, and the old middle column existed mostly to give the bio
+   form somewhere to be. align-items: start, so a short column is a short
+   column — with the columns no longer scrolling there is nothing to stretch
+   them to. */
+.ledger-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: var(--sp-3);
+  align-items: start;
+}
+
+.ledger-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/* The banner: identity on its own full-width row, the tiles below it as a
+   second full-width row — the mockup's own stack (`.ledger-identity` then
+   `.ledger-tiles`), not the two side by side. Side by side left a hole in the
+   middle of the row on a wide screen and squeezed both halves. */
+.ledger-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ledger-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* Grows into whatever the face leaves. Without the grow it sat at its own
+   152px shrink-to-fit width inside a 590px cluster, and every line in it
+   wrapped. */
+.ledger-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The zone and the Location inside "Standing in Town — Tallow Row": lifted out
+   of the muted line they sit on, the way the mockup draws them. */
+.ledger-who strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* The one heading on the sheet that is somebody's name, and one of the handful
+   of places the world speaks in its own voice: the blackletter, in
+   --blackletter, over the black drop the token's own comment requires. The
+   shadow is the one literal colour in this file's sheet families, and it is
+   black, which no theme changes.
+
+   --fs-3xl is the blackletter floor (24px+): the face is illegible smaller, and
+   --blackletter is only measured for contrast as large text. */
+.ledger-name {
+  margin: 0 0 2px;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  font-size: var(--fs-3xl);
+  line-height: 1.05;
+  letter-spacing: var(--ls-tight);
+  color: var(--blackletter);
+  text-shadow: 0 2px 3px #000;
+}
+
+/* 84px square, matching the mockup's `.face` exactly (docs/design/mockups/
+   character/index.html) — it had drifted to 9rem (144px), nearly double, and
+   swelled the whole identity row past what the column beside it needed.
+
+   `.avatar-zoom` is `all: unset`, so the size has to be said again through the
+   zoom button rather than only on the <img> inside it.
+
+   Every selector here is a DIRECT-CHILD chain, and that is load-bearing:
+   AvatarZoom renders its open Modal as a sibling of the button, INSIDE this
+   div (Modal.js does not portal). A loose `.ledger-face img` therefore also
+   caught `.avatar-zoom-full` and shrank the zoomed face from its stored 256
+   to 84px — which is the one thing the zoom exists to avoid. */
+.ledger-face,
+.ledger-face > .avatar-zoom,
+.ledger-face > .avatar-zoom > img,
+.ledger-face > .ledger-face-blank {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 84px;
+}
+
+.ledger-face > .avatar-zoom > img,
+.ledger-face > .ledger-face-blank {
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.ledger-face-blank {
+  background: var(--field-bg);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--sp-1);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  text-align: center;
+}
+
+.ledger-tiles {
+  display: grid;
+  /* auto-fit rather than a fixed five, so the row folds before any tile is
+     narrow enough to wrap "30.5 / 71 lb" onto a second line. Spans the whole
+     band now — the mockup's own row, below the identity rather than beside
+     it — so all five sit across the full width instead of being squeezed
+     into whatever the identity block left over. */
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--sp-2);
+}
+
+/* .ledger-tile is the shared name the GM desks style off too (DevBand.js,
+   InspectorColumn.js) — the rule stays under it so their look doesn't move.
+   .tile is the mockup's own name for the same box, added by DetailTile.js
+   alongside it, so this rule also answers to the mockup's class. */
+.ledger-tile,
+.tile {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-2);
+  min-width: 0;
+}
+
+/* The two faces of a tile that has something to say. Both are always in the
+   DOM — `hidden` toggles which one shows — and they are stacked in the SAME
+   grid cell, so the tile is sized by the taller of the two and opening it
+   cannot change its height by a pixel. That is the whole point: the detail
+   used to be appended under the row and shoved the rest of the sheet down.
+
+   A grid of one column rather than absolute positioning, because absolute
+   would take the taller face out of flow and hand the sizing problem straight
+   back. */
+/* The box both faces share. Relative, because the detail is absolute inside
+   it. `min-height: 0` lets the detail scroll rather than push. */
+/* Both of these are <span>s, so they need saying out loud: an inline box
+   cannot hold the Carrying meter or size the tile, and left inline the meter
+   spilled out of the tile entirely. */
+.ledger-tile-faces {
+  display: block;
+  position: relative;
+  min-width: 0;
+  /* Grow into whatever the tile has left under its label, but never shrink
+     below the resting face. The detail is `inset: 0` inside this box, so a box
+     that only took its own content height gave Mood's paragraph two lines and
+     a scrollbar it could not use, with the rest of the tile blank beneath it.
+     `0 auto` on the shrink is the other half: the row is sized by the tallest
+     tile, and letting this collapse under a shorter neighbour is what pushed
+     the Carrying meter out through the bottom border. */
+  flex: 1 0 auto;
+}
+
+.ledger-tile-face {
+  display: block;
+  min-width: 0;
+}
+
+.ledger-tile-face[data-open="true"] {
+  visibility: hidden;
+}
+
+/* The opened face: absolute, so the tile's height never depends on how much
+   there is to say. Small and quiet, and scrollable in the one case that
+   overruns — the Mood box, whose paragraph is Bascinet's own words and not
+   mine to shorten. Every other tile's detail is a line or two. */
+.ledger-tile-detail {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  visibility: hidden;
+  font-size: var(--fs-2xs);
+  line-height: 1.45;
+  color: var(--muted);
+  /* Block flow, NOT a flex column. A bare string child of a flex column is an
+     anonymous item that shrinks below its content, so Mood's paragraph was
+     clipped after two lines with empty box beneath it and no scrollbar. In
+     normal flow it fills the box and then scrolls, which is the point. */
+  display: block;
+  /* The last few pixels fade out, so a line cut off at the bottom edge reads
+     as "there is more" rather than as a rendering fault. Costs nothing when
+     the detail fits: there is no content down there to fade. */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 0.7rem), transparent);
+}
+
+/* Spacing between the runs of a detail that has several. Deliberately NOT a
+   margin when the detail is anything but block flow: a `> * + *` margin also
+   applies to the second item of a grid, which is what put RANGED four pixels
+   below MELEE and bottom-aligned the pair. Gap is the grid's own job. */
+.ledger-tile-detail > * + * {
+  margin-top: var(--sp-1);
+}
+
+
+.ledger-tile-detail[data-open="true"] {
+  visibility: visible;
+}
+
+
+.ledger-tile-detail .field-label {
+  display: inline;
+}
+
+/* A tile with something to say. Same box, a cursor, and the accent rule while
+   it is open.
+
+   The column flexbox is not decoration. A <button> centres its own content
+   vertically whatever its `display` is, so on a stretched grid row — one made
+   taller by the Carrying tile's weight meter — this tile's heading floated in
+   the middle while every plain-<div> tile beside it kept its heading at the
+   top. `justify-content: flex-start` is what puts it back on the same line as
+   its neighbours'. */
+.ledger-tile-button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-2);
+  min-width: 0;
+  text-align: left;
+}
+
+.ledger-tile-button:hover,
+.ledger-tile-button[aria-expanded="true"] {
+  border-color: var(--accent-text);
+}
+
+.ledger-tile-button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.ledger-tile-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  line-height: 1.2;
+  display: block;
+  margin-top: var(--sp-1);
+}
+
+.ledger-tile-value[data-over="true"] {
+  color: var(--accent-text);
+}
+
+/* The Mood box says a WORD, not a number, so it drops the mono face
+   (--font-mono is for data) and takes its colour from a tone rather than a
+   token picked at the call site — the .status-pill rule, same four names. */
+.ledger-tile-value[data-word="true"] {
+  font-family: var(--font-sans);
+}
+
+.ledger-tile-value[data-tone="muted"] {
+  color: var(--muted);
+}
+
+.ledger-tile-value[data-tone="good"] {
+  color: var(--positive);
+}
+
+.ledger-tile-value[data-tone="warn"] {
+  color: var(--warning);
+}
+
+.ledger-tile-value[data-tone="bad"] {
+  color: var(--danger);
+}
+
+/* The line under a tile's number: the coin in your pocket beside your ⬢, the
+   mood's own figure, which modifier is weighing on the Gambit. Prose, not data,
+   so no mono face. */
+.ledger-tile-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+/* The load meter, on the Carrying tile and again at the foot of the rig. Hard
+   edges, no radius, no gradient — the mockup's bar. A <span> and a <span>,
+   because the tile's faces are spans and a <button> may only hold phrasing
+   content, so both displays have to be said out loud. */
+.sheet-meter {
+  display: block;
+  height: 7px;
+  margin-top: var(--sp-1);
+  border: 1px solid var(--border);
+  background: var(--field-bg);
+}
+
+.sheet-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.sheet-meter[data-over="true"] > span {
+  background: var(--danger);
+}
+
+/* Combat sits in the band row beside This turn and Turn Effects, all three the
+   same build. It is a <button> rather than a <div>, so it needs the row's own
+   stretch to match its neighbours' heights. */
+.sheet-band-row > .ledger-tile {
+  align-self: stretch;
+}
+
+/* ── The Combat readout ────────────────────────────────────────────────────
+   Two fighting bands and the armour on one line, and one quiet line naming
+   what a gamemaster might apply. It lives in the band row rather than the tile
+   row: the tile row's max-width fits exactly five, and this needs the width of
+   a third of the band. */
+/* Three columns — label, band, armour — shared by both rows, so the bands sit
+   under each other and the armour does too. `justify-content: start` keeps
+   them together at the left rather than spread across whatever width the box
+   happens to have. */
+.combat-rows {
+  display: grid;
+  /* The mockup's own column shape: label, band, then the armour word taking
+     whatever is left, so it never wraps under a narrow band box. */
+  grid-template-columns: auto auto 1fr;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-1);
+  margin-top: var(--sp-1);
+}
+
+/* The band word itself. A word, not a number, so it drops --font-mono the way
+   the Mood box does. */
+.combat-band {
+  font-size: var(--fs-lg);
+  line-height: 1.2;
+  font-family: var(--font-sans);
+}
+
+/* Eight steps from red through grey to green, mixed from the theme's own
+   tokens rather than written as hex — so the ramp follows dusk and dawn
+   instead of fighting one of them, and `npm run audit:contrast` has real
+   colours to judge. The keys are db/lib/fightingSkill.js's band keys; adding
+   a band there without adding it here renders unstyled, which is visible
+   rather than silent. */
+.combat-band[data-band="pitiful"] {
+  color: var(--danger);
+}
+.combat-band[data-band="weak"] {
+  color: color-mix(in oklab, var(--danger) 50%, var(--muted));
+}
+.combat-band[data-band="mediocre"] {
+  color: var(--muted);
+}
+.combat-band[data-band="capable"] {
+  color: color-mix(in oklab, var(--positive) 25%, var(--muted));
+}
+.combat-band[data-band="seasoned"] {
+  color: color-mix(in oklab, var(--positive) 50%, var(--muted));
+}
+.combat-band[data-band="dangerous"] {
+  color: color-mix(in oklab, var(--positive) 75%, var(--muted));
+}
+.combat-band[data-band="lethal"] {
+  color: var(--positive);
+}
+
+/* Legendary is the one band that looks different rather than just greener.
+   Practically nobody reaches it — a specialism at its peak with the right
+   thing in hand — and it should read as an event when somebody does. This is
+   the "handful of thematic moments" --font-display exists for. */
+.combat-band[data-band="legendary"] {
+  color: var(--positive);
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: 0.01em;
+}
+
+/* Armour, deliberately quieter than the bands above it: it is a second system
+   riding along, not half of the number. */
+.combat-armor {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* A footnote under the armour line. Names only, no borders, no boxes: these
+   are not clickable and never were, and the bordered chips they used to be
+   read as controls that did nothing when pressed. */
+.combat-situational {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+
+/* Combat's opened face writes several short runs; each is its own line. */
+.combat-line {
+  display: block;
+}
+
+/* The strip under the tiles: the Move as filed, on the recessed surface
+   the tiles use so the whole band reads as one instrument panel. */
+.ledger-turn {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+
+/* The turn card beside the forecast; either alone takes the whole row. */
+.sheet-band-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--sp-2);
+}
+
+/* TurnCard's own spacing was written for the chat column, where everything
+   stacks down a narrow strip. In the band it has a whole row, so the turn
+   chips and the Move button share it — the button at its own width, not a
+   full-width bar under the chip that made the box twice as tall as it needed
+   to be. /chat's YOU column is untouched: this is scoped to .sheet-turn.
+
+   A filed Move puts its words on the line under the chips — it used to open a
+   second chips row and a column of its own, which roughly tripled the box's
+   height the moment somebody filed. Its kind is a quiet word in front of those
+   words now, not a chip in the row above. */
+.sheet-turn .chat-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 0;
+}
+
+.sheet-turn .chat-move > .chat-chips {
+  margin-bottom: 0;
+}
+
+.sheet-turn .chat-buttons {
+  flex: 0 0 auto;
+}
+
+/* The words break the line and take the whole width — they are a paragraph of
+   somebody's own writing — but only two of them until the clamp is clicked. */
+.sheet-turn .chat-move-text {
+  flex: 1 0 100%;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* The turn's effects read as one wrapping line separated by ·, not a list:
+   four short clauses down a column made the box taller than the turn card
+   beside it. `gap` does the spacing on both sides of every separator, so the
+   markup carries no padding of its own. */
+.sheet-forecast {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-1);
+}
+
+/* The separator is a hairline-quiet mark, not a word, and carries its own
+   right-hand space: it sits INSIDE the item it introduces so a wrap can't
+   strand it at the end of a line, which means `gap` can't do that spacing. */
+.sheet-forecast > span > [aria-hidden="true"] {
+  color: var(--muted);
+  margin-right: var(--sp-1);
+}
+
+/* +N more sits on the end of the line rather than under it, so opening the
+   fold is the only thing that makes the box taller. */
+.sheet-forecast .btn-quiet {
+  padding: 0;
+  margin-left: var(--sp-1);
+}
+
+/* A status chip opened under the strip: the tag's own block, on the recessed
+   surface, at the tooltip's size. */
+.sheet-picked {
+  margin-top: var(--sp-2);
+  max-width: 34rem;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+}
+
+/* ── The action strip (ActionGrid variant="strip") ──
+   The verb strip under the band: groups of bevelled buttons split by a
+   hairline, as the mockup draws it. Each item IS a .btn-secondary — the bevel,
+   the press and the dashed gated state all come from there, so this family
+   only adds the icon gap and the strip's own spacing. A gated verb's reason is
+   in the tooltip, which fires on the disabled button because Tooltip wraps it
+   rather than sitting on it (ActionButton.js). */
+.action-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) 0;
+}
+
+.action-strip-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+  padding-right: var(--sp-2);
+  margin-right: var(--sp-2);
+  border-right: 1px solid var(--border);
+}
+
+.action-strip-group:last-child {
+  padding-right: 0;
+  margin-right: 0;
+  border-right: none;
+}
+
+/* On top of .btn-secondary, not instead of it. The font-family is pinned
+   because the .tag-hover wrapper the tooltip brings with it hands down the mono
+   face, and these are labels, not data. */
+.action-strip-item {
+  gap: var(--sp-1);
+  padding: 4px var(--sp-2);
+  font-family: var(--font-sans);
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+
+.action-strip-item:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* data-muted is the coarse-pointer spelling of gated: there the button must
+   stay pressable so its tooltip can be opened (ActionButton.js), so the look
+   has to be said again rather than riding :disabled. */
+.action-strip-item[data-muted="true"] {
+  border: 2px dashed var(--border);
+  background: var(--field-bg);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.action-strip-item[data-busy] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ── The tag rail (TagRail.js / TagRow.js) ──
+   One card per kind, one row per tag. A row is a button (the name and its
+   note) with the verbs and the value beside it; open, its details follow on
+   the recessed surface. */
+.sheet-tags-filter {
+  display: block;
+  margin-bottom: var(--sp-2);
+}
+
+.sheet-tags-filter input {
+  width: 100%;
+}
+
+/* One kind's run of rows inside the Tags card — SKILLS, then HEALTH, then
+   STATUS. Scoped to the run rather than to .sheet-card, which the Items and
+   Assets panels also wear: those are flex children of the column and take their
+   spacing from its gap. */
+.sheet-rail-run + .sheet-rail-run {
+  margin-top: var(--sp-3);
+}
+
+.sheet-group + .sheet-group {
+  margin-top: var(--sp-2);
+}
+
+.sheet-group-name {
+  margin: 0 0 2px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sheet-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-row {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-row:first-child {
+  border-top: none;
+}
+
+.sheet-row-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 26px;
+}
+
+.sheet-row-face {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4px var(--sp-2);
+  border-left: 3px solid var(--tag-rule, var(--border));
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+}
+
+/* Flex so the group icon sits on the text's centre line rather than its
+   baseline. Same trade .chip makes: flex discards the literal spaces in the
+   markup, so the gap is what separates the name from its ×N and its marks. */
+.sheet-row-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sheet-row-face:hover .sheet-row-name,
+.sheet-row[data-open="true"] .sheet-row-name {
+  color: var(--accent-text);
+}
+
+/* The icon and the marks keep their own colour when the row is hovered or
+   open -- the name is what lights up, and a mark that turned accent with it
+   would stop meaning what it means. */
+.sheet-row-face:hover .chip-icon,
+.sheet-row[data-open="true"] .chip-icon {
+  color: var(--muted);
+}
+
+.sheet-row-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.sheet-row-note {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.sheet-row-value {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  padding-right: var(--sp-1);
+}
+
+/* ── The item card (ItemCard.js) — Items and Assets only ──────────────────
+   A row that is allowed to say everything rather than one chosen value. It
+   keeps .sheet-row's separator and .sheet-row-face's category rule so the
+   inventory cards still read as part of the same rail; what it adds is a
+   second line of facts under the name. */
+.item-card {
+  border-top: 1px solid var(--border);
+}
+
+.item-card:first-child {
+  border-top: none;
+}
+
+.item-card-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+}
+
+.item-card-face {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px var(--sp-2);
+  border-left: 3px solid var(--tag-rule, var(--border));
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+}
+
+.item-card-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.item-card-face:hover .item-card-name,
+.item-card[data-open="true"] .item-card-name {
+  color: var(--accent-text);
+}
+
+.item-card-face:hover .chip-icon,
+.item-card[data-open="true"] .chip-icon {
+  color: var(--muted);
+}
+
+.item-card-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+/* Wraps rather than truncates: on a phone a fully-described item runs to two
+   lines, and a clipped "12 lb each · 60 l…" is worse than a taller card. */
+.item-card-facts {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.item-card-facts [data-tone="danger"] {
+  color: var(--danger);
+}
+
+/* The separator belongs to neither neighbour, so it never takes a fact's
+   tone -- a middle dot that turned red beside an expiring clock read as part
+   of the warning. */
+.item-card-sep {
+  color: var(--muted);
+}
+
+.sheet-row-value[data-tone="danger"] {
+  color: var(--danger);
+}
+
+/* The verbs: hidden until the row is hovered or holds focus on a pointer
+   device. On a touch one they are not in this box at all — TagRow.js and
+   ItemCard.js render them inside the opened details instead, so this block
+   only ever governs a mouse. They used to be drawn permanently here, which
+   put Use and Destroy beside the face a finger taps to read the row.
+
+   EVERY box that renders RowVerbs has to be named in the reveal below, or its
+   verbs are hidden with no way to bring them back. The item card learned that
+   the hard way: it renders the same .sheet-row-verbs inside .item-card-line,
+   which no reveal selector matched, so Use / Equip / Give / Destroy were
+   invisible on Items and Assets — every verb a player uses on their own
+   inventory. */
+.sheet-row-verbs {
+  display: inline-flex;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+}
+
+@media (hover: hover) {
+  /* The whole row lifts, not just its name — the mockup's own
+     `.tag-row:hover { background: #1c1712; }`. --row-hover is that same lift
+     already (~+5% white over --surface, the .data-table hover token), so this
+     reuses it instead of a second hex. Targets .sheet-row-line/.item-card-line
+     rather than the .sheet-row/.item-card <li> itself: an open row's <li>
+     also wraps .sheet-row-details as a sibling (TagRow.js), so lighting the
+     <li> would tint the open detail panel along with the face. Gated to
+     pointer devices for the same reason the verb reveal below is: a :hover
+     that never clears on a touch tap would leave one row stuck lit after the
+     finger lifts. */
+  .sheet-row-line:hover,
+  .sheet-row[data-open="true"] .sheet-row-line,
+  .item-card-line:hover,
+  .item-card[data-open="true"] .item-card-line {
+    background: var(--row-hover);
+  }
+
+  .sheet-row-verbs {
+    visibility: hidden;
+  }
+
+  .sheet-row-line:hover .sheet-row-verbs,
+  .sheet-row-line:focus-within .sheet-row-verbs,
+  .sheet-row[data-open="true"] .sheet-row-verbs,
+  .item-card-line:hover .sheet-row-verbs,
+  .item-card-line:focus-within .sheet-row-verbs,
+  .item-card[data-open="true"] .sheet-row-verbs,
+  .data-table tr:hover .sheet-row-verbs,
+  .data-table tr:focus-within .sheet-row-verbs,
+  .data-table tr[data-open="true"] .sheet-row-verbs {
+    visibility: visible;
+  }
+}
+
+.sheet-row-details {
+  margin: 0 0 var(--sp-2) var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+}
+
+/* On a touch screen the verbs are not on the line at all — TagRow.js and
+   ItemCard.js put them at the foot of the opened details instead, because a
+   finger has no hover and the block above only ever hid them from a mouse.
+   Here they are a row of actions under the description rather than a stray
+   inline run, so the rule above them is doing the same job the rule over a
+   dialog's footer does. */
+.sheet-row-details .sheet-row-verbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+
+/* ── The rig (EquipBoard.js) ──
+   One row per slot, one cell per place. A two-hander spans two hand cells. */
+.equip-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.equip-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* The slot's name on the left, and on the right the one hint about how it
+   fills — "Mail, then Over", "4 hands", "one thing". The mockup draws them as a
+   pair on one line. */
+.equip-row-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.equip-row-hint {
+  font-size: var(--fs-2xs);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
+}
+
+/* More weapons readied than there are hands — only reachable on a character
+   who filled them before the three-hand rule existed. The count says so, and
+   EquipBoard.js writes the sentence under the row. */
+.equip-row-title [data-over="true"] {
+  color: var(--danger);
+}
+
+.equip-cells {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.equip-cells-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.equip-cells-wrap > .equip-cell {
+  flex: 0 1 12rem;
+}
+
+.equip-cell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 30px;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.equip-cell.is-empty {
+  border-style: dashed;
+  background: transparent;
+}
+
+.equip-cell-face {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+}
+
+button.equip-cell-face {
+  cursor: pointer;
+}
+
+button.equip-cell-face:hover:not(:disabled) {
+  color: var(--accent-text);
+}
+
+button.equip-cell-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.equip-cell-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.equip-cell-fact {
+  font-size: var(--fs-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.equip-cell-off {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.equip-cell-off:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.equip-cell-off:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+/* What the rig adds up to, at its foot: the same two numbers the Carrying tile
+   shows, under a rule, because the board above is what changes them. */
+.sheet-carry-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+}
+
+.sheet-carry-line [data-over="true"] {
+  color: var(--danger);
+}
+
+/* ── Mood, as the band ladder (MoodPanel.js) ───────────────────────
+   One cell per band from Panicking to Ecstatic, tinted by the band's tone, with
+   the one you are in lit. Decoration for the names underneath, so it is
+   aria-hidden and the words carry the meaning. */
+.mood-scale {
+  display: flex;
+  gap: 1px;
+  margin: var(--sp-1) 0;
+}
+
+.mood-scale > i {
+  flex: 1 1 0;
+  height: 9px;
+  border: 1px solid var(--bg);
+  background: var(--border);
+}
+
+.mood-scale > i[data-tone="bad"] {
+  background: color-mix(in oklab, var(--danger) 35%, var(--surface));
+}
+
+.mood-scale > i[data-tone="warn"] {
+  background: color-mix(in oklab, var(--warning) 35%, var(--surface));
+}
+
+.mood-scale > i[data-tone="good"] {
+  background: color-mix(in oklab, var(--positive) 35%, var(--surface));
+}
+
+.mood-scale > i[data-here="true"] {
+  background: var(--warning);
+}
+
+/* ── Desires (DesirePanel.js) ──
+   The mockup's own grammar: one .desire per slot, a .head line with the slot's
+   name and a status pill, then plain prose underneath. No pill for a pending
+   reward — Desires are claimed RETROACTIVELY now (DESIRES.md), so a slot is
+   never "occupied" with a reward waiting, only open or cooling down. */
+.desire {
+  padding: var(--sp-1) 0;
+  border-top: 1px solid var(--border);
+}
+
+.desire:first-of-type {
+  border-top: 0;
+}
+
+.desire[data-bound="true"] {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+.desire .head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.desire .head b {
+  color: var(--text);
+}
+
+.desire p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* ── The Items table (ItemsTable.js) ──
+   The mockup's own .data-table (globals.css) for the sheet's inventory —
+   Items and Assets, merged into one list — instead of the two item cards
+   ItemCard.js still draws for the GM's Sheet tab and Dev Character Panel. */
+.data-table-face {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.data-table-face:hover .chip,
+tr[data-open="true"] .data-table-face .chip {
+  border-color: var(--accent-text);
+}
+
+.data-table-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* A stack count or a state word beside a name — "×5", the same quiet grey the
+   mockup gives it wherever it shows up (a tag row, an item table). */
+.mark {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+
+/* ── The foot (CharacterSheet.js) ──
+   The mockup's own line at the bottom of the page: a hairline, then the
+   setting, quiet and small. */
+.foot {
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-3);
+  justify-content: space-between;
+}
+
+/* ── Widths ──
+   Two columns down to 720px, then one. There are no tabs any more: the sheet
+   was three columns behind a You / Do / Tags tab bar under 820px, and with two
+   columns the phone answer is simply to stack them — a tab bar that hides two
+   thirds of a sheet costs a player two taps to find their own wound. */
+@media (max-width: 1180px) {
+  /* The right column narrows before it moves: the rig and the mood ladder both
+     read fine at 18rem, and the rail is what wants the width. */
+  .ledger-body {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  /* Three then two once the band has wrapped. It was two-by-two while there
+     were four tiles; with the Mood box making five, two columns leaves the
+     last one orphaned underneath, which reads as a mistake. */
+  .ledger-tiles {
+    grid-template-columns: repeat(3, minmax(8.5rem, 1fr));
+  }
+}
+
+/* One column, and the 44px tap floor on everything that presses. The tile row
+   wraps to two as well: 3 × 8.5rem plus gaps overflows a 390px phone. */
+@media (max-width: 720px) {
+  .ledger-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ledger-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ledger-name {
+    font-size: var(--fs-2xl);
+  }
+
+  .ledger-face,
+  .ledger-face > .avatar-zoom,
+  .ledger-face > .avatar-zoom > img,
+  .ledger-face > .ledger-face-blank {
+    width: 64px;
+    height: 64px;
+  }
+
+  .sheet-body {
+    padding-inline: var(--sp-3);
+  }
+
+  .action-strip-item {
+    min-height: 44px;
+    padding-inline: var(--sp-3);
+  }
+
+  .sheet-row-line,
+  .item-card-line,
+  .equip-cell {
+    min-height: 44px;
+  }
+}

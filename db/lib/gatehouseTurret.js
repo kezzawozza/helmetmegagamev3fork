@@ -20,14 +20,21 @@ const GATEHOUSE_TURRET_DM = {
   dead: "The turret shoots you.",
 };
 
-// Scenery, not an announcement — `-#` subtext (db/lib/ambientLine.js), the only warning the yard gets.
+// Scenery, not an announcement — `-#` subtext (db/lib/ambientLine.js), the only
+// warning anybody standing under the gun gets.
+//
+// BOTH guns speak these. They named the yard until the Depot's turret moved onto
+// a wall switch of its own (DEPOT.md §0i) and wanted a pair just like them; two
+// near-identical pairs is how they drift, so the location word came out instead
+// and the Depot's own lines were deleted. The channel they are spoken into is
+// what says which gun moved.
 const TURRET_ARMED_LINE = {
-  text: "You hear something in the yard whir.",
+  text: "You hear something whir.",
   signed: false,
 };
 
 const TURRET_DISARMED_LINE = {
-  text: "You hear the rotor in the yard settle.",
+  text: "You hear the rotor settle.",
   signed: false,
 };
 

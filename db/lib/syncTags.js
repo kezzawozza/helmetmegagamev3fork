@@ -7,6 +7,7 @@
 const { settleCarry } = require("./carry");
 const { RESOURCES_SLUG, RESOURCES_WEIGHT_LBS } = require("./resourceStack");
 const { WOUND_TAG_GROUPS } = require("./constants");
+const { isManifestId, MANIFEST_IDS } = require("./depotManifests");
 // The rungs docs/systemdocs/TAGS.md §5c actually defines, half rungs included
 // (the named exceptions the ladder documents). A typo'd 2.5 is a silent wrong
 // mood hit, so the set is closed.
@@ -26,8 +27,8 @@ const {
   validateRequirementItems,
   normalizeFighting,
   validateFighting,
-  normalizeLaborBonus,
-  validateLaborBonus,
+  normalizeMiningBonus,
+  validateMiningBonus,
   normalizeExpiresInto,
   validateExpiresInto,
   normalizeRemovesInto,
@@ -49,6 +50,7 @@ const {
   validateResists,
   normalizeCooked,
   normalizeInlayValue,
+  normalizeGambitBonus,
   validateCooked,
   normalizeIngredientSlots,
   validateIngredientSlots,
@@ -265,11 +267,9 @@ function loadGroupsDoc() {
 function roleSlugsFromYaml() {
   const doc = yaml.load(fs.readFileSync(requireDocsPath("roles.yaml"), "utf8"));
   const slugs = new Set();
-  for (const zone of entriesOf(doc?.zones, "slug")) {
-    for (const faction of entriesOf(zone?.factions, "slug")) {
-      for (const role of entriesOf(faction?.roles, "slug")) {
-        if (role.slug) slugs.add(role.slug);
-      }
+  for (const group of Object.values(doc?.groups ?? {})) {
+    for (const role of entriesOf(group, "slug")) {
+      if (role.slug) slugs.add(role.slug);
     }
   }
   return slugs;
@@ -586,7 +586,7 @@ async function syncTagsFromYaml(prisma) {
     }
 
     // Armour values: a fraction of a blow turned aside, so 0..1 and nothing
-    // else. Rejected on a tag nobody can wear for the same reason a laborBonus
+    // else. Rejected on a tag nobody can wear for the same reason a miningBonus
     // is — armour that never gets equipped is dead config, and combineArmor
     // skips unequipped rows, so it would silently do nothing rather than fail.
     for (const field of ["melee", "ballistic"]) {
@@ -644,6 +644,19 @@ async function syncTagsFromYaml(prisma) {
     // sealing something the Depot does not sell is a typo rather than a rule.
     if (t.sealedShipping && t.depotPrice == null) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealedShipping but has no depotPrice — the Depot does not stock it, so it can never ship`);
+    }
+    // A manifest is a shelf, and the shelves are a closed list — a typo here
+    // would quietly hide a ware from everybody rather than showing it to the
+    // wrong people, which is the harder bug to notice.
+    if (t.manifest != null && !isManifestId(t.manifest)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" names manifest "${t.manifest}", which is not one of ${MANIFEST_IDS.join(", ")}`,
+      );
+    }
+    // A shelf with nothing on it: naming a manifest on a ware the station does
+    // not stock says nothing and reads as a rule.
+    if (t.manifest != null && t.depotPrice == null) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" names a manifest but has no depotPrice — nothing to put on the shelf`);
     }
     // depotPrice is the buy side; carrying a price is what puts it on the shelf.
     if (t.depotPrice != null && !(Number.isInteger(t.depotPrice) && t.depotPrice > 0)) {
@@ -749,10 +762,10 @@ async function syncTagsFromYaml(prisma) {
         placement: t.placement ?? null,
       },
     );
-    // laborBonus — the tools table (docs/systemdocs/LABORING.md). A bonus that
+    // miningBonus — the tools table (docs/systemdocs/MINING.md). A bonus that
     // only pays while equipped, on a tag nothing can equip, is dead weight
     // nobody would notice; this is the one place that catches it.
-    validateLaborBonus(normalizeLaborBonus(t.laborBonus), {
+    validateMiningBonus(normalizeMiningBonus(t.miningBonus), {
       selfSlug: t.slug,
       tagSlugs: allTagSlugs,
       equippable: t.equippable ?? false,
@@ -952,6 +965,9 @@ async function syncTagsFromYaml(prisma) {
       sellablePrice: entry.sellablePrice ?? null,
       depotPrice: entry.depotPrice ?? null,
       sealedShipping: entry.sealedShipping ?? false,
+      // Null is the Merchant's own manifest (db/lib/depotManifests.js), so a newly
+      // priced ware is his to stock until the catalog says wider.
+      manifest: entry.manifest ?? null,
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: DESTROYABLE_CATEGORIES.has(entry.category) && entry.removable !== false,
       craftable: entry.craftable ?? false,
@@ -996,6 +1012,7 @@ async function syncTagsFromYaml(prisma) {
       cooked: normalizeCooked(entry.cooked, { slug: entry.slug, normalizeInto: normalizeConsumesInto }),
       // Trinket's own ingredient pool (TRINKETS.md), sibling of `cooked`.
       inlayValue: normalizeInlayValue(entry.inlayValue, { slug: entry.slug }),
+      gambitBonus: normalizeGambitBonus(entry.gambitBonus, { slug: entry.slug }),
       requirementIngredientSlots: normalizeIngredientSlots(entry.requirement?.ingredientSlots, { slug: entry.slug }),
       mealMood: entry.mealMood ?? null,
       mealHunger: entry.mealHunger ?? null,
@@ -1007,7 +1024,7 @@ async function syncTagsFromYaml(prisma) {
       // actually mints (COOKING.md §A5).
       requirementYield: normalizeRequirementYield(entry.requirement?.yield, { slug: entry.slug }),
       ...normalizeCustom(entry.custom, { slug: entry.slug, customizable: entry.customizable ?? false }),
-      laborBonus: normalizeLaborBonus(entry.laborBonus),
+      miningBonus: normalizeMiningBonus(entry.miningBonus),
       fighting: normalizeFighting(entry.fighting),
       handsLost: entry.handsLost ?? null,
       placement: normalizePlacement(entry.placement),

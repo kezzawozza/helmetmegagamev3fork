@@ -31,6 +31,7 @@ import {
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
 import { addCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
+import { openAccount } from "@lifeweb/db/lib/bankAccounts";
 import {
   ensureCharacterRole,
   syncCharacterNarrowcastAccess,
@@ -57,9 +58,6 @@ import {
   conflictingTag,
   roleExcluded,
   CURSED_ROLE_SLUGS,
-  COMMONER_KIT_SLUGS,
-  DEFAULT_COMMONER_KIT_SLUG,
-  LABORING_SPECIALISATION_SLUGS,
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
@@ -134,7 +132,6 @@ export async function createCharacter(formData) {
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
-        faction: { include: { zone: true } },
         startingZone: true,
         startingLocation: { include: { zone: true } },
       },
@@ -301,22 +298,6 @@ export async function createCharacter(formData) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
   }
 
-  // A Commoner who reached the end without picking a trade starts a farmer —
-  // left alone they'd hold Laboring (Skilled) at no location's coefficient,
-  // the one build that can't feed itself. Lands in startingTags, not
-  // selected: the GM_GRANT loop below stamps expiry and carries the slug
-  // into heldSlugs. 0 points, budget untouched, crate arrives unopened.
-  if (role.slug === "commoner") {
-    const tradeHeld = [...selected, ...startingTags].some(
-      (t) =>
-        COMMONER_KIT_SLUGS.includes(t.slug) || LABORING_SPECIALISATION_SLUGS.includes(t.slug),
-    );
-    if (!tradeHeld) {
-      const kit = await prisma.tag.findUnique({ where: { slug: DEFAULT_COMMONER_KIT_SLUG } });
-      if (kit) startingTags.push(kit);
-    }
-  }
-
   // Union bought + granted tags, refunding nothing (already budget-checked).
   // A tag with a catalog duration must arrive already stamped.
   const tagIdsToGrant = new Map();
@@ -375,14 +356,11 @@ export async function createCharacter(formData) {
           discordMirrored: false, // set before placement runs, so applyLocationMoveSideEffects sees it already off and grants nothing (CHAT.md §6a)
           roleId: role.id,
           roleTitle: role.name,
-          factionId: role.factionId,
           // Denormalization contract: every writer of locationId writes
           // location.zoneId in the same statement.
           locationId: role.startingLocationId ?? null,
           zoneId: role.startingLocation?.zoneId ?? null,
           tagPoints: budget - spent,
-          isLeader: role.grantsLeader,
-          isTreasurer: role.grantsTreasurer,
           antagonistOptIns,
         },
       });
@@ -474,6 +452,21 @@ export async function createCharacter(formData) {
   // Neither curse nor ghost needs a write — the new ALIVE row is already the answer to both.
   await closeDeadchatTo(prisma, discordUserId).catch(() => {});
 
+  // The Depot account this seat opens with, from docs/roles.yaml's
+  // `bank_account:` (db/lib/syncRoles.js). It opens EMPTY — a starting purse is
+  // physical obols out of `starting_tags`, because a seeded balance on day one
+  // would be a claim with nothing behind it in the Vault, which is exactly what
+  // the hard backing exists to prevent.
+  //
+  // Best-effort, in the side-effect block rather than the create transaction:
+  // a character with no account can open one at the counter in one click, and
+  // failing a whole character creation over a bank is the wrong trade.
+  if (role.bankAccountClass) {
+    await openAccount(prisma, created, { accountClass: role.bankAccountClass, turnNumber: openTurn?.number ?? null }).catch(
+      (err) => console.error("Opening a bank account failed:", err),
+    );
+  }
+
   // The Depot's turret spares exactly one face — he knows his own name here.
   // Set once and never resynced: concealing himself later still gets him
   // shot, which is the design (DEPOT.md §0f).
@@ -496,7 +489,6 @@ export async function createCharacter(formData) {
       targetCharacterId: created.id,
       details: {
         role: role.name,
-        faction: role.faction?.name ?? null,
         zone: role.startingLocation?.zone?.name ?? null,
         location: role.startingLocation?.name ?? null,
         budget,
@@ -532,7 +524,7 @@ export async function reserveRoleAction(roleId) {
   }
 
   const [role, config, state, member] = await Promise.all([
-    prisma.role.findUnique({ where: { id: roleId }, include: { faction: { include: { zone: true } } } }),
+    prisma.role.findUnique({ where: { id: roleId } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     readGameState(prisma),
     getGuildMember(discordUserId, 0), // always fresh

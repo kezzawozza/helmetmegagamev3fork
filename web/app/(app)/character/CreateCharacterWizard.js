@@ -91,11 +91,11 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
         <span className="flex flex-wrap items-baseline gap-2">
           <strong>
             {role.name}
-            {role.grantsLeader && <Tooltip text="Leader"> ★</Tooltip>}
+            {role.requiresWhitelist && <Tooltip text="Reserved seat"> ★</Tooltip>}
           </strong>
-          {/* The bucket heading no longer says which faction this is — a
-              bucket holds several — so the card does. */}
-          <span className="text-xs text-muted">{role.factionName}</span>
+          {/* The bucket heading is a social position, not a place, so the card
+              says where the seat actually starts. */}
+          <span className="text-xs text-muted">{role.startingZoneName}</span>
         </span>
         <span className="text-sm" style={{ color: full ? "var(--accent-text)" : "var(--muted)" }}>
           {taken}/{cap === null ? "∞" : cap}
@@ -397,7 +397,7 @@ export default function CreateCharacterWizard({
           <span className="flex flex-wrap items-baseline justify-between gap-2">
             <strong>You are the {role.name}.</strong>
             <span className="text-muted">
-              {[role.factionName, role.startingZoneName].filter(Boolean).join(" · ")}
+              {role.startingZoneName}
             </span>
           </span>
           <span className="text-muted">
@@ -428,7 +428,7 @@ export default function CreateCharacterWizard({
       {step === 0 && (
         <div className="flex flex-col gap-6">
           {/* Seven social buckets, not five zones — db/lib/roleGroups.js. The
-              faction moved off the heading and onto the card, because a
+              starting zone moved off the heading and onto the card, because a
               bucket holds more than one of them now. */}
           {groups.map((group) => (
             <section key={group.slug} className="flex flex-col gap-3">
@@ -458,7 +458,7 @@ export default function CreateCharacterWizard({
           <div className="panel flex flex-col gap-2 p-3 text-sm">
             <span>
               <strong>{role.name}</strong>
-              <span className="text-muted"> — {role.factionName}</span>
+              <span className="text-muted"> — {role.startingZoneName}</span>
             </span>
           </div>
           <PointBuy
@@ -649,8 +649,6 @@ export default function CreateCharacterWizard({
               <dd>{role.name}</dd>
             </div>
             <div>
-              <dt className="text-muted">Faction</dt>
-              <dd>{role.factionName}</dd>
             </div>
             <div>
               <dt className="text-muted">Starts in</dt>
@@ -698,9 +696,6 @@ export default function CreateCharacterWizard({
           <p className="text-sm text-muted">
             {remaining} unspent point{remaining === 1 ? "" : "s"} will carry over to your character.
           </p>
-          {role.grantsLeader && (
-            <p className="text-sm">You will start as your faction&apos;s <strong>Leader</strong>.</p>
-          )}
         </div>
       )}
 

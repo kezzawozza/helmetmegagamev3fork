@@ -30,6 +30,7 @@ import {
   ChevronsDown,
   Wine,
   Wrench,
+  Gem,
   Shield,
   Sparkles,
   Bone,
@@ -90,11 +91,12 @@ export const TAG_GROUP_ICONS = {
   "status-debuffs": glyph(ChevronsDown, "DebuffIcon"),
 
   // Items — what somebody is carrying. Teal, and the category where the icon
-  // earns its keep: eleven groups a player sorts a full pack by.
+  // earns its keep: twelve groups a player sorts a full pack by.
   "items-food": glyph(Ham, "FoodIcon"),
   "items-seeds": glyph(Sprout, "SeedsIcon"),
   "items-drink": glyph(Wine, "DrinkIcon"),
   "items-gear": glyph(Wrench, "GearIcon"),
+  "items-mining": glyph(Gem, "MiningIcon"),
   "items-armor": glyph(Shield, "ArmorIcon"),
   "items-headgear": glyph(Crown, "HeadgearIcon"),
   "items-special": glyph(Sparkles, "SpecialItemIcon"),
@@ -120,7 +122,7 @@ export const TAG_GROUP_ICONS = {
   "assets-structures": glyph(House, "StructureIcon"),
 
   // Skills — what somebody can do. Green.
-  "skills-labor": glyph(Pickaxe, "LaborIcon"),
+  "skills-work": glyph(Pickaxe, "WorkIcon"),
   "skills-fighting": glyph(Sword, "FightingIcon"),
   "skills-crafting": glyph(Hammer, "CraftingIcon"),
   "skills-brewing": glyph(FlaskConical, "BrewingIcon"),

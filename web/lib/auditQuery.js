@@ -37,9 +37,8 @@ export function parseAuditParams(params) {
     actors: list(params?.actor),
     actorKind: one(params?.actorKind),
     targets: list(params?.target),
-    factions: list(params?.faction),
     zones: list(params?.zone),
-    // WHERE it happened — AuditLog.locationId/roomId, forward-only. Distinct from `zones` above, the target's FACTION zone.
+    // WHERE it happened — AuditLog.locationId/roomId, forward-only. Distinct from `zones` above, which is the zone the target is standing in.
     locations: list(params?.location),
     rooms: list(params?.room),
     turnFrom: one(params?.turnFrom),
@@ -51,7 +50,7 @@ export function parseAuditParams(params) {
   };
 }
 
-// Everything the WHERE needs that isn't in the URL: GM ids, character->faction/zone/role, turn boundaries, guild handles.
+// Everything the WHERE needs that isn't in the URL: GM ids, character->zone/role, turn boundaries, guild handles.
 export async function loadAuditContext({ gmIds, guildMembers }) {
   const [characters, turns] = await Promise.all([
     prisma.character.findMany({
@@ -61,11 +60,11 @@ export async function loadAuditContext({ gmIds, guildMembers }) {
         status: true,
         discordUserId: true,
         roleTitle: true,
-        faction: { select: { id: true, name: true, zoneId: true, zone: { select: { id: true, name: true } } } },
+        zone: { select: { id: true, name: true } },
       },
     }),
     // Ascending: bucketing a timestamp into a turn is a walk forward through the boundaries.
-    prisma.turn.findMany({ select: { number: true, phase: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
+    prisma.turn.findMany({ select: { number: true, dayNumber: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
   ]);
   return { characters, turns, gmIds: new Set(gmIds ?? []), guildMembers: guildMembers ?? [] };
 }
@@ -151,8 +150,7 @@ function matchCharacterIds(characters, term, getter) {
 
 const SCOPED_FIELD_GETTERS = {
   role: (c) => c.roleTitle,
-  faction: (c) => c.faction?.name,
-  zone: (c) => c.faction?.zone?.name,
+  zone: (c) => c.zone?.name,
 };
 
 // One word of a parsed query (fuzzySearch.js#parseQuery) into a Prisma OR clause; a scoped word narrows to
@@ -217,17 +215,11 @@ export async function buildAuditWhere(filters, ctx) {
     and.push({ targetCharacterId: { in: filters.targets } });
   }
 
-  // Faction/zone are TARGET-character properties (zone = their faction's zone); resolved to character ids.
-  if (filters.factions.length) {
-    const set = new Set(filters.factions);
-    and.push({
-      targetCharacterId: { in: ctx.characters.filter((c) => set.has(c.faction?.id)).map((c) => c.id) },
-    });
-  }
+  // Zone is a TARGET-character property — where they are standing; resolved to character ids.
   if (filters.zones.length) {
     const set = new Set(filters.zones);
     and.push({
-      targetCharacterId: { in: ctx.characters.filter((c) => set.has(c.faction?.zone?.id)).map((c) => c.id) },
+      targetCharacterId: { in: ctx.characters.filter((c) => set.has(c.zone?.id)).map((c) => c.id) },
     });
   }
 

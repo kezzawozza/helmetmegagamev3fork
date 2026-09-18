@@ -3,7 +3,7 @@
 // POCKETS — a stash is a place people walk to, carry from, and can be robbed of. The destination room need NOT be the structure's own Location —
 // naming it by slug is what lets the brewery at the inn fill the cellar under it. SOMEBODY HAS TO BE MINDING IT: `yields.skill` names a skill, and
 // the turn produces nothing unless a living character counting as having it stands at the structure's Location at close. "Counts as" is the tier
-// ladder, so Brewing (Skilled) satisfies a `brewing-basic` requirement even though it replaces the lower row outright (tagWrites.js#replaceLowerTiers).
+// ladder, so Brewing II satisfies a `brewing-basic` requirement even though it replaces the lower row outright (tagWrites.js#replaceLowerTiers).
 
 const { addToRoomStack } = require("./tagWrites");
 const { ambientLine } = require("./ambientLine");
@@ -15,7 +15,7 @@ const { alivePassCharacters } = require("./aliveCharacters");
 // Structures that are actually WORKING. Deliberately COMPLETE only, stricter than WORKING_STATUSES: a damaged brewery is one nobody is minding.
 const YIELDING_STATUSES = ["COMPLETE"];
 
-// Does anybody standing here count as having `skillSlug`? Holding Brewing (Skilled) REPLACES the Basic row rather than adding to it, so a plain
+// Does anybody standing here count as having `skillSlug`? Holding Brewing II REPLACES the Brewing I row rather than adding to it, so a plain
 // slug test would miss the brewer. satisfiedSkillIds walks each held tag's parent chain, the same answer requireRecipeSkills gives a crafter.
 async function someoneTending(prisma, locationId, skillSlug) {
   if (!locationId) return false;

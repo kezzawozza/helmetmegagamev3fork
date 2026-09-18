@@ -370,8 +370,8 @@ Everything follows from that:
   on the Move, and DMs the player, since a freed turn they don't know about
   is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
-  `gmNotes: "auto:gm_spent_turn"` in the same family as
-  `autoLaborPass.js`'s `auto:labor`. It DMs the player too. Kill, Restore
+  `gmNotes: "auto:gm_spent_turn"` in the same family as the Mine button's
+  `auto:mine` (`db/lib/constants.js`). It DMs the player too. Kill, Restore
   turn and Spend turn are each a one-line `useConfirm` — they used to open a
   `RequestDialog` for a typed reason first, and nobody ever wrote one that
   said anything the DM did not. The server actions still take an optional
@@ -631,11 +631,11 @@ float over a desk shell (same reason no desk carries one — `DESIGN-SYSTEM.md`
 §6). The server actions, the client tables and the nested editors stay in
 `(app)/gm/dev/`, since only the top page needed to move.
 
-**One navigation now, not two.** Characters, Factions, Tags and Zones used to
-be four PageShell pages of their own, listed in an "Elsewhere ↗" group on the
+**One navigation now, not two.** Characters, Tags and Zones used to
+be PageShell pages of their own, listed in an "Elsewhere ↗" group on the
 rail and again in a `DevSubNav.js` row in their own headers, both reading one
 shared `DEV_PAGES` list. Their index pages are **sections of this panel**
-now — `?s=characters`, `?s=factions`, `?s=tags`, `?s=zones` — so there is one
+now — `?s=characters`, `?s=tags`, `?s=zones` — so there is one
 rail and no shared list to keep: `DevSubNav.js` and `web/lib/devNav.js` are
 both gone. The old paths redirect to their sections.
 
@@ -690,20 +690,19 @@ action is a public endpoint and a hidden button is a hint:
 | Where | Superadmin only |
 |---|---|
 | `?s=reports` | **Repair**. `runDoctorAction` reads the posted `mode` **before** the guard and asks for `super` only when it is `repair` — the dry run is GM work |
-| `/gm/dev/factions` | Delete a faction (`FactionsTable`'s `canDelete` prop) |
 | `?s=tags` | Delete a custom tag |
 | `/gm/dev/characters/[id]` | Delete a character |
 
-Characters and Factions are GM-open. The per-character panel this doc is about
+Characters is GM-open. The per-character panel this doc is about
 was always GM-gated, so its own index being superadmin was an inconsistency,
 not a policy.
 
 ### 11b. The sections
 
-Fifteen: **Game**, **History**, **Turn**, **Configuration**, **Depot** and
+Fourteen: **Game**, **History**, **Turn**, **Configuration**, **Depot** and
 **Oracle** under "Game"; **Bulk actions**, **System reports** and
-**Gamemasters** under "Operations"; **Quests**, **Characters**, **Factions**,
-**Tags** and **Zones** under "Content"; **Assignments** and **Antagonists**
+**Gamemasters** under "Operations"; **Quests**, **Characters**, **Tags** and
+**Zones** under "Content"; **Assignments** and **Antagonists**
 under "Threats"; **Archive & restart** on its own under "Danger". Everything
 under "Game" and "Danger" is `super`; everything else is `gm`.
 
@@ -915,24 +914,36 @@ db:collapse-games`, off a command line and behind a dry run.
 | The tag catalog as a section, with its snapshot wiring | `web/app/(desk)/gm/dev/DevTagsSection.js` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |
-| The game-level panel's styling | `.desk-body--ops`, `.ops-nav`, `.ops-nav-group`, `.ops-nav-title`, `.ops-nav-item`, `.ops-main`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css` |
+| The game-level panel's styling | `.desk-body--ops`, `.desk-main--ops`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css`. The nav rail itself is the shared `DeskRail` (`.desk-rail[data-variant="sections"]`, `.desk-rail-group`, `.desk-rail-item`, `.group-label`) |
 | The channel doctor it runs | `db/lib/channelDoctor.js` |
 
 ## The Depot section
 
-`/gm/dev?s=depot`. The Merchant's station, split into live state you can
-override (account, debt, fuel, the two switches)
-and the tuning the game runs on (tank size, burn rate, fuel values, shuttle
-clock and cooldown, credit cap). There is no ⬢-per-obol field: an obol is one
-⬢ and the rate is gone (`DEPOT.md` §0).
+`/gm/dev?s=depot`. The station is a public market now (`DEPOT.md`), so there
+is far less here than there used to be: no account, no fuel, no shuttle
+clock — the generator and the shuttle are both gone entirely, and there is
+no station float to hold a balance on. `updateDepot` writes four fields:
+`Depot.debtObols` (the Company's drawn-down credit line), its cap
+`Depot.creditCapObols` (75), `Depot.sellTaxRate` (a percentage, clamped
+rather than refused) and `Depot.turretArmed`. There is no ⬢-per-obol field
+either: an obol is one ⬢ and the rate never existed as a knob.
 
-The turret's severity table is edited as JSON, one weighted column per armour
-tier. **The save is refused if any column does not sum to 1** — a broken die is
-a typo, not a preference, and normalising it silently would hide the mistake
-behind subtly wrong odds for a month. `updateDepot` returns the error and the
-form says which column is wrong.
+The last two duplicate a player-facing surface rather than being the only
+door: the sell tax rate is really the Meister's own dial, set day to day
+from `/treasury`, which gates on standing in the Keep with a key to his office
+(`DEPOT.md` §0h), and
+the turret's switch is really a red button on the Merchant's Office starter
+post, typed word, re-checked at submit, the same pattern as the Censor's
+(`DEPOT.md` §0i) — this checkbox is a superadmin's way to flip it without
+walking there.
 
-See `docs/systemdocs/DEPOT.md` §0f for the shipped table.
+**The turret's severity table is not edited here, and never really was.**
+`db/lib/depotTurret.js#turretTable()` returns the shipped
+`DEFAULT_TURRET_TABLE` and ignores its argument, so both guns have always
+rolled the same odds. There was a JSON editor on this page for it and a code
+comment calling `Depot.turretTable` an orphan column; there is no such column,
+and the editor wrote nothing anything read. Retuning means editing that
+constant. See `docs/systemdocs/DEPOT.md` §0i for the shipped table.
 
 ## Zones
 
@@ -949,7 +960,7 @@ Pages:
 |---|---|
 | `zones/page.js` | Every Zone, its mirror status ("mirrored" once `discordCategoryId` is set, else "pending"), reorder arrows, and a Create form |
 | `zones/[zoneId]/page.js` | The Zone's own fields (name, kind, sort order, description, map polygon) and its Locations |
-| `zones/locations/[locationId]/page.js` | The Location's fields, its `LocationYield` bases (the live `current` coefficient is read-only — it drifts on its own every turn close), its Rooms, and its travel links |
+| `zones/locations/[locationId]/page.js` | The Location's fields, its `LocationMining` base (the live `current` coefficient is read-only — it drifts on its own every turn close), its Rooms, and its travel links |
 | `zones/links/page.js` | Every `LocationLink` in the game. `isOpen` is shown read-only — it's play state, only `authoredOpen` is edited here |
 | `zones/rooms/[roomId]/page.js` | The Room's fields and its stash: existing `RoomTag` rows (read-only quantities — those move by play, not by this form) plus a **Seed these items now** box that writes new rows and appends to `seededStashSlugs` |
 

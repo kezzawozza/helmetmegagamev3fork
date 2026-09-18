@@ -24,24 +24,26 @@ YAML and running the sync is the only way their rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:import-zones` | `Zone`, `Location`, `Room`, `LocationLink`, `LocationYield`, `Structure` | `slug` (a link by its endpoint pair, a yield/structure by location + kind/type) | **Additive, never deletes** — creates a row the database doesn't have yet, skips one that does, and never writes a `discord*Id` column. Keeping Discord true to the database afterwards is `db/lib/discordMirror/` (`npm run db:mirror`), not this importer |
+| `docs/zones.yaml` | `db:import-zones` | `Zone`, `Location`, `Room`, `LocationLink`, `LocationMining`, `Structure` | `slug` (a link by its endpoint pair, a mining row by its location, a structure by location + type) | **Additive, never deletes** — creates a row the database doesn't have yet, skips one that does, and never writes a `discord*Id` column. Keeping Discord true to the database afterwards is `db/lib/discordMirror/` (`npm run db:mirror`), not this importer |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
-| `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
+| `docs/roles.yaml` | `db:sync-roles` | `Role` | `slug` | **Prunes only if unreferenced** — a Role a character still holds is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
-| `docs/labordrops.yaml` | `db:sync-labor-drops` | `LaborDropOption` | none (rebuilt whole) | **Destructive** — pure config, no player state ever points at a row. See `LABORDROPS.md` |
 
-**Run order matters for the five routine syncs:** tags → roles → desires →
-documents → labor drops. Roles
-resolve a `starting_zone` and an optional `starting_location` by slug, and a
-Faction's zone by name, and validate
-`starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
+**Run order matters for the four routine syncs:** tags → roles → desires →
+documents. Roles
+resolve a `starting_zone` and an optional `starting_location` by slug, and
+validate `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
-the Tag catalog, so it runs after both; documents validate against tags,
-roles *and* factions; labor drops validate every pool entry against the tag
-catalog and every scope against the zone/location catalogs, and has no
-dependents of its own, so it runs last. Running them out of order throws on a
-reference that would have existed. `db:import-zones` is a one-shot standing
+the Tag catalog, so it runs after both; documents validate against tags and
+roles, and has no dependents of its own, so it runs last. Running them out of
+order throws on a reference that would have existed.
+
+(There used to be a fifth, `db:sync-mining-drops`, rebuilding a
+`MiningDropOption` table from a YAML master of its own. It went on 2026-09-18
+with the Prospecting rework — the table it fed is a weighted draw in
+`db/lib/cavingLoot.js` now, so there is nothing left to sync. See `MINING.md`
+§3b.) `db:import-zones` is a one-shot standing
 apart from this order — run it whenever `docs/zones.yaml` names a place that
 isn't in the database yet, before or after the rest, and follow it with
 `npm run db:mirror -- --apply` (or let the next bot restart or turn advance
@@ -85,22 +87,10 @@ provisioned from scratch, losing its Discord objects. Rename by editing `name`.
 
 ### Create-only fields
 
-`Faction.parentFactionId` is create-only. The hierarchy is authored in
-`roles.yaml` (`parent:`), but once a faction row exists its parent is **live
-game state** — a clan can break away mid-game, or be absorbed by another, and
-that is a GM edit on `/gm/dev/factions`. An ordinary re-sync leaves it alone,
-so it can't quietly re-parent a faction under the one it rebelled against —
-so editing `parent:` in the YAML for a *future* game is still the right move,
-it just doesn't reach a game already in progress. A Leader secedes from
-`/faction` too, not just a GM (`FACTIONS.md` §3).
-
-`Faction.siloRoomId` is a **floor** rather than create-only, which is one
-notch weaker. `roles.yaml`'s `silo:` names a Room slug, and the sync writes it
-only while the faction has no silo at all. Re-pointing a silo in play writes a
-non-null id, which the sync never touches — so a Leader's choice is as safe as
-under create-only, and a faction that predates the column still gets the one
-the YAML names for it. Rooms come from `db:import-zones`; an unknown slug
-warns and skips rather than throwing.
+There are none left in `roles.yaml`. `Faction.parentFactionId` (create-only)
+and `Faction.siloRoomId` (a floor — written only while a faction had no silo)
+were the two, and both went with the factions in 10/2026. A `Role` is now
+plain upsert-from-the-YAML in every column.
 
 A room's `stash:` in `docs/zones.yaml` is history now, not instruction.
 `db:import-zones` never seeds one — a stash line in the YAML for a newly
@@ -138,9 +128,10 @@ That hash is also what makes a **live room** cheap. A Room may carry
 `live: <key>` naming a renderer in `db/lib/roomLive.js`; its starter message
 then ends with one line read off live state, and
 `syncZones.js#refreshLiveRooms(prisma, key)` repaints every room on that key
-whenever the state behind it moves — the Landing Pad saying whether the shuttle
-is on it. Because the body is hashed, a refresh over unchanged state writes
-nothing. The Landing Pad is the only one so far; the mechanism is general.
+whenever the state behind it moves — the Railyard saying whether the train is
+at the platform. Because the body is hashed, a refresh over unchanged state
+writes nothing. The Railyard is the only one so far; the mechanism is
+general.
 
 ### The zones.yaml format
 
@@ -158,16 +149,16 @@ zones:
       square:               # zones/locations/rooms share ONE slug namespace
         name: Square
         description: >-     # the anchor's -# subtext and the channel topic
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
-                             # → LocationYield rows. Optional, 0–2, omit a kind
-                             #   rather than writing 0. An absent kind CANNOT be
-                             #   worked here at all. See LABORING.md §3.
+        mining: 0.9        # → one LocationMining row. Optional, a bare
+                             #   number rather than a mapping. Omit it rather
+                             #   than writing 0: a place with no row CANNOT be
+                             #   mined at all. See MINING.md §2.
         rooms:               # → Room rows → threads under the Location channel
           the-charon:
             name: The Charon
             description: >-
             access: [barons-key]   # non-empty ⇒ PRIVATE; any-of these tags admits
-            live: shuttle              # optional; a key from db/lib/roomLive.js.
+            live: train                # optional; a key from db/lib/roomLive.js.
                                        #   Appends one line read off live state to
                                        #   the starter message, repainted whenever
                                        #   that state moves. Unknown key ⇒ problem.
@@ -255,11 +246,11 @@ The one soft case is `connections` coverage: a Location in no pair at all is
 walks to) and almost always a typo.
 
 `documents.yaml`'s `tags:` list is the other deliberate exception. It conflates
-real Tag names, the Leader/Treasurer booleans, and free-text authoring notes
-like `"any of the medical tags"`. Each entry is routed to whichever bucket it
+real Tag names, the `gamemaster` flag, and free-text authoring notes like
+`"any of the medical tags"`. Each entry is routed to whichever bucket it
 belongs in, and **anything matching nothing is reported, not thrown** — a
-placeholder is a note to a human. The explicit `roles:`/`factions:`/`flags:`
-keys next to it are strict and throw on a typo.
+placeholder is a note to a human. The explicit `roles:`/`flags:` keys next to
+it are strict and throw on a typo.
 
 `syncTags` validates `consumesInto` up front against the YAML's own slug set,
 before any write, so a typo fails cleanly instead of half-applying. It also
@@ -287,7 +278,7 @@ by slug before every row necessarily exists: TagGroup scalars → Tag scalars +
 Zones no longer have a multi-pass sync of their own. `db:import-zones`
 (`db/lib/importZones.js`) is the one-shot, additive half: it parses
 `docs/zones.yaml` with the same `parseZonesYaml`, creates a
-Zone/Location/Room/LocationLink/LocationYield/Structure the database doesn't
+Zone/Location/Room/LocationLink/LocationMining/Structure the database doesn't
 have yet by slug, and skips — never updates, never deletes — anything that's
 already there. Keeping Discord true to whatever the database now holds is the
 other half, and it isn't the importer's job at all: `db/lib/discordMirror/`
@@ -323,8 +314,7 @@ too.
 same posture as `db:prune-orphan-roles` and `db:doctor`.
 
 **Retiring a chain may take two applies.** Blockers are computed per run, so
-a parent (`laboring-basic` under a removed `laboring-skilled`, a base tag under
-its removed variants) is reported as still-referenced until the run that
+a parent (a base tag under its removed variants) is reported as still-referenced until the run that
 deleted its children is over — run `-- --apply` again and it goes.
 
 A Tag is deleted only when *every* one of these holds. Anything failing even
@@ -377,7 +367,7 @@ everything else from YAML.
 
 | Command | What it does |
 |---|---|
-| `db:sync` | The five routine masters in order (tags, roles, desires, documents, labor drops), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
+| `db:sync` | The four routine masters in order (tags, roles, desires, documents), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
 | `db:import-zones` | One-shot, additive: creates whatever `docs/zones.yaml` names that the database doesn't have yet, skips the rest, never deletes. **Dry run by default**; `-- --apply` writes. See §1. |
 | `db:mirror` | Diffs the live Discord guild against the database and provisions, renames or reparents to match — the repair path for zones/locations/rooms/narrowcast/Deadchat now. **Dry run by default**; `-- --apply` writes, `-- --full` adds the member sweeps. `db/lib/discordMirror/`. |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
@@ -391,6 +381,8 @@ everything else from YAML.
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 | `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |
 | `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. The next `db:mirror` re-walls them. |
+| `db:open-bank-accounts` | Opens a fingerprinted `BankAccount` for every living character whose role carries `bank_account:` in `docs/roles.yaml` and has none yet, and closes out the retired `Depot` account. Dry-run by default; `-- --apply` writes. See `CHARACTERS.md`, `DEPOT.md` §0g. |
+| `db:audit-vault-backing` | Read-only: sums every TREASURY `BankAccount`'s claim against the real `obol` tags sitting in the Vault (`undercroft-vault`), so a GM can see the backing before somebody at the ATM finds out the hard way. See `DEPOT.md` §0g. |
 | `db:backup` | Takes a Railway volume backup now (`scripts/db/railway-backup.sh`). `migrate.sh` runs it before every migration. |
 
 ## 5. Where the code lives

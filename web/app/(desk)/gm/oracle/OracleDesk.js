@@ -14,11 +14,13 @@
 // "Past moves" button does.
 
 import { useCallback, useMemo, useState, useTransition } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import DiscordTime from "@/app/components/DiscordTime";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import GmZoneRail from "@/app/components/GmZoneRail";
@@ -182,6 +184,7 @@ export default function OracleDesk({
                 chronicle, and the select in the actions slot changes it. */}
             <DeskTurnChip turn={turn} />
             <LockChip />
+            <BascinetClock />
             {/* Muted text, not a chip: it is a count-style fact, and only
                 warnings take colour in a desk header (DESIGN-SYSTEM §5a). */}
             <span className="text-sm text-muted">
@@ -208,7 +211,7 @@ export default function OracleDesk({
             >
               {turns.map((t) => (
                 <option key={t.number} value={t.number}>
-                  {t.number} · {t.phase === "DAWN" ? "Dawn" : "Dusk"}
+                  {t.number} · Day {t.dayNumber}
                 </option>
               ))}
             </select>
@@ -224,7 +227,7 @@ export default function OracleDesk({
             row centred itself into a rounded bubble instead of filling the
             width. The active row is data-active here rather than a border, so
             it wears the inset accent bar the other two desks use. */}
-        <aside className="desk-rail">
+        <DeskRail as="aside" ariaLabel="Chronicle pages">
           <button
             type="button"
             className="desk-queue-row"
@@ -281,7 +284,7 @@ export default function OracleDesk({
               ))}
             </section>
           )}
-        </aside>
+        </DeskRail>
 
         <main className="desk-main">
           {!page ? (

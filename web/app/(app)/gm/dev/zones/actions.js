@@ -236,18 +236,17 @@ export async function updateLocation(locationId, updatedAt, input) {
   });
 }
 
-export async function updateLocationYield(locationId, kind, base) {
+export async function updateLocationMining(locationId, base) {
   return guarded(async () => {
     const session = await requireGmSession();
     const value = Number.parseFloat(base);
-    if (!Number.isFinite(value) || value < 0) throw new UserError("Yield base must be a number of at least 0.");
-    const existing = await prisma.locationYield.findUnique({ where: { locationId_kind: { locationId, kind } } });
-    if (existing) {
-      await prisma.locationYield.update({ where: { id: existing.id }, data: { base: value } });
-    } else {
-      await prisma.locationYield.create({ data: { locationId, kind, base: value, current: value } });
-    }
-    await audit(session, "gm_location_yield_updated", { locationId, kind, base: value });
+    if (!Number.isFinite(value) || value < 0) throw new UserError("Mining base must be a number of at least 0.");
+    await prisma.locationMining.upsert({
+      where: { locationId },
+      update: { base: value },
+      create: { locationId, base: value, current: value },
+    });
+    await audit(session, "gm_location_mining_updated", { locationId, base: value });
     revalidatePath(`/gm/dev/zones/locations/${locationId}`);
   });
 }

@@ -22,8 +22,6 @@
     - [Transferring Resources](#transferring-resources)  
     - [Hunger](#hunger)  
 8. [Submitting A Move](#submitting-a-move)  
-    - [Routine, Gambit, or Labor](#routine-gambit-or-labor)  
-    - [Labor](#labor)  
     - [Move Submission Is Final](#move-submission-is-final)  
 9. [Tags & Tag Points](#tags--tag-points)  
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
@@ -31,8 +29,9 @@
     - [Health Tags](#health-tags)  
 10. [Crafting](#crafting)  
 11. [Building](#building)  
-12. [Character Page](#character-page)  
-13. [Death](#death)  
+12. [The Depot](#the-depot)  
+13. [Character Page](#character-page)  
+14. [Death](#death)  
 
 
 ## About Bascinet
@@ -54,7 +53,7 @@ Each Zone has a Summary channel, where players can post descriptions of what the
 Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play.
 
 **Decide What You're Doing**  
-Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and spend the day laboring.  
+Walk between Locations as often as you like, travel to another Zone, or submit a description of what your character is trying to accomplish during the turn.  
 
 ### Help & GMs
 
@@ -89,27 +88,27 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Page | Content |
 |---|---|
 | **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, your bio and portrait, all requests functions. |
-| **Faction** | Faction roster and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
-| **Archive** | A full transcript of all roleplay channels. Hidden until after the game ends. |
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
-Bascinet runs for 30 real days. One turn is one of those days, and turns alternate — Dawn, then Dusk, then Dawn again — so an in-game day is two of them and the game ends somewhere around in-game Day 15.
-- **Every turn begins at midnight US Central.**
+Bascinet runs on real time, in US Central. That is simply what time it is in Ravenheart, and every deadline the game gives you is in it — the clock in the corner of every page is the game's own.
+
+A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on a clean hour: a 24-hour turn ends at midnight, a 6-hour one at midnight, 6:00, noon and 6:00 again. An in-game day is however many turns fit in a real day, so on the longest setting one turn is one day.
+- **Your sheet and the `#turns` channel both say when the current turn ends.**
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the two main controls:  
-- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it.  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, or a body. Anyone else has to agree to come.  
 - **Move** is used to submit your character's Move for the turn.  
 
 ### The Wipe
 
-At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
+At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, the Game Masters' record of the game. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
 
-The one exception is your Zone's Summary channel, which is only cleared at Dawn — so what is posted there has two days to be read.
+The one exception is your Zone's Summary channel, which is only cleared once an in-game day — so what is posted there has longer to be read than a scene does.
 
 What survives:
 - Every Room keeps its thread and its description; the messages in it are archived.
@@ -125,7 +124,7 @@ The first thing you will do is open the **Character** page on the website, from 
 **After the game starts**, or if you missed the roll, you join by hand: pick from whatever seats are open. Character creation takes place in 5 steps:
 
 **Choose Your Role**  
-Your role determines your character's starting location and faction. Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and Leader roles can only be selected if you have been explicitly whitelisted.
+Your role determines your character's starting location. Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and the roles marked ★ can only be selected if you have been explicitly whitelisted.
 
 **Tags**  
 Tags represent your character's skills, assets, injuries, and other attributes. You may have some initial tags provided by your role, and you can purchase new tags using Tag Points. In general, beneficial tags will cost points while harmful/negative tags (drawbacks) will grant points. Any unused points are saved to use later.
@@ -234,7 +233,7 @@ To hide your identity, run `/conceal` (anywhere, the bot's DMs included) or flip
 
 While you're concealed, everything you say posts under a vague descriptor such as "Old Man" or "Young Woman" with a blank portrait, and **Who's here?** lists you the same way.
 
-Other players can still 🔎 you and see any visible wounds or gear, but your name, face, and faction remain hidden.
+Other players can still 🔎 you and see any visible wounds or gear, but your name and face remain hidden.
 
 Some transformations take the choice away. A tag like Apex Form fixes your name and face to what you have become, and `/conceal` stops working while you hold it.
 
@@ -305,15 +304,7 @@ You submit a Move by pressing the Move button in `#turns` or using the `/move` s
 **Your Move**  
 A paragraph describing your character's objective, where it's happening, who else is involved, etc.
 
-**Kind**  
-Routine, Gambit, or Labor.
-
-If you don't submit a Move at all, you'll automatically Labor — provided you have a Laboring skill and aren't Exhausted. Nothing is filed for you otherwise.
-
 Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
-
-### Routine, Gambit, or Labor
-Choose **Routine** when your Move is assumed to be successful and without any risk or uncertainty as to the outcome. Spending the turn farming, hunting, or going on a daily patrol would all be considered Routine.
 
 Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
 
@@ -322,32 +313,6 @@ When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell yo
 **Roll a 6:** Things went better than you hoped.
 
 You'll find out how your die fell when the turn ends — the bot DMs you the number alongside whatever the GMs decided it did. Playing the turn without knowing is the point: your character doesn't know how it went either.
-
-Choose **Labor** to spend the day working. It isn't adjudicated and it doesn't roll — it simply pays, based on your skills and where you're standing. Choosing it means choosing not to do anything else that turn.
-
-The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs.
-
-### Labor
-
-Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing.
-
-Laboring is hard work: your first day leaves you {tag:tired}. A second day running leaves you {tag:exhausted} — you can't Labor again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
-
-| Tag | ⬢ Yield | Where |
-|---|---|---|
-| {tag:laboring-basic} | {resource:labor:basic} | Anywhere |
-| {tag:laboring-skilled} | {resource:labor:skilled} | Anywhere |
-| {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
-| {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
-| {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
-
-The bottom three need {tag:laboring-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing.
-
-The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Examine** button in any location's channel to see what it's yielding right now, along with anything else worth knowing about the place. Hunting is the wildest of the three; a field is a field.
-
-Tools help. A bow or a gun makes hunting pay more while it's equipped, a Pitchfork or a Plow does the same for farming, and a Fishing Rod for fishing. Each one names what it does in its own description. Carrying two weapons does not pay twice — you hunt with one of them, so only the better one counts — but a weapon, a set of gear and a skill all stack.
-
-If the Lifeweb fails, all of this very nearly stops.
 
 Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found in {document:ravenhearteconomy}, on the [Documents](https://ravenheart.quest/documents) page.
 
@@ -452,15 +417,15 @@ Even if a doctor doesn't possess the skills needed to heal an injury or ailment,
 
 ## Crafting
 
-Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move. Quick work costs only part of one — a recipe listed at 0.25 turns is a quarter of your Move, so you can make 4 of them in a day, and the Craft window tells you how much of your Move is left before you commit. A long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
+Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. Quick work costs only part of a Move — a recipe listed at 0.25 turns takes a quarter of it, and the Craft window shows how much is left. The simplest work (a work knife, a cudgel, a sling) costs the same 0.25. A long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
 
 **What you can make depends on your skills.** A handful of skill families gate crafting, each opening a different slice of the world's recipes:
 
 - **Crafting** — tailoring, woodwork, and the simplest metalwork (Dead Simple tier), no forge needed.
-- **Smithing**, **Smithing (Skilled)**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
-- **Cooking (Basic)** and **Cooking (Skilled)** — meals. Fine and Lavish meals each have their own cap per Routine, and a Lavish meal wants a delicacy off the Depot's shelf besides its ⬢.
-- **Brewing (Basic)**, **Brewing (Skilled)**, and **Brewing (Expert)** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise.
-- **Medical (Skilled)** and **Medical (Expert)** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical (Expert), whoever crafted the prosthetic itself.
+- **Smithing I**, **Smithing II**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
+- **Cooking I** and **Cooking II** — meals. Fine and Lavish meals each have their own cap per Routine, and a Lavish meal wants a delicacy off the Depot's shelf besides its ⬢.
+- **Brewing I**, **Brewing II**, and **Brewing III** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise.
+- **Medical II** and **Medical III** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical III, whoever crafted the prosthetic itself.
 
 **Make it your own.** A few crafts — a badge, a hat, a painting, a sketch, and a cook's meals — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it.
 
@@ -482,11 +447,17 @@ What stands can be damaged, burned, or torn down. Attacking a structure is a Gam
 
 A destroyed structure leaves a ruin standing until somebody clears it away.
 
-## Character Page
+## The Depot
 
-Your [Character](https://ravenheart.quest/character) page contains your character sheet and all mechanical options for modifying your character. The page is dense with features and information, all of which are listed below.
+The [Depot](https://ravenheart.quest/depot) page is a public market, open to anyone. Reading it needs nothing; buying or selling needs you standing at the Depot, in the Caves.
 
-**Header:** Your name, title (if present), role, faction, and portrait.
+You have an account there, opened for you when you were made. Most accounts are a claim on real coin in the treasury — if the treasury runs dry, withdrawing is refused rather than shorted.
+
+Goods don't arrive the moment you pay for them. A cargo train runs every other turn, so an order you place today is crates waiting for you in the Railyard either at the end of today or at the end of tomorrow, depending on where the train is. The Depot page tells you which.
+
+What you're allowed to buy depends on your tags: everyone can buy Resources and a Ration Box, some things need you holding the right chit, and the good stuff is the Merchant's own shelf. Selling works the other way — drop what you're selling in the dropbox at the Depot, and you're paid out when the train next leaves, minus a cut the Meister takes off the top. Whatever goes in the box is gone the moment you drop it.
+
+**Header:** Your name, title (if present), role, and portrait.
 
 **Status** (top-left):
 
@@ -496,7 +467,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Resources** | The ⬢ you are carrying. A pound each, counted against your weight cap. |
 | **Gambit** | The modifier for your Gambit die. |
 | **Tag Points** | Points available to spend on new tags. |
-| **This turn** | Displays whether you've submitted a Move for this turn. If not, you'll Labor instead — if you can. |
+| **This turn** | Displays whether you've submitted a Move for this turn. |
 
 **Actions:** This is the grid of buttons next to your Status. Each button opens a dialog that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
 
@@ -520,7 +491,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Bind** | Tie up someone within reach. They must agree, unless they're dead or already helpless. | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
 | **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This never kills instantly; a GM verifies first. | Always. |
-| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. | Always. |
+| **Move Player** | Carry a dead or bound person to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. | Always. |
 | **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
 
 **Letters**
@@ -543,8 +514,6 @@ In the header:
 Claiming shuts that slot for a couple of turns, and puts that specific Desire on its own cooldown before anyone can claim it again. If you have an Addiction, your bottom slot only accepts Desires about the thing you're addicted to; your other slot is untouched.
 
 A Desire arranged purely to claim a Desire doesn't count — asking someone for a hug so you can tick off "Get a hug" is not a hug.
-
-**Labor:** What your character does on any turn you don't submit a Move at all — provided you hold a Laboring skill and aren't Exhausted.
 
 **Bio:** Your character details.
 - **Name:** Your title (if present), name, and age. Click the **Change name** button to submit a GM request.

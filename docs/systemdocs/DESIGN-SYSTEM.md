@@ -9,29 +9,49 @@ Product bar: **functionality, usability, cleanliness, responsiveness, browser
 performance.** The explicit reference point to avoid is the typical slow,
 laggy Discord bot dashboard.
 
+**The look is two registers, on purpose.** The fixture is the rusted, riveted
+frame around everything: dark textured ground, iron rails, hard 1px borders,
+bevelled buttons, square corners, blackletter for the handful of things the
+world says in its own voice. The tool is what sits inside that frame: the log,
+the tables, the forms — a plain system font at a small size, grey on dark,
+bold coloured names, dim world lines, reading like output rather than like a
+brand. The gap between the two is the whole aesthetic. Make both registers
+equally polished and it turns back into a designed teal-and-ember app with
+rounded panels, which is the look this replaced.
+
 ## 1. Fonts
 
-Four faces loaded via `next/font/google` in `layout.js`, exposed as CSS
-variables on `<html>`:
+One face loaded via `next/font/google` in `layout.js`, exposed as a CSS
+variable on `<html>`:
 
 | Variable | Face | Use |
 |---|---|---|
-| `--font-sans` | Source Sans 3 | The app default, set on `body`. Chrome, tables, forms, buttons and prose. |
-| `--font-mono` | IBM Plex Mono | **Data only** — numbers, resources, dice, IDs, timestamps, audit rows. Opt in with `.mono`. |
-| `--font-serif` | Source Serif 4 | Applied automatically to every `h1`/`h2`/`h3` by a global rule. |
-| `--font-display` | UnifrakturMaguntia | Blackletter, reserved for a few thematic moments — the login wordmark and a couple of flavor-heavy titles — via `.font-display`/`.wordmark`. |
+| `--font-display` | UnifrakturMaguntia | Blackletter, reserved for the few things the world says in its own voice: the login wordmark, and a character's own name on their sheet (`.ledger-name`, in `--blackletter` with `text-shadow: 0 2px 3px #000` — see §2). Chat's zone heading and its decree block are landing on the same face as part of the chat rework; that piece has not shipped yet, so it's not documented here until it does. |
 
-Three rules that are easy to get wrong:
+`--font-sans`, `--font-serif` and `--font-mono` are plain system stacks
+declared on `:root` in `globals.css`, not downloaded fonts:
+
+- `--font-sans` — `system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
+  13px body, 12px in tables and chips. This is the tool register described
+  above: it should read like output, not like a brand.
+- `--font-serif` — `"Times New Roman", Times, "Liberation Serif", serif`.
+  `h1`/`h2`/`h3`, `.panel-header` and `.section-title` pick this up from one
+  rule in `globals.css` and nothing else changes — every heading in the app is
+  a bold serif, automatically, and no call site hand-applies a font class.
+- `--font-mono` — `"Courier New", Courier, ui-monospace, monospace`, opt-in via
+  `.mono`, for data only: numbers, IDs, timestamps, dice. It was the body face
+  once, which made it wallpaper — dense GM tables got wider and harder to
+  read, and the mono signalled nothing because everything was mono.
+
+Two rules that are easy to get wrong:
 
 - **Never hand-apply a font class to a heading.** Just use the tag; the global
-  rule handles it. Source Serif 4 and Source Sans 3 are a designed
-  superfamily, so they share metrics for free.
-- **Don't reach for mono for prose.** It was the body face once, which made it
-  wallpaper — dense GM tables got wider and harder to read, and the mono
-  signalled nothing because everything was mono.
+  rule handles the serif, the weight and the size.
 - **Never use `--font-display` for bulk headings, loading-state text, or
   player-authored content.** It's illegible at small sizes and reads as a
-  mismatch everywhere but the few places it's deliberate.
+  mismatch everywhere but the few places it's deliberate. `--fs-3xl` (28px) is
+  the floor it's readable at, and the only size the blackletter tokens below
+  are gated for contrast against.
 
 ## 2. Colour
 
@@ -42,12 +62,17 @@ that way.
 
 Three things about the token set are load-bearing and easy to undo by accident:
 
-- **The surface ladder is `--bg` → `--surface` → `--surface-raised`**, each
-  step keeping ~1.20 contrast. `.panel` sits on `--surface`; modals, tooltips,
+- **The surface ladder is `--bg` → `--surface` → `--surface-raised`**, a step
+  of about 1.06 each. `.panel` sits on `--surface`; modals, tooltips,
   sticky table headers and the turn chip sit on `--surface-raised`.
   `--field-bg` is *recessed below* the surface, so inputs read as cut into a
-  panel rather than as another panel stacked on it. At 1.08 the whole app read
-  as one flat sheet, which is what this spacing fixes. `--panel-bg` survives
+  panel rather than as another panel stacked on it. **A panel is told from the
+  ground by its 1px rule and its shadow, not by the lightness of its fill** —
+  that is the character mockup's ground, which Bascinet chose on 2026-09-18
+  over a lighter ladder, and it is why `LADDER_MIN` / `BORDER_MIN` in
+  `audit:contrast` sit at 1.05 / 1.40 rather than the 1.20 / 1.90 the lighter
+  palette wanted. Those two floors are structural, not accessibility: every AA
+  text gate is untouched. Move them only by moving the palette. `--panel-bg` survives
   only as a legacy alias for `--surface`.
 - **`--accent` and `--accent-text` are different colours on purpose.**
   `--accent` is a fill or rule; `--accent-text` is for text and outlines. One
@@ -90,6 +115,19 @@ Three things about the token set are load-bearing and easy to undo by accident:
   2026-09-15; `ChipLabel.js` painting that hex inline used to be the one
   documented exception to "colour rides on a token", and there is no exception
   now. Do not give a group a colour.
+- **The name palette is six tokens, and they owe full AA.** `--name-1`
+  through `--name-6` are muted hues, one assigned per character, stable across
+  sessions, used as **bold text** on a log line to tell speakers apart at a
+  glance. Unlike the zone and tag codes above, a name is read as text, not as
+  a fill — so `audit:contrast` gates these at **4.5**, not 3.0. Both looks
+  share one set; worst case measures 6.16.
+- **`--blackletter` is body text's opposite number** — the one token that
+  exists to be *illegible at small sizes on purpose*, because it is only ever
+  used at `--fs-3xl` (28px) and up, always with `text-shadow: 0 2px 3px #000`
+  at the call site. It is gated at the **3.0** large-text floor, not full AA:
+  Lifeweb's own `#744` and an earlier `#9a5a5a` both measured under 3.0 on
+  this ground, so both looks' values are lifted off the "authentic" pick to
+  clear it. Never set it on body text — see §1 for where it's actually used.
 - **Each theme names its own `color-scheme`.** A handful of controls are drawn
   by the browser, not by `globals.css` — the unchecked checkbox, the date
   picker's calendar glyph and popup, the search field's clear button, the
@@ -98,16 +136,88 @@ Three things about the token set are load-bearing and easy to undo by accident:
 
 ## 3. Themes
 
-`dusk` and `dawn` follow the current turn's phase via `themeForPhase`. Both are
-*underground darks* — Ravenheart is a cave civilisation, so they differ by
-lamplight temperature and lift, not by daylight.
+One rust palette, two named looks, both *underground darks* — Ravenheart is a
+cave civilisation, so they differ by lamplight temperature and lift, not by
+daylight. The look follows real Chicago wall-clock time via
+`web/lib/clockTheme.js`: dawn 06:00–18:00 with a slow warmth ramp on six
+tokens driven by `--lamp`, dusk 18:00–06:00 flat, hard switch at 18:00.
+`BASCINET_THEME` pins either look with no ramp (`resolveLook` in
+`clockTheme.js`; anything it doesn't recognise, including the deleted
+`limestone`, falls through to the clock). `audit:contrast` gates the ramp at
+five points, not just the two ends.
 
-`limestone` is a light-theme backup that no phase maps to; reach it with
-`BASCINET_THEME=limestone` (`resolveTheme` in `web/lib/turnFormat.js`, applied in
-`layout.js`).
+A CRT/terminal look was considered twice and dropped both times — too slow and
+too much flavour once it had the full treatment (an animated warp filter,
+scanline flicker), invisible once it was toned down to fit the performance
+budget. Nobody has since found a middle version worth shipping. If a new look
+comes up, it is not a special case: add a `[data-theme="…"]` block to
+`globals.css` with the same token set as dawn and dusk, add its name to
+`THEMES` in `web/lib/clockTheme.js`, and let `audit:contrast` gate it before it
+ships — same as any other theme.
 
-A CRT/terminal look is a parked option, written up in `CRT-TERMINAL.md`. **Read
-that before rebuilding it** — it has been half-built and deleted twice.
+## 3a. Chrome
+
+The fixture register (see the top of this doc) is drawn with two textured
+layers and one sprite strip, all from `web/public/assets/chrome/` — five
+images lifted from the open-licensed Lifeweb/Farweb archive, credited in that
+folder's `ATTRIBUTION.md` (CC BY-SA 3.0) and again in the handbook's credits.
+Anything derived from them (a recolour, a crop) carries the same license; CSS
+that only references them does not.
+
+- **`.grain`** tiles `chatbg.png` under every page at `opacity: 0.35`, the
+  mockup's own figure — texture, not a subject. It sits at `z-index: -1` (not
+  0) so it paints behind in-flow content rather than as a film over it, is
+  `fixed` and `pointer-events: none` so it costs no paint on scroll, and it
+  never gets a `backdrop-filter` or a per-frame or full-viewport animation —
+  `/gm/turns` scrolling smoothly with it composited is the benchmark. There is
+  no vignette over it: the mockup draws the ground plain, and the radial
+  gradient toward `--shadow-color` this app used to lay on top was the only
+  saturated thing on the page eating itself back to grey.
+- **The header strip is retired (2026-09-18).** `.panel-header` and the desk
+  bars (`.desk-inspector-head`, `.desk-convo-head`, `.ops-section-head`) no
+  longer carry `bg2.png` along their foot — the character-sheet mockup's own
+  build won instead: a flex row (title on the left, a quiet `.note` on the
+  right) over a single 1px `border-bottom`. It read as a row of beads and cost
+  20px of padding on every panel in the app for it, and Bascinet's own words on
+  seeing the mockup beside the app were "look how neat, compressed, clean the
+  artifact looked". `bg2.png` is not gone from the app — `.bar` in
+  `web/app/chat.css` (the chat mockup's own build, a different mockup) still
+  wears it, unchanged.
+
+Every sprite here scales at integer multiples with `image-rendering:
+pixelated`. A non-integer size blurs a pixel-art image instead of scaling it
+cleanly, which is the one way to make this chrome look like a mistake rather
+than a texture.
+
+## 3b. Shape
+
+Radius is `0` everywhere. The four old radius tokens (`--r-sm`/`--r-md`/
+`--r-lg`/`--r-full`) survive as aliases of `--r` so the ~110 call sites that
+still name one don't need touching — never reintroduce a non-zero value under
+any of them.
+
+- **`.btn` and `.btn-secondary` are a 2px bevel on a flat fill**, drawn as
+  explicit per-side borders (`--border-hi` top/left, `--border-lo`
+  bottom/right) rather than the `outset` keyword, which computes its own light
+  and dark from `border-color` and lands differently per browser. `:active`
+  swaps the two pairs, so the button looks pressed in. A gated verb
+  (`aria-disabled`/`:disabled`) goes dashed instead of pressing.
+- **`.field` and `.control` are inset**, the opposite bevel: a hard dark edge
+  top and left (`--border-lo`), the ordinary hairline bottom and right, so an
+  input reads as cut into the panel rather than sitting on top of it.
+- **Chips are bordered labels, not pills.** `.chip` is a 1px border with a 3px
+  category rule down the left — `--tag-rule` set by `data-tag-category` for a
+  tag chip, `--zone-*` set directly by `data-zone` for a `.zone-chip` — over a
+  flat `--surface-raised` fill, square corners: a name for a thing that simply
+  *is*. `danger` is the one tone a chip carries, for the short list of
+  always-bad states (Overburdened, Dying, Catatonic).
+- **`StatusPill` is bold coloured text, no background, no border.** A tone
+  (`good`/`warn`/`bad`/`muted`/`subdued`/`accent`) says what a state *means*
+  and the stylesheet supplies the colour — see §5a's "chip is a LABEL,
+  StatusPill is a STATE" rule for why the two never trade places.
+- **Tables are tight.** `.data-table` cells run `2px 6px` padding with 1px
+  rules on every side, `--fs-xs` throughout, headers uppercase and muted. It
+  reads dense on purpose — a GM desk is a log, not a brochure.
 
 ## 4. Tailwind bridge
 
@@ -131,23 +241,26 @@ Use these instead of rolling one-off markup.
 
 | Class | For |
 |---|---|
-| `.panel` | Any card/section container. A card **with** a heading is `Panel` — it carries the padding `.panel` deliberately does not, and writes the `.panel-header` for you. |
-| `.panel-header` | Its heading — serif `--fs-lg` with a hairline rule. |
-| `.section-title` | A heading that is a **flex child beside something else**. |
+| `.panel` | Any card/section container — `border`, `background`, `border-radius: 0`, and (as of the primitives pass, 2026-09-18) its own `padding: 8px`, matching the mockup's `.panel{padding:8px}` exactly. `.panel + .panel` gets `margin-top: 8px` too. A card **with** a heading is `Panel`, which writes the `.panel-header` for you on top of that padding. `.panel.table-scroll` (`DataTable.js`) is the one deliberate exception — it zeroes the padding back out so the table runs flush to the panel's own border, header row included. |
+| `.panel-header` | Its heading — serif `--fs-lg`, a flex row over a 1px `border-bottom`, with `.note` for a quiet right-aligned aside. See §3a — the metal strip it used to carry is retired. |
+| `.section-title` | A heading that is a **flex child beside something else** — a modal title next to its close button, a desk's page title next to its turn chip. As of the primitives pass it is the mockup's own small recipe: uppercase, bold, `--fs-2xs` (11px), `--accent-text`, `margin: 0 0 4px` — no longer the serif `.panel-header` face. It reads as a quiet running head, not a page banner; that is the point of the retro chrome this pass matches. |
 | `.btn` | Solid primary button. |
 | `.btn-secondary` | Outline. |
 | `.btn-danger` | Destructive — Reject, Kill, Restart Game. |
 | `.btn-quiet` | Text-only. |
 | `.field` | Wraps a `.field-label` + input/textarea/select. |
 | `.chip` | Small tag/pill labels. |
-| `.zone-chip` | A `.chip` carrying the zone code on `data-zone`. `data-zone="none"` is the dashed neutral for no faction. |
-| `.data-table` | Tabular data. |
+| `.zone-chip` | A `.chip` carrying the zone code on `data-zone`. `data-zone="none"` is the dashed neutral for no zone. |
+| `.data-table` | Tabular data — `--fs-2xs` throughout, `th` bold `--muted` on `--surface-raised` with no `text-transform` (see the label-case rule below), and `td.num` for a numeric column (mono, tabular numerals) — mark it with `class="num"`, the same way `.mono` marks a value inline. |
 | `.menu-item` | Link-like row actions. |
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
 | `.icon-btn` | The one framed icon button — via `IconButton`, whose `size` is `sm` (26, default) or `lg` (44), the desktop size; a coarse pointer inside `/chat` floors every one of these at 44 regardless. |
 | `.chat-buttons` | Chat's only action row. A `.btn-quiet` inside one gets the padded, aligned treatment `.modal-actions` gives one, so a Cancel lines up with the button beside it. |
-| `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="chat-section-title">` instead. |
-| `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. |
+| `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="group-label chat-section-title">` instead. `.group-label` is the shared recipe — quiet, uppercase, --fs-2xs — and `.chat-section-title` is only Chat's own inset and spacing on top of it. |
+| `.group-label` | The quiet uppercase label over a group of things, on its own — Chat's section headers, the audit inspector's field labels, a `DeskRailGroup` title, every sheet rail group. One recipe (`--ls-wide`, `--fs-2xs`, `--muted`) rather than a hand-typed letter-spacing at each call site. |
+| `.tline` | One line of transcript, via `TranscriptLine.js` — the Chat feed, the DM thread, the inspector's Archive tab and the archive-context popup all draw through it. `data-density` (`feed` / `thread` / `thread-compact`) is geometry only, a staging post for the three old page families' numbers rather than a real fork; `data-kind` carries the row's `channelKind` and is the only thing allowed to change how a system line looks. `/archive`'s own four-column grid row is the one exception — no gutter/body shape reproduces it without breaking the grid. |
+| `DeskRail` / `.desk-rail` | The left rail on every `(desk)` page — one component and one class family for what used to be three: the adjudication desk's and player desk's queue, `/gm/audit`'s filters, and `/gm/dev`'s and `/gm/economy`'s section nav. `variant="queue"` is a scrolling list of selectable rows; `variant="sections"` is a padded stack of titled groups (`DeskRailGroup`, which is `.group-label` over its children — this replaced `.ops-nav-group`/`.audit-group` written twice). Never give this component or its children `position`/`z-index`/`transform`/`filter`/`contain`/`will-change` — see §6. |
+| `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. One shared strip now: Chat's aside and the Depot console both wear it instead of near-copies, and it scrolls sideways under a narrow viewport rather than wrapping. |
 | `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
 | `.chip-row` | A wrapping row of chips. The house form for a **multi**-select: each chip is a `<button className="chip">` keyed on `data-active` (plus `aria-pressed`), and `.chip[data-active]` gives it the accent border and label. |
 | `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. Its left rule may carry a group colour set inline per row — a tag group in Point Buy, a desire family in the Desire picker — because those are freeform hexes out of data, not tokens. |
@@ -173,10 +286,17 @@ Three of these carry a trap:
   falls back to unstyled native browser chrome and visibly breaks the theme —
   wrap it even for a single standalone control.
 - **`.panel-header` vs `.section-title`.** Use `.section-title` wherever the
-  heading sits beside something else — a modal title next to its close button,
-  a status band next to its value, a "Tags" heading next to its buttons.
-  `.panel-header`'s `border-bottom` would underline just the title text there
-  rather than spanning the container, which reads as an underline, not a divider.
+  heading sits beside something else that is not its own `.note` — a modal
+  title next to its close button, a status band next to its value.
+  `.panel-header`'s own `border-bottom` spans only the header itself, not
+  whatever container it shares with a sibling, so used there it reads as an
+  underline on the title rather than a divider under the row. `.panel-header`
+  is for a card's own heading, where its built-in flex row already holds the
+  title on the left and a `.note` on the right — that is not "beside
+  something else" in the sense this rule means. Where the whole thing is a
+  **bar** heading a column — `.desk-inspector-head`, `.desk-convo-head`,
+  `.ops-section-head` — the BAR carries its own `border-bottom` and flex
+  layout; the heading inside it stays `.section-title`.
 - **`.tab-item` and `.segmented` are not the same idea.** A tab strip navigates
   between panels and is keyed on `data-active`, a styling hook. A segmented
   control has a *value*, so its pressed state lives in `aria-pressed`, where a
@@ -209,7 +329,19 @@ Pick a button variant by how important the action is, rather than defaulting to
 Every label a player reads — buttons, tabs, dialog titles, section headings,
 placeholders — is sentence case: first word capitalised, the rest lower-case,
 except proper nouns and the game's own capitalised terms (page names, Move /
-Routine / Gambit / Labor, Desire, Tag / Tag Points, Resources, and the like).
+Routine / Gambit, Desire, Tag / Tag Points, Resources, and the like).
+
+**The label-case rule, stated once:** a *field label* — `.field-label`, over
+one input or one value ("Free moves", "Resources", "Search accounts") — is
+sentence case, bold, `--fs-2xs` (11px), `--muted`, **no `text-transform`**. A
+*group label* over a **list** of things — `.group-label` ("HEALTH", "SKILLS",
+"ROOMS", "ZONES I SEE") or `.section-title` used as a tag-rail heading — is
+uppercase. These read as backwards until you notice the shapes are different:
+one names a single value beside it, the other titles a run of rows below it.
+`.field-label` used to uppercase everywhere, which is why a form field and a
+group heading looked identical; it no longer does, and nothing should
+re-add the transform at a single call site to bring the old look back — fix
+the primitive, not the page.
 
 ## 5a. The five that had no rule
 
@@ -275,32 +407,115 @@ Five things about these are load-bearing:
   is a client leaf. It cannot see a button wired by `form={id}` from outside the
   form — there is no enclosing form to read.
 
+## 5b. `chat.css` and `sheet.css`, and the `.bar` recipe
+
+`globals.css` used to hold Chat's rules and the sheet's rules too, alongside
+every token declaration and shared primitive on the page — 10,982 lines, most
+of them one page's own furniture. Shard 1 of the chat/sheet rebuild
+(`/root/.claude/plans/misty-shimmying-micali.md`) split it: Chat's block moved
+verbatim into `web/app/chat.css`, the sheet's into `web/app/sheet.css`, both
+imported from `layout.js` right after `globals.css` (order matters — they win
+any name they share with it). **Token declarations never moved.**
+`web/scripts/audit-contrast.js` reads `globals.css` by a hardcoded path and
+throws if the `[data-theme]` / `[data-theme="dusk"]` / `[data-theme="dawn"]`
+blocks are missing, so a new colour token is always declared there, in those
+blocks, whichever page's stylesheet uses it. Only *rules* live in the split
+files now — `globals.css` keeps tokens, the reset, the shared primitives above,
+the desks, and `/map`.
+
+**`.bar`** is the chat pages' one column-head recipe, ported from the mockup
+(`docs/design/mockups/chat/index.html`): a `bg2.png` metal strip, bold
+uppercase 10px type, a `text-shadow`. Match the mockup's own `background-size:
+auto 100%` exactly (no explicit `background-position`, which defaults to
+top-left) — an earlier pass anchored the tile at its native 32×16 to the
+bar's bottom edge instead, reasoning from the sprite's own transparent gap
+rather than from a screenshot, and that read as a thin dotted line near the
+bottom of the bar with a bare gap above it. Confirmed by cropping the bar out
+of a screenshot of `/chat` and out of `docs/design/mockups/chat/screenshot.png`
+side by side: scaled-to-height and top-anchored is what actually reads as a
+metal strip. The places column's head
+(`<p className="bar">Places</p>`) and the feed's head (`ChatHead.js`, above
+720px) both wear it, plus `.spacer` (`flex:1`, pushes trailing content to the
+right edge) and `.sub`/`.crumb` for the quieter text beside the name. It
+declares `flex: 0 0 auto` explicitly — the longhand, all three values pinned —
+because the bar it replaced (`.panel-header` doing double duty as
+`.chat-bar`) set `flex-grow: 1` by way of `.panel-header`'s own shorthand, and
+a bar is the one child of a flex **column** (`.chat-places`) that must never
+grow. That one un-pinned property is the whole reason the places column used
+to visually break when a section folded shut (CHAT.md): once the column
+stopped overflowing, the bar swallowed the free space Flexbox handed it, and
+every row beneath it slid to the bottom of the screen. The fold itself is
+gone now too (CHAT.md) — the mockup never had one, and it was a second,
+independent way to hide a place with something unread in it.
+
 ## 6. Page shell
 
 `web/app/components/PageShell.js` — a component, not a convention. Every
 top-level page is:
 
 ```jsx
+<AppHeader title meta actions />
 <PageShell width>
-  <PageHeader title subtitle actions />
   …
 </PageShell>
 ```
 
-`width` is `narrow` / `default` / `wide` / `full`, and that's the whole menu —
-it replaced five ad-hoc `max-w-*` values chosen per page. `full` drops the
-centring for a page whose own grid is the width; it still keeps the shell's
-padding, which is what separates it from the desk exception below. (The
-character sheet used it once. It now draws its own full-width body under the
-shared `AppHeader` with no `PageShell` at all — still an ordinary scrolling
-page, just not a centred one: `SHEET.md` §1.)
+The container, the header and the foot are the ones from
+`docs/design/mockups/character/index.html` — Bascinet's call: "i prefer its
+layout MUCH over the stuff we have now, so if it conflicts with existing
+site css / html; that's fine, just replace elsewhere." Their rules live in a
+new stylesheet, **`web/app/shell.css`**, imported from `layout.js` right
+after `globals.css`/`chat.css`/`sheet.css` (order matters — it wins any name
+it shares with them). It exists as its own file rather than going into
+`globals.css` because two other rebuilds were inside `globals.css`,
+`chat.css` and `sheet.css` at the same time; a fourth stylesheet let this
+work land without touching any of the three.
 
-`PageHeader`'s `actions` slot takes anything belonging beside the title: a
-sub-nav, a faction switcher.
+**The container** is `.page` — one 1180px column, centred, `padding-inline:
+16px`, `padding-block: 10px 40px`. `width` is `narrow` / `default` / `wide` /
+`full`, and that's still the whole menu, but `default` and `wide` are now the
+same `.page` — the mockup only drew one width. `narrow` is `.page--narrow`
+(760px, /notes, /lifeweb). `full` is `.page--full`, which drops the max-width
+and the inline padding for a page whose own grid is the width (e.g. `/gm/dev`'s
+zone editors) — it still keeps the block padding and the foot.
+
+**The header** is `AppHeader.js`'s own markup now, not a wrapper around
+`DeskHeader.js`: a left `.crumbs` line (`<b>{title}</b> — {meta}`, muted with
+a bold lead) and a right `.app-header-controls` strip holding the page's
+`actions`, the turn/zone note (`TurnMeta.js`), `LockChip` and
+`BascinetClock`. These three used to be ordinary `.chip`s; the mockup's own
+header draws one thin line with nothing boxed, so they're `.app-header
+.header-note` now — plain muted text, no border, no background — and pair
+with `.mono` where their content is a numeral (`LockChip`'s countdown,
+`BascinetClock`'s time). `LockChip`'s two bad-news states (moves locked, out
+of session) drop `.header-note` for `.status-pill[data-tone="bad"]` instead —
+bold coloured text is the app's one grammar for "this means something bad"
+(§5), and a boxed tone here would be the chip chrome coming back in through
+the side door. `DeskHeader.js` itself is untouched — the six `(desk)`
+workspaces still render it directly, unaffected by anything in this section.
+
+**The foot** is `.foot`, added inside `PageShell` after `{children}`, on
+every page that goes through it: the setting line
+("Ravenheart · the year of our Lord God, 1098", from `docs/lore.md`) on the
+left, nothing on the right. `/chat`, `/map` and the `(desk)` workspaces never
+render `PageShell` at all, so they never get one.
+
+(The character sheet used `PageShell` once. It now draws its own full-width
+body under the shared `AppHeader` with no `PageShell` at all — still an
+ordinary scrolling page, just not a centred one, and with no `.foot`:
+`SHEET.md` §1.)
 
 **Don't hand-roll `mx-auto flex max-w-… p-6 sm:p-8` or a bare `<h1>`.** That
 was a documented convention for months and drifted anyway, which is why it is
 now a component.
+
+**The rail's active mark**, also `shell.css`, is the one piece of `NavRail.js`
+this pass touched: on desktop, `.rail-item[data-active="true"]::before` used
+to be a filled, right-rounded pill against the rail's inner edge. It is now a
+square 2px `var(--accent-text)` rule running the full height of the item,
+matching the artifact's "a rule, not a filled shape" chrome. Everything else
+about the rail — its width, item list, the mobile bottom bar, the overflow
+sheet, the sign-out form — is unchanged.
 
 The one sanctioned exception is the `(desk)` route group, which now holds
 four GM workspaces: `/gm/turns` (adjudication), `/gm/players` (the player
@@ -311,9 +526,10 @@ inside it still uses the tokens and the shared control classes. Within that
 exception, `DeskHeader.js` is PageHeader's desk equivalent — title/meta/
 actions slots over `.desk-header`, `<h1 className="section-title">` — and all
 four desk pages use it, `/gm/dev` included. Don't hand-roll `.desk-header`
-markup in a new one. `/gm/dev`'s own left rail (`OpsNav.js`) is the
-`.ops-*` family, the same idea as `.audit-*` for the audit desk — a nav rail
-styled to its own page rather than shared across desks.
+markup in a new one. Every desk's left rail is `DeskRail.js` on the shared
+`.desk-rail` family — `/gm/dev`'s and `/gm/economy`'s section navs are
+`variant="sections"`, which is what the old `.ops-*` and `.audit-*` rail
+classes became.
 
 Desks **do** carry the nav rail. `(desk)/layout.js` renders the same
 `.app-shell` + `AppRail` + `.app-main` as `(app)`, so a desk is

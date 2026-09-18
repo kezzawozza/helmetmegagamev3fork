@@ -42,7 +42,7 @@ function markOf(tag) {
   return tag?.sealMark || UNMARKED_SEAL;
 }
 
-// The sentence THIS viewer sees on THIS row. `viewer` is { tags, phase, indoors }; absent means unable to read — fail closed. A SEALED letter's text is never composed, literate or not — reading it means breaking it (a Consume).
+// The sentence THIS viewer sees on THIS row. `viewer` is { tags, daylight, indoors }; absent means unable to read — fail closed. A SEALED letter's text is never composed, literate or not — reading it means breaking it (a Consume).
 function paperDescription(tag, viewer = null) {
   // The blank catalog tag carries no paperKind, so it falls through to its own authored description (IS BLANK_LINE), kept in docs/tags.yaml rather than special-cased by slug.
   if (!isPaper(tag)) return tag?.description ?? null;
@@ -60,7 +60,7 @@ function paperDescription(tag, viewer = null) {
   if (!text) return BLANK_LINE;
 
   const blocked = readBlock(viewer?.tags ?? [], {
-    phase: viewer?.phase ?? null,
+    daylight: viewer?.daylight ?? false,
     indoors: viewer?.indoors ?? true,
   });
   return blocked ?? text;
@@ -78,7 +78,7 @@ function paperView(tag, viewer = null) {
   if (!text) return { kind, text: BLANK_LINE, plain: false };
 
   const blocked = readBlock(viewer?.tags ?? [], {
-    phase: viewer?.phase ?? null,
+    daylight: viewer?.daylight ?? false,
     indoors: viewer?.indoors ?? true,
   });
   if (blocked) return { kind, text: blocked, plain: true };

@@ -4,7 +4,6 @@
 // or a gating SKILL the reader was not sent — printing it would leak that
 // the thing exists. A `group:` ingredient names no tag and hides nothing.
 
-import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "./tagRequests";
 import { formatMoveAmount } from "./craftBudget";
 
 function joinWithOr(names) {
@@ -70,7 +69,8 @@ export function recipeDiscipline(tag) {
 }
 
 // Null turns is ONE turn, not zero. `ration` is a daily cap and only exists on
-// a 0-turn recipe — requirementPerTurn stopped doubling as a work denominator
+// a 0-turn recipe that names its own `perTurn` — the shared Dead Simple pool is
+// gone (web/lib/tagRequests.js says why), so `shared` is always false now — requirementPerTurn stopped doubling as a work denominator
 // when costs became decimals (CRAFTING.md §2a), so there is no `workDen` any
 // more: the work IS `turns`.
 export function recipeWork(tag) {
@@ -78,9 +78,6 @@ export function recipeWork(tag) {
   const per = tag.requirementPerTurn ?? null;
   if (turns === 0 && per != null) {
     return { turns, ration: per, shared: false };
-  }
-  if (turns === 0 && isDeadSimple(tag)) {
-    return { turns, ration: DEAD_SIMPLE_PER_TURN, shared: true };
   }
   return { turns, ration: null, shared: false };
 }

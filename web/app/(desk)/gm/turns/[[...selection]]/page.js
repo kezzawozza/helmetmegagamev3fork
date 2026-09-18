@@ -45,7 +45,7 @@ import { ATTACK_INCLUDE, INTERCEPT_HIT_INCLUDE, otherHoldRows } from "@/lib/hold
 
 function turnLabel(turn) {
   if (!turn) return "—";
-  return `${turn.number} · ${turn.phase === "DAWN" ? "Dawn" : "Dusk"}`;
+  return `${turn.number} · Day ${turn.dayNumber}`;
 }
 
 
@@ -213,7 +213,6 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         name: true,
         roleTitle: true,
         discordUserId: true,
-        faction: { select: { name: true } },
         zone: { select: { name: true } },
       },
     }),
@@ -239,7 +238,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     prisma.turn.findMany({
       where: { status: "RESOLVED" },
       orderBy: { number: "desc" },
-      select: { id: true, number: true, phase: true },
+      select: { id: true, number: true, dayNumber: true },
     }),
     // Discord usernames, Catatonic status, Location names — the clock every
     // row stamps with is NOT here, read below after this batch resolves.
@@ -409,7 +408,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     ? {
         id: openTurn.id,
         number: openTurn.number,
-        phase: openTurn.phase,
+        dayNumber: openTurn.dayNumber,
         label: turnLabel(openTurn),
         endsAtMs: endsAt ? endsAt.getTime() : null,
       }
@@ -439,7 +438,6 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         roster: roster.map((c) => ({
         id: c.id,
         name: c.name,
-        factionName: c.faction?.name ?? "",
         roleTitle: c.roleTitle ?? "",
         zoneName: c.zone?.name ?? "",
         discordUserId: c.discordUserId,

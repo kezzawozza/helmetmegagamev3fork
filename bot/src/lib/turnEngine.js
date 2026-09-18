@@ -1,7 +1,7 @@
 const { prisma, advanceTurn: advanceTurnInDb } = require("@lifeweb/db");
 
 // Thin wrapper around the shared db.advanceTurn(): adds the process-specific
-// audit log entry. Called by the nightly cron in ready.js, and safe to call
+// audit log entry. Called by the per-minute poll in ready.js, and safe to call
 // manually as a GM force-advance since it's idempotent about which turn is
 // "current". Side effects are awaited inline here (unlike the web action,
 // which defers past the response) since nobody is waiting on this cron.
@@ -20,6 +20,10 @@ async function advanceTurn() {
     return null;
   }
 
+  // Between sittings (SESSIONS.md). Not a failure, and not worth a line every minute — the poll in ready.js does not even
+  // get this far, since a frozen clock has no due deadline; this is the belt for a GM's force-advance.
+  if (refused === "NOT_IN_SESSION") return null;
+
   if (!advanced) return newTurn; // another caller already won the race
 
   await prisma.auditLog.create({
@@ -30,7 +34,7 @@ async function advanceTurn() {
         previousTurnId: previousTurn?.id ?? null,
         newTurnId: newTurn.id,
         number: newTurn.number,
-        phase: newTurn.phase,
+        dayNumber: newTurn.dayNumber,
       },
     },
   });

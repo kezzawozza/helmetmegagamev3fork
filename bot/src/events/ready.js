@@ -7,7 +7,7 @@ const {
   recordInvalidResponse,
 } = require("@lifeweb/db/lib/discordRest");
 const { syncDiscordAccountsForGuild } = require("../lib/discordAccountSync");
-const { advanceTurn } = require("../lib/turnEngine");
+const { tickTurnClock, tickSessionClock } = require("../lib/sessionClock");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { refreshLocationChannels } = require("../lib/channels");
 const { startFeedOutbox } = require("../lib/feedOutbox");
@@ -206,19 +206,42 @@ module.exports = {
       console.error("Resuming an unfinished turn's side effects failed:", err),
     );
 
-    const runAdvanceTurn = () => {
-      console.log("Turn-advance cron fired.");
-      advanceTurn()
-        .then((turn) =>
-          // Null when a GM's Dev Panel advance won the race — not a failure, so don't log it as one.
-          console.log(turn ? `Turn advanced to #${turn.number} (${turn.phase})` : "Turn already advanced elsewhere; skipped."),
-        )
-        .catch((err) => console.error("Failed to advance turn:", err));
-    };
-    // Midnight Chicago time, once a day. The staged-arbitration push rides the turn advance, and
-    // midnight is the hour fewest players are mid-scene. db/lib/turnClock.js derives every
-    // deadline from this same boundary, so the two must agree.
-    cron.schedule("0 0 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
+    // THE TURN CLOCK, and the session clock beside it. Both per-minute polls rather than a schedule, because there is no
+    // single schedule left to write: a turn is 6, 8, 12 or 24 hours (GameConfig.turnLengthHours), a GM may change that
+    // mid-game, and a session opens on whatever minute one was scheduled for. `cron.schedule("0 0 * * *")` could say none
+    // of that. Polling also heals a missed tick within a minute instead of at the next midnight.
+    //
+    // Both are cheap when idle — one indexed read each — and both refuse to do anything while the clock is frozen, so a
+    // game in the lobby, paused, or between sittings costs two queries a minute and nothing else. The advance itself is
+    // still claimed by the conditional updateMany in db/index.js, which is what arbitrates this poll against a GM's End
+    // turn; a 60-second tick makes that race ordinary rather than rare, which is why the claim was built first.
+    let turnClockRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (turnClockRunning) return;
+      turnClockRunning = true;
+      tickTurnClock()
+        .then((turn) => {
+          if (turn) console.log(`Turn advanced to #${turn.number} (day ${turn.dayNumber})`);
+        })
+        .catch((err) => console.error("Failed to advance turn:", err))
+        .finally(() => {
+          turnClockRunning = false;
+        });
+    });
+
+    let sessionClockRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (sessionClockRunning) return;
+      sessionClockRunning = true;
+      tickSessionClock()
+        .then((change) => {
+          if (change) console.log(`Session ${change === "OPEN" ? "opened" : "closed"} on schedule.`);
+        })
+        .catch((err) => console.error("Session clock failed:", err))
+        .finally(() => {
+          sessionClockRunning = false;
+        });
+    });
 
     // Every Room hears who's been whispering nearby, aliased, on a stateless 15-minute lookback
     // (bot/src/lib/whisperPoll.js).
@@ -282,8 +305,9 @@ module.exports = {
         });
     });
 
-    // Makeshift Stage, four times a day (bot/src/lib/stagePlay.js). Hours offset off midnight so
-    // it never races advanceTurn's 0 0 in this same timezone. One sweep in flight at a time.
+    // Makeshift Stage, four times a day (bot/src/lib/stagePlay.js). Hours offset off midnight, and off 6/8/12/24's other
+    // boundaries as far as any four hours can be, so it does not land on the same minute as a turn advance. One sweep in
+    // flight at a time.
     let stagePlayRunning = false;
     cron.schedule(
       "0 3,9,15,21 * * *",

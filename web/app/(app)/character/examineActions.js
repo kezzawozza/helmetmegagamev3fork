@@ -7,6 +7,7 @@ import { guarded, UserError } from "@/lib/actionResult";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { examineRow } from "@lifeweb/db/lib/examineRow";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 
 // Examine — looking at somebody you have HEARD. Moves nothing, costs nothing,
@@ -19,7 +20,6 @@ import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 const LOOKER_SELECT = {
   id: true,
   locationId: true,
-  factionId: true,
   discordUserId: true,
   // for examineVision.js: spectacles only correct sight while worn, Sun Sensitivity only blinds outdoors.
   tags: { select: { tagId: true, equipped: true, tag: { select: { slug: true } } } },
@@ -56,8 +56,7 @@ async function looker() {
 // corpse is still wearing the tags, so without this a blindfolded death would follow them.
 async function blockedFromLooking(me, ghost) {
   if (ghost) return null;
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { phase: true } });
-  return examineBlock(me.tags, { phase: openTurn?.phase ?? null, indoors: me.location?.indoors ?? true });
+  return examineBlock(me.tags, { daylight: isDaylight(), indoors: me.location?.indoors ?? true });
 }
 
 // Who you can look at: everyone you have heard speak this turn, INCLUDING the

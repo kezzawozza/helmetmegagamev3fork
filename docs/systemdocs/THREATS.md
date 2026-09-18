@@ -36,7 +36,7 @@ Three mechanisms are worth knowing about regardless of which seat uses them:
   offering it need not remember where that seat arrives. `offerThreatSpawn`
   prefers a GM's explicit pick, then this, then the role's own start.
 - **A Role no player may take.** A spawn needs a Role for its charter, kit and
-  start, so a seat can own a `docs/roles.yaml` faction whose slugs sit in
+  start, so a seat can own `docs/roles.yaml` roles whose slugs sit in
   `SPAWN_ONLY_ROLE_SLUGS` (`db/lib/roleCapacity.js`, re-exported by
   `web/lib/characterCreation.js`). That withholds them from the creation
   picker outright, rather than greying them the way a whitelisted seat is
@@ -115,8 +115,8 @@ in the same transaction, in **two sweeps**.
   asked of `db/lib/desireGates.js#lockedReasonForTemplate` — the same
   evaluator the catalog itself draws with, rather than a per-seat list
   somebody has to keep. So for the Thanati, **Pacifist** (`violence`),
-  **Devoted Follower** (`scheming`), **Depressed** (`all`) and **Nobility**
-  (by tier) go, while **Kleptomaniac** stays: it locks `wealth`, and no
+  **Depressed** (`all`) and **Nobility** (by tier) go, while
+  **Kleptomaniac** stays: it locks `wealth`, and no
   Thanati Desire is in that family. A seat that opens no Desires of its own
   therefore strips Addictions and nothing else.
 
@@ -204,7 +204,7 @@ If the DM fails (closed DMs, a departed member) the row is **rolled back to
 (`WHERE status = 'PENDING'`), so one player can never hold two live offers.
 Prisma's schema language cannot express a partial unique, so it exists only in
 the migration SQL — `prisma migrate diff` will propose dropping it and the
-answer is no, exactly as with `FactionApplication_pending_unique`.
+answer is no, exactly as with `AuditLog_details_trgm_idx`.
 
 **Phase 2 — the player accepts.** The click lands in the **bot**: a DM has no
 guild, and the clicker has no character yet, which is the whole point.
@@ -249,6 +249,12 @@ Names are rolled from a per-gender list in `db/lib/threats.js`. They are
 plain: a name is written to `Character.name` and the personal role title,
 worn as identity rather than read as prose.
 
+A spawned character opens with no `BankAccount` at all — `bank_account:` in
+`docs/roles.yaml` only fires at ordinary creation. Whoever plays the seat
+opens one at the Depot's counter with its **Create an account** button, the
+same as any other body handed a threat mid-game (`CHARACTERS.md`,
+`DEPOT.md` §0g).
+
 ## 5. The two GM sections
 
 Both live on `/gm/dev` under the **Threats** nav group. Unlike most of
@@ -289,7 +295,7 @@ than from a query of their own.
 The section wears `.ops-section--wide` for the eight-column seat table. That
 used to fight `.desk-card`'s own `max-width: 52rem; margin: 0 auto`, which is
 right on the reading desks and left every card here floating centred under a
-table that stretched; `.ops-main .desk-card` now drops both.
+table that stretched; `.desk-main--ops .desk-card` now drops both.
 
 ## 6a. Objectives
 

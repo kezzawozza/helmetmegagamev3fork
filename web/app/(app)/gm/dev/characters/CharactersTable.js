@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { EmptyRow } from "@/app/components/EmptyState";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
-import FactionLink from "@/app/components/FactionLink";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import {
   useTableState,
@@ -13,14 +12,14 @@ import {
 } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
 
-const COL_COUNT = 5;
+const COL_COUNT = 4;
 
 const FILTER_DEFS = [
   { key: "status", label: "Status", value: (c) => c.status },
   { key: "zoneName", label: "Zone", value: (c) => c.zoneName },
 ];
 
-const SEARCH_FIELDS = [(c) => c.name, (c) => c.factionName, (c) => c.zoneName];
+const SEARCH_FIELDS = [(c) => c.name, (c) => c.zoneName];
 
 // The DataTable toolkit over the roster — same shape TagCatalog.js already
 // proves. `rows` is a flat DTO from the server page (page.js); no Date
@@ -45,7 +44,7 @@ export default function CharactersTable({ rows }) {
           query={table.query}
           setQuery={table.setQuery}
           searchLabel="Search characters"
-          searchPlaceholder="Name, faction, zone…"
+          searchPlaceholder="Name, zone…"
         />
       </section>
 
@@ -53,7 +52,6 @@ export default function CharactersTable({ rows }) {
         <thead>
           <tr>
             <SortHeader label="Name" sortKey="name" sort={table.sort} onSort={table.toggleSort} />
-            <SortHeader label="Faction" sortKey="factionName" sort={table.sort} onSort={table.toggleSort} />
             <SortHeader label="Zone" sortKey="zoneName" sort={table.sort} onSort={table.toggleSort} />
             <SortHeader label="Status" sortKey="status" sort={table.sort} onSort={table.toggleSort} />
             <SortHeader label="Resources" sortKey="resources" sort={table.sort} onSort={table.toggleSort} />
@@ -67,9 +65,6 @@ export default function CharactersTable({ rows }) {
                   <CharacterAvatar characterId={c.id} name={c.name} version={c.avatarVersion} />
                   {c.name}
                 </Link>
-              </td>
-              <td>
-                <FactionLink factionId={c.factionId} name={c.factionName} />
               </td>
               <td>{c.zoneName}</td>
               <td>

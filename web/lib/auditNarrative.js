@@ -65,7 +65,6 @@ export const AUDIT_FAMILIES = {
   // craft_/build_ never carried the request_ prefix; without this family they'd only surface under "Everything".
   request: { label: "Player action", band: "player", prefixes: ["request_", "desire_", "craft_", "build_"] },
   move: { label: "Move", band: "player", prefixes: ["move_", "caving_roll"] },
-  faction: { label: "Faction", band: "player", prefixes: ["faction_"] },
   lifeweb: { label: "Lifeweb", band: "player", prefixes: [] },
   membership: { label: "Membership", band: "player", prefixes: ["member_", "player_"] },
   gm: { label: "GM action", band: "machine", prefixes: ["gm_"] },
@@ -118,6 +117,19 @@ const R = {
     ...(d.farmPlan?.rows?.length
       ? joinChips(d.farmPlan.rows.map((row) => `${row.planted}× ${row.tagName}`))
       : [t("a field")]),
+    ...(d.locationName ? [t("at"), zone(d.locationName)] : []),
+  ],
+  // Mining (web/app/(app)/character/actions/mine.js): paid at the press, so unlike Farm and
+  // Refine below this row already knows what the day was worth.
+  request_mine: (d) => [
+    actor(), t("worked a seam"),
+    ...(d.value != null ? [t("for"), em(`${d.value} ⬢`)] : []),
+    ...(d.expression ? [t("out of"), em(d.expression)] : []),
+  ],
+  // Refining (web/app/(app)/character/actions/refine.js): the cubes land at the turn push
+  // (db/lib/moveEffects.js's `refined` entry), so this is the shift filed, not the outcome.
+  request_refine: (d) => [
+    actor(), t("spent the day refining Godflesh"),
     ...(d.locationName ? [t("at"), zone(d.locationName)] : []),
   ],
   request_buy_tags: (d) => [
@@ -176,7 +188,7 @@ const R = {
   request_undone: (d) => [actor(), t("UNDID a"), em(typeWords(d.type)), t("request")],
 
   // ---- Moves ----
-  move_submitted: (d) => [actor(), t("submitted a Move"), ...(d.labor ? [t("—"), em(d.labor)] : [])],
+  move_submitted: () => [actor(), t("submitted a Move")],
   move_confirmed: (d) => [
     actor(), t("confirmed their Move"),
     ...(d.diceRoll != null ? [t("— rolled"), em(String(d.diceRoll)), ...(d.diceModifier ? [em(signed(d.diceModifier))] : [])] : []),
@@ -254,19 +266,10 @@ const R = {
     actor(), t("moved"), count((d.effects ?? 0) + (d.messages ?? 0)), t("staged rows to turn"), em(String(d.toTurnNumber ?? "?")),
   ],
 
-  // ---- Factions ----
-  faction_leader_set: () => [actor(), t("made"), target(), t("faction Leader")],
-  faction_treasurer_assigned: () => [actor(), t("made"), target(), t("faction Treasurer")],
-  faction_treasurer_revoked: () => [actor(), t("removed"), target(), t("as faction Treasurer")],
-  faction_member_added: (d, e) => [actor(), t("added"), target(), t("to"), chip(name(e, d.factionId))],
-  faction_member_removed: () => [actor(), t("removed"), target(), t("from their faction")],
-  faction_deleted: (d) => [actor(), t("DELETED the faction"), chip(d.name)],
-
   // ---- Membership ----
   character_created: (d) => [
     actor(), t("created"), target(),
     ...(d.role ? [t("—"), chip(d.role)] : []),
-    ...(d.faction ? [t("of"), chip(d.faction)] : []),
     ...(d.location || d.zone ? [t("in"), zone(d.location ?? d.zone)] : []),
   ],
   member_joined: (d) => [em(d.username ?? "Someone"), t("joined the guild")],
@@ -283,7 +286,7 @@ const R = {
   // ---- System (actor is "system") ----
   // Weather was deleted; the clause is guarded so old rows that carry it still read.
   turn_advanced: (d) => [
-    t("Turn"), em(String(d.number ?? "?")), t("opened —"), em(titleCase(d.phase)),
+    t("Turn"), em(String(d.number ?? "?")), t("opened — day"), em(String(d.dayNumber ?? "?")),
     ...(d.weather ? [t("·"), em(titleCase(d.weather))] : []),
   ],
   turn_resume: () => [t("A half-finished turn advance was resumed")],
@@ -293,11 +296,7 @@ const R = {
     t("Everyone was checked for whether they ate"),
     ...((d.starved ?? 0) > 0 ? [t("—"), em(`${d.starved} went hungry`)] : []),
   ],
-  auto_labor_resolved: (d) => [
-    t("A day's labor was filed for everyone who did not act"),
-    ...((d.filed ?? 0) > 0 ? [t("—"), em(`${d.filed} worked`)] : []),
-  ],
-  labor_yields_drifted: (d) => [
+  mining_yields_drifted: (d) => [
     t("What the land is worth shifted"),
     ...((d.drifted ?? 0) > 0 ? [t("—"), em(`${d.drifted} places changed`)] : []),
   ],
@@ -330,7 +329,6 @@ const R = {
 const DESTRUCTIVE = new Set([
   "gm_character_deleted",
   "gm_character_killed",
-  "faction_deleted",
   "gm_custom_tag_deleted",
   "gm_bulk_tag_revoke",
   "superadmin_game_wipe",
@@ -402,7 +400,7 @@ export function familyPrefixes(family) {
 }
 
 
-// `entry` carries `names`, an id -> name object (tags, factions, zones) so a renderer can name a bare id.
+// `entry` carries `names`, an id -> name object (tags, zones) so a renderer can name a bare id.
 export function describeAudit(entry) {
   const type = entry?.actionType ?? "";
   const details = entry?.details && typeof entry.details === "object" ? entry.details : {};

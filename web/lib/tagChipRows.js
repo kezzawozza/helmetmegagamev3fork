@@ -9,6 +9,7 @@ import {
 } from "@lifeweb/db/lib/paper";
 import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import { appraise } from "@/lib/appraisal";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 
 // ONE PLACE THAT TURNS A TAG ROW INTO A CHIP, off TAG_CHIP_FIELDS plus a
 // composed `paper`. THE RULE THIS MODULE EXISTS TO HOLD: `Tag.paperText`
@@ -163,6 +164,11 @@ const PAPER_FIELDS = { paperText: true };
 // The columns a chip needs, all of them. `extra` is for the handful of callers
 // that want a column the chip itself doesn't read (`stackable`, `equippable`) —
 // spread it here rather than rebuilding the select around it.
+//
+// `gambitBonus` is one of those, and the one worth naming: a caller that goes
+// on to hand these rows to db/lib/gambitModifier.js must ask for it, or the
+// Arkenstone's +1 silently vanishes on that surface alone. See that file's
+// header.
 export function chipSelect(extra = {}) {
   return { ...TAG_CHIP_FIELDS, ...PAPER_FIELDS, ...APPRAISAL_SELECT, ...extra };
 }
@@ -175,20 +181,11 @@ export const CHIP_VIEWER_SELECT = {
   location: { select: { indoors: true } },
 };
 
-async function openTurnPhase() {
-  const turn = await prisma.turn.findFirst({
-    where: { status: "OPEN" },
-    orderBy: { number: "desc" },
-    select: { phase: true },
-  });
-  return turn?.phase ?? null;
-}
-
 // `null` yields a viewer holding nothing, read as unable to read.
 async function chipViewerFor(character) {
   return {
     tags: character?.tags ?? [],
-    phase: await openTurnPhase(),
+    daylight: isDaylight(),
     indoors: character?.location?.indoors ?? true,
   };
 }

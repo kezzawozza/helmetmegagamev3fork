@@ -133,7 +133,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
 
   return (
     <div className="chat-room">
-      <p className="chat-section-title">This room</p>
+      <p className="group-label chat-section-title">This room</p>
 
       {/* Three states: in flight, refused (says WHY), or ready. */}
       {here?.ok ? (

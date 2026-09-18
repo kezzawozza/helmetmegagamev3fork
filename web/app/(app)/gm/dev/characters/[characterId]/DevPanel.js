@@ -48,7 +48,6 @@ export default function DevPanel({
   curse,
   lastNameLocked,
   canDelete,
-  factions,
   transferRoster,
   locations,
   roles,
@@ -247,7 +246,6 @@ export default function DevPanel({
         hasActed={Boolean(openTurnAction)}
         openTurn={openTurn}
         locations={locations}
-        factions={factions}
         transferRoster={transferRoster}
         tags={tags}
         held={held}
@@ -290,8 +288,7 @@ export default function DevPanel({
         <IdentityTab
           staged={staged}
           lastNameLocked={lastNameLocked}
-          factions={factions}
-          locations={locations}
+            locations={locations}
           roles={roles}
           edits={edits}
           onField={setField}

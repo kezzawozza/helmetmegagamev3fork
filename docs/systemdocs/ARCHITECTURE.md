@@ -25,7 +25,7 @@ game state has exactly one home. Deployment is Railway: `bot` and `web` run as
 two services from this repo against one Postgres instance.
 
 **Anything both faces need belongs in `db/lib/`**, not duplicated. That's why
-the rules modules (`specialChannels.js`, `laborAccess.js`, `seatZone.js`,
+the rules modules (`specialChannels.js`, `mining.js`, `seatZone.js`,
 `gambitModifier.js`, `persistence.js`, `characterName.js`, `zoneChannelSpec.js`)
 live there as pure functions with no Prisma or Discord dependency of their own.
 
@@ -40,9 +40,6 @@ exceptions, all requiring by path instead:
 - **`db/lib/archive.js`** — takes `prisma` as its first parameter because
   `db/index.js` imports *it*; requiring the barrel back would resolve to a
   partial, prisma-less exports object.
-- **`db/lib/factionPermissions.js`** — same parameter convention, with
-  `web/lib/factionPermissions.js` as a thin shim binding the singleton so web
-  callers keep the shorter signature.
 - **`db/lib/parties.js`** and **`db/lib/resourceTransfer.js`** — the shared
   "move ⬢ between two parties" primitive
   (`resolveParty`/`partyKey`/`partyLabel`, `moveParty`/`applyTransfer`), same
@@ -51,7 +48,7 @@ exceptions, all requiring by path instead:
   `web/lib/tagEffects.js`) so the turn-end push (`db/lib/stagedPush.js`,
   CommonJS, no Next.js request context) and every GM transfer surface
   (`web/lib/gmTransfer.js`) share the exact same clamp and ordering. See
-  `FACTIONS.md` §5 and `ADJUDICATION.md` §1.
+  `CARRY.md` §7 and `ADJUDICATION.md` §1.
 
 A module reached from a **client component** must not come through the barrel
 at all — the barrel pulls in Prisma and the YAML syncs (`node:fs`), neither of
@@ -151,9 +148,8 @@ back to the caller** rather than doing it.
 
 - `advanceTurn()` returns a `runSideEffects` thunk (`TURN-ENGINE.md` §3).
 - `runHungerPass` returns `starvedDiscordUserIds`.
-- `runAutoLaborPass` returns `dms`.
 - `runOfferExpiryPass` (`db/lib/offerExpiryPass.js`, `LESSONS.md`) returns `dms`, run
-  between `autoLabor` and `stagedPush`.
+  before `stagedPush`.
 - `performTravel` returns `oldZone` so each caller runs its own access twin.
 
 Two reasons, both load-bearing:
@@ -226,7 +222,7 @@ and `MAP.md`.
 
 | Doc | Covers |
 |---|---|
-| `TURN-ENGINE.md` | How a turn closes and opens, turn banners, hunger, auto-labor |
+| `TURN-ENGINE.md` | How a turn closes and opens, turn banners, hunger, the pass order |
 | `SYNC.md` | The YAML masters and their sync scripts |
 | `CHANNELS.md` | Discord channel layout, visibility, the message wipe |
 | `CHARACTERS.md` | Creation, roles, point economy, death |
@@ -234,12 +230,10 @@ and `MAP.md`.
 | `REQUESTS.md` | Act-first/review-after player actions |
 | `ADJUDICATION.md` | The `/gm/turns` GM surface |
 | `MAP.md` | Geography, travel, the map panel |
-| `FACTIONS.md` | Factions, Leader/Treasurer |
-| `LABORING.md` | The Labor move kind, the payout table, and what each Location yields |
+| `MINING.md` | The Mine button, the payout, and what each Location's seam is worth |
 | `COMMANDS.md` | Every slash command, button, modal and reaction |
 | `ARCHIVE.md` | The transcript |
 | `DESIGN-SYSTEM.md` | Web styling |
 | `PORTRAITS.md` | The portrait maker and avatar art |
 | `INFOCHANNEL.md` | The `#info` directory |
-| `CRT-TERMINAL.md` | A parked visual direction — read before rebuilding it |
 | `LOCAL-DEV.md` | A local Postgres, `LOCAL_MODE`, and the rule against touching the live database without asking |

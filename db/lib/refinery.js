@@ -1,5 +1,5 @@
-// The Godard Factory floor: a day's labor that pays in cubes instead of ⬢
-// (the one exception to docs/systemdocs/LABORING.md §4's min-max range). A
+// The Godard Factory floor: a day that pays in cubes instead of ⬢. Reached
+// by the Refine button (web/app/(app)/character/actions/refine.js). A
 // Location attribute, not a slug: `refinery: true` in docs/zones.yaml,
 // checked through db/lib/locationAttributes.js#hasAttribute. One Godflesh in,
 // eight Squeeze out, once per day. Input may be in the worker's own hands OR
@@ -27,8 +27,9 @@ function inputSource({ holdsInput = false, rooms = [] } = {}) {
   return room ? { kind: "room", roomId: room.id } : null;
 }
 
-// The bulk half, for the auto-labor pass: two queries for a whole roster
-// rather than two per character.
+// The bulk half: two queries for a whole roster rather than two per
+// character. refineryInput below wraps it for the one character the Refine
+// button is acting for.
 async function loadRefineryStashes(prisma, locationIds) {
   if (!locationIds?.length) return { roomsByLocation: new Map(), guestsByCharacter: new Map() };
   const rooms = await prisma.room.findMany({
@@ -58,7 +59,7 @@ async function loadRefineryStashes(prisma, locationIds) {
   return { roomsByLocation, guestsByCharacter };
 }
 
-// Does this worker have anything to refine? Pure, so the auto-labor pass can
+// Does this worker have anything to refine? Pure, so a bulk caller can
 // ask it once per character off state it already loaded.
 function refineryInputFor({ characterId, locationId, heldSlugs }, stashes) {
   const holdsInput = heldSlugs.has(GODFLESH_SLUG);
@@ -70,7 +71,7 @@ function refineryInputFor({ characterId, locationId, heldSlugs }, stashes) {
   return inputSource({ holdsInput, rooms });
 }
 
-// The single-character async form, for the Move modal and the Labor? button.
+// The single-character async form, for the Refine button.
 async function refineryInput(prisma, character) {
   if (!character?.id || !character?.locationId) return null;
   const [stashes, held, guests] = await Promise.all([
@@ -137,7 +138,7 @@ async function applyRefinery(tx, characterId, locationId) {
   if (source.kind === "held") {
     await dropCharacterTag(tx, characterId, input.id, 1);
   } else if (!(await dropRoomTag(tx, source.roomId, input.id, 1)).ok) {
-    // Somebody else's shift took the last lump first — a race the auto-labor
+    // Somebody else's shift took the last lump first — a race the refine
     // pass's single-snapshot design invites, not an anomaly.
     return { empty: true };
   }

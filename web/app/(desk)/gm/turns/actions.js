@@ -20,6 +20,9 @@ import {
   isRetryable,
 } from "@lifeweb/db/lib/stagedDelivery";
 import { publicPostTargets } from "@lifeweb/db/lib/publicPostTargets";
+// By path too, the db/lib/dm.js convention: neither is on the @lifeweb/db barrel.
+import { broadcastDecree } from "@lifeweb/db/lib/decree";
+import { DECREE_BODY_MAX, DECREE_TITLE_MAX } from "@lifeweb/db/lib/decreeText";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
 import { getGmProfiles } from "@/lib/gmProfiles";
@@ -205,6 +208,63 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
   });
 
   return { patch: await deskPatchFor({ removed: { stagedMessageIds: [existing.id] } }) };
+}
+
+// ------------------------------------------------------------------ decree
+
+// The Decree button in the desk header (DecreeComposer.js). NOT a staged row:
+// a decree goes out the moment it is sent, the way the intercom does, because a
+// proclamation held until midnight is a proclamation about yesterday. Nothing on
+// the desk changes, so there is no patch to hand back — only what happened, so
+// the composer can say which zones heard it.
+async function sendDecreeImpl({ title, body, zoneIds }) {
+  const session = await requireGm();
+
+  // Validated against Discord's OWN embed caps rather than the desk's
+  // GM_MESSAGE_MAX_LENGTH: this goes out as an embed, and 4097 characters is
+  // rejected by the API rather than split (db/lib/decreeText.js). Refused, never
+  // truncated — a GM must not find out a sentence went missing by reading it in
+  // the channel.
+  const head = String(title ?? "").replace(/\s+/g, " ").trim();
+  if (!head) throw new UserError("Give the decree a title.");
+  if (head.length > DECREE_TITLE_MAX) {
+    throw new UserError(`A decree's title caps at ${DECREE_TITLE_MAX} characters.`);
+  }
+  const text = String(body ?? "").trim();
+  if (!text) throw new UserError("Write the decree first.");
+  if (text.length > DECREE_BODY_MAX) {
+    throw new UserError(`A decree caps at ${DECREE_BODY_MAX} characters.`);
+  }
+
+  const ids = [...new Set((zoneIds ?? []).filter(Boolean))];
+  if (ids.length === 0) throw new UserError("Pick at least one zone.");
+  // PRESENCE zones only, the same rule the public-declaration picker follows:
+  // the abstract Caves group row is not a place anybody is standing in.
+  const zones = await prisma.zone.findMany({
+    where: { id: { in: ids }, kind: { not: "CAVE_GROUP" } },
+    select: { id: true },
+  });
+  if (zones.length !== ids.length) throw new UserError("One of those zones no longer exists.");
+
+  const result = await broadcastDecree(prisma, { title: head, body: text, zoneIds: zones.map((z) => z.id) });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "decree_broadcast",
+      details: {
+        title: head,
+        // The words, bounded — a full 4096-character decree in a details blob
+        // is a log row nobody can read past.
+        body: text.slice(0, 500),
+        zones: result.zones.map((z) => z.zoneName),
+        zonesReached: result.sent,
+        zonesFailed: result.failed,
+      },
+    },
+  });
+
+  return { zones: result.zones, sent: result.sent, posted: result.posted, failed: result.failed };
 }
 
 // Retries a sent-but-partially-failed staged message. PRIVATE re-sends only
@@ -961,16 +1021,18 @@ async function releaseMoveLockImpl({ actionId }) {
 async function normalizeEdits(tx, action, edits, characterTags, mood) {
   const data = {};
 
-  const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
-  // A player's LABOR is paid at confirm now and arrives here with appliedEffects stamped
-  // (db/lib/moveConfirm.js). Flipping it to something else has to hand the payout back, or
-  // the ⬢, the drop and the Tired all stay banked while the staged push goes on skipping
-  // the row for being already-applied — and the GM adjudicates a Gambit on top of a day's
-  // wages. Reject already reverts through deleteActionRestoringTurn; the kind flip did not.
+  const kind = ["GAMBIT", "ROUTINE"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
+  // A Mine is paid at the press and arrives here with appliedEffects stamped
+  // (web/app/(app)/character/actions/mine.js). Flipping it to something else has to hand the
+  // payout back, or the ⬢, the drop and the Tired all stay banked while the staged push goes
+  // on skipping the row for being already-applied — and the GM adjudicates a Gambit on top of
+  // a day's wages. Reject already reverts through deleteActionRestoringTurn; the kind flip
+  // did not. Keyed on appliedEffects rather than on a kind, because "already paid" is the
+  // fact that matters and every such row is a ROUTINE now.
   let revertPayout = false;
   if (kind !== action.moveKind) {
     data.moveKind = kind;
-    if (action.moveKind === "LABOR" && action.appliedEffects) {
+    if (action.appliedEffects) {
       revertPayout = true;
       data.appliedEffects = null;
       data.resourceRollValue = null;
@@ -1208,7 +1270,6 @@ async function getCharacterInspectorImpl({ characterId }) {
   const character = await prisma.character.findUnique({
     where: { id: characterId ?? "" },
     include: {
-      faction: { select: { id: true, name: true } },
       zone: { select: { name: true } },
       location: { select: { name: true } },
       tags: {
@@ -1225,9 +1286,9 @@ async function getCharacterInspectorImpl({ characterId }) {
           // chipSelect() alone draws a CHIP. The inspector's Tags tab draws
           // the sheet's ROWS now, and sheetCards.js reads four columns a chip
           // never needed: without them every item row loses its verbs mark,
-          // its stack, and the carry/labor value on its right.
+          // its stack, and the carry/mining value on its right.
           tag: {
-            select: chipSelect({ equippable: true, stackable: true, carryBonus: true, laborBonus: true }),
+            select: chipSelect({ equippable: true, stackable: true, carryBonus: true, miningBonus: true, gambitBonus: true }),
           },
         },
       },
@@ -1246,8 +1307,6 @@ async function getCharacterInspectorImpl({ characterId }) {
     status: character.status,
     discordUserId: character.discordUserId,
     roleTitle: character.roleTitle ?? null,
-    factionId: character.faction?.id ?? null,
-    factionName: character.faction?.name ?? null,
     isLeader: character.isLeader,
     // Zone · Location, because Character.locationId is where a ruling
     // actually happens — a placed structure, a stash, a fight are all
@@ -1422,7 +1481,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
     orderBy: [{ turn: { number: "desc" } }, { createdAt: "desc" }],
     take: MOVE_HISTORY_LIMIT,
     include: {
-      turn: { select: { number: true, phase: true } },
+      turn: { select: { number: true, dayNumber: true } },
       stagedMessages: {
         where: { kind: "PRIVATE", sentAt: { not: null } },
         orderBy: { createdAt: "asc" },
@@ -1439,7 +1498,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
   return {
     rows: actions.map((a) => ({
       id: a.id,
-      turnLabel: a.turn ? `${a.turn.number} · ${a.turn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "—",
+      turnLabel: a.turn ? `${a.turn.number} · Day ${a.turn.dayNumber}` : "—",
       kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
       reviewLabel: MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open",
       rollLabel: rollLabel(a),
@@ -1511,6 +1570,9 @@ export async function deleteStagedMessage(input) {
 }
 export async function resendStagedMessage(input) {
   return guarded(() => resendStagedMessageImpl(input));
+}
+export async function sendDecree(input) {
+  return guarded(() => sendDecreeImpl(input));
 }
 export async function createStagedEffects(input) {
   return guarded(() => createStagedEffectsImpl(input));
@@ -1792,7 +1854,7 @@ async function getCharacterAuditSliceImpl({ characterId, query }) {
     }),
     getGmProfiles(),
     listGuildMembers(),
-    prisma.turn.findMany({ select: { number: true, phase: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
+    prisma.turn.findMany({ select: { number: true, dayNumber: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
   ]);
 
   // Same DTO shape /gm/audit's own page.js builds (toDto), trimmed to what
@@ -1822,7 +1884,7 @@ async function getCharacterAuditSliceImpl({ characterId, query }) {
         location: row.location ? { id: row.location.id, name: row.location.name } : null,
         room: row.room ? { id: row.room.id, name: row.room.name } : null,
         turnNumber: turn?.number ?? null,
-        turnPhase: turn?.phase ?? null,
+        dayNumber: turn?.dayNumber ?? null,
       };
     }),
   };

@@ -1,6 +1,6 @@
 // The turn-close carry sweep (docs/systemdocs/CARRY.md), run from
 // db/index.js#resolveNeeds() after the hunger pass so it sees the final
-// sheet: Labor payouts, staged pushes, the expiry sweep and the ⬢ upkeep
+// sheet: mining payouts, staged pushes, the expiry sweep and the ⬢ upkeep
 // charge all happen earlier in the close and none of them may settle in
 // place (they run inside transactions, and a drop needs Discord).
 //

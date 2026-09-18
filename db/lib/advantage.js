@@ -16,7 +16,7 @@
 // value depends on a roll that has not happened yet.
 //
 // Every d6 a CHARACTER rolls goes through here: the Gambit itself, the Caving
-// Die, the labor drop die, and the Gambit-shaped rolls that Confession,
+// Die, the mining drop die, and the Gambit-shaped rolls that Confession,
 // Lessons and Torture make. A die nobody in particular rolls (a resource
 // range, a loot draw) keeps using rollDie.
 //

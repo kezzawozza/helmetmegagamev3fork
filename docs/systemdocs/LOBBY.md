@@ -55,7 +55,7 @@ debounced on the client):
   (`db/lib/playerPreferences.js#setPriority`, a port of tgstation's
   `set_job_preference_level`). Whitelisted seats are greyed for a player
   without the Whitelist role and dropped server-side if posted anyway.
-- **If none are available** — Commoner (default), Migrant, or Return to lobby.
+- **If none are available** — Migrant (the default) or Return to lobby.
 - **Antagonist opt-ins** — the twelve public boxes (`THREATS.md` §1), the
   whitelisted ones greyed the same way.
 - **Ready** — a `LobbyEntry` row, `status: READY`. Unready deletes it.
@@ -71,7 +71,7 @@ Two columns: the roles down the left, and on the right (sticky) the Ready
 card with the count, the fallback dropdown and the antagonist boxes. No
 explainer text anywhere on it — the handbook carries that. Players see the
 ready count and nothing else — no seat counts, no demand, and no starting
-areas (a role row is its name, faction and pitch) — so nobody games the roll.
+areas (a role row is its name, its starting zone and its pitch) — so nobody games the roll.
 
 GMs and superadmins see a **Skip to character creation** button
 (`/character?create=1`), which opens the ordinary wizard in any phase. The
@@ -126,16 +126,18 @@ tgstation's `SSjob.divide_occupations`:
    wants a `leader: true` seat at that level gets one, at random among the
    open ones they may hold;
 3. **main pass** — the same three levels over every seat;
-4. **jobless** — whoever is left gets the overflow seat they named (Commoner
-   or Migrant, both unlimited) or a walk back to the lobby (`roleSlug: null`).
+4. **jobless** — whoever is left gets Migrant, the one unlimited overflow seat
+   and the default, or a walk back to the lobby (`roleSlug: null`). Commoner
+   was the other option until it was removed with Laboring; it only ever
+   existed to be the seat for somebody who wanted to work for a living.
 
 Eligibility: not spawn-only (`SPAWN_ONLY_ROLE_SLUGS`, `db/lib/roleCapacity.js`),
 whitelist always honoured, and a seat with room
 — capacity from `roleCapacity()` at the stamped player count minus what
 `heldSeatsByRole` (`db/lib/seatCount.js`) already counts.
 
-Two deliberate departures from SS13: no "overflow first" pass (Commoner and
-Migrant are ordinary rows, the fallback dropdown is the overflow), and **no
+Two deliberate departures from SS13: no "overflow first" pass (Migrant is an
+ordinary row, the fallback dropdown is the overflow), and **no
 forced head** — a leader seat nobody eligible wants stays empty and becomes a
 warning.
 
@@ -233,16 +235,16 @@ is the only writer.
 ways: the End Game button, the bomb, and the Rite of Ascension — the last two
 from inside `advanceTurn`, with the reveal queued after their broadcast.
 Whichever lands first keeps the ending; `endGameInDb` is a no-op on a state
-that is already ENDED. It writes GameState to ENDED with `archiveVisible`
-on, and onto the current **`Game`** row its end, closing note and
-**epilogue** — `db/lib/epilogue.js#buildEpilogue`: the note, a facts line
-(days, turns, characters, deaths, letters, archive rows), **the antagonists**
-— each party that had a seat holder, its members and its objectives scored
-Success or Failed (`THREATS.md` §6a) — and who was who: every character the
-game had, Discord handle as name and role, antagonist seats named from the
-seat tag, the dead marked with their turn. `formatEpilogue` is the `**Game
-Ended**` post to `#turns`; `/archive` renders the same object. Resume undoes
-the phase and leaves the archive open.
+that is already ENDED. It writes GameState to ENDED, and onto the current
+**`Game`** row its end, closing note and **epilogue** —
+`db/lib/epilogue.js#buildEpilogue`: the note, a facts line (days, turns,
+characters, deaths, letters, archive rows), **the antagonists** — each party
+that had a seat holder, its members and its objectives scored Success or
+Failed (`THREATS.md` §6a) — and who was who: every character the game had,
+Discord handle as name and role, antagonist seats named from the seat tag, the
+dead marked with their turn. `formatEpilogue` is the `**Game Ended**` post to
+`#turns`; `/archive` renders the same object, GM-only, exactly as it does
+mid-game. Resume undoes the phase.
 
 `Game` is one row per game (dates, note, epilogue). **A game is its id** —
 there was a creation ordinal beside it until 2026-09-09, and `ARCHIVE.md`

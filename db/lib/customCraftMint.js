@@ -23,14 +23,15 @@ function cookedTasteSuffix(cookedFrom, cookedTastes) {
 }
 
 // Runs OUTSIDE the craft transaction, deliberately. `sellablePriceOverride`
-// is Trinket's own door onto this: its sell price is computed by
-// db/lib/trinketPass.js from the die and ingredients, unrelated to
-// `baseTag.sellablePrice` (the never-minted placeholder row). Every other
-// caller omits it and gets `baseTag.sellablePrice` copied straight across.
+// and `gambitBonusOverride` are Trinket's own two doors onto this: both are
+// computed by db/lib/trinketPass.js from the die and the INGREDIENTS, so
+// neither can come off `baseTag` (the never-minted {tag:trinket} placeholder
+// row, which carries a price of its own and no bonus at all). Every other
+// caller omits both and gets the base tag's values copied straight across.
 async function mintCustomCraft(
   db,
   baseTag,
-  { name, description, literal = false, cookedFrom = [], cookedTastes = null, sellablePriceOverride },
+  { name, description, literal = false, cookedFrom = [], cookedTastes = null, sellablePriceOverride, gambitBonusOverride },
 ) {
   const tasteSuffix = literal ? "" : cookedTasteSuffix(cookedFrom, cookedTastes);
   const composedName = literal
@@ -78,8 +79,12 @@ async function mintCustomCraft(
     concealsIdentity: baseTag.concealsIdentity,
     forcesConceal: baseTag.forcesConceal,
     concealSprite: baseTag.concealSprite,
-    laborBonus: baseTag.laborBonus ?? undefined,
+    miningBonus: baseTag.miningBonus ?? undefined,
     carryBonus: baseTag.carryBonus,
+    // A clone must carry every "what this does while held" field or the
+    // crafted thing quietly does less than the row it was cloned from. This
+    // has gone wrong twice now (CRAFTING.md §4a).
+    gambitBonus: gambitBonusOverride ?? baseTag.gambitBonus ?? null,
     removable: baseTag.removable,
     consumable: baseTag.consumable,
     consumesInto: baseTag.consumesInto,

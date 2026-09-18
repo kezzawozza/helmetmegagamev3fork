@@ -1,7 +1,6 @@
-// Escorting — the party you carry with you (docs/systemdocs/MAP.md §3a). The one module that knows what an escort is, the way db/lib/locationGraph.js is the one module that knows what an edge is: you attach somebody once and they come along until something breaks it. The four verdicts escortAuthority returns are the whole rule set — FORCED (a corpse, anyone helpless, or a member of the faction you lead: attaches on the spot, no asking), CONSENTED (they already said yes to YOU and the window hasn't lapsed: attaches on the spot, the whole reason the window exists — picking the same person back up shouldn't re-ask), ASK (any other living character standing with you: files an ESCORT Offer and DMs Accept/Cancel), null (not standing with you, yourself, buried, or already following somebody else: not offered at all).
+// Escorting — the party you carry with you (docs/systemdocs/MAP.md §3a). The one module that knows what an escort is, the way db/lib/locationGraph.js is the one module that knows what an edge is: you attach somebody once and they come along until something breaks it. The four verdicts escortAuthority returns are the whole rule set — FORCED (a corpse or anyone helpless: attaches on the spot, no asking), CONSENTED (they already said yes to YOU and the window hasn't lapsed: attaches on the spot, the whole reason the window exists — picking the same person back up shouldn't re-ask), ASK (any other living character standing with you: files an ESCORT Offer and DMs Accept/Cancel), null (not standing with you, yourself, buried, or already following somebody else: not offered at all).
 // Co-presence is LOCATION grain, not zone — you walk to somebody to take them. Takes `prisma` as a parameter and is deliberately NOT on the @lifeweb/db barrel (db/lib/dm.js convention); require it by path.
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
-const { isUnaffiliated } = require("./factionConstants");
 const { hereWhere, notHereMessage } = require("./presence");
 const { escortButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
@@ -18,10 +17,6 @@ const ESCORT_SELECT = {
   discordUserId: true,
   locationId: true,
   zoneId: true,
-  factionId: true,
-  // The RELATION, not just the id: locationTravel.js's CHARACTER_SELECT selects only factionId, so canDrag's isUnaffiliated(mover.faction) read undefined and returned true inside performLocationMove's own re-check, quietly refusing every faction leader who tried to bring a member along. Selecting it here is what makes the faction branch below work at all.
-  faction: { select: { slug: true } },
-  isLeader: true,
   buriedAt: true,
   escortedById: true,
   escortConsentToId: true,
@@ -57,7 +52,7 @@ function escortAuthority(leader, target, turnNumber = null) {
   // the old canDrag, which reached across the whole zone.
   if (target.locationId !== leader.locationId) return null;
 
-  // FORCE COMES FIRST, and that ordering is the whole point of this block: a prisoner is not somebody's to keep by having asked first, so a friendly arrangement must never outrank the rope.
+  // FORCE COMES FIRST, and that ordering is the whole point of this block: a prisoner is not somebody's to keep by having asked first, so a friendly arrangement must never outrank the rope. Only a body and the helpless reach it — nobody holds a rank that walks a healthy, conscious person anywhere.
   if (target.status === "DEAD") return "FORCED";
   if (target.status !== "ALIVE") return null;
   // The presence rule, mirrored from db/lib/presence.js#isHere: a hood is the game's "you don't know who this is", so it's off every picker and every gate.
@@ -65,11 +60,6 @@ function escortAuthority(leader, target, turnNumber = null) {
   // Somebody has hold of them (INTERCEPT.md). Above the FORCED branches on purpose: an ambusher's own prisoner isn't theirs to walk off with either — the ambush is a standoff, and taking them somewhere is what the Gambit is for. performLocationMove re-checks this per follower, since a hold can land between the pick and the walk.
   if (target.heldUntil && new Date(target.heldUntil).getTime() > Date.now()) return null;
   if (isHelpless(target)) return "FORCED";
-
-  // Unaffiliated is not a faction (FACTIONS.md §1a), so a Leader of it — which no role grants, but a GM could create — must not command everyone unaffiliated.
-  if (!isUnaffiliated(leader.faction) && leader.isLeader && target.factionId && target.factionId === leader.factionId) {
-    return "FORCED";
-  }
 
   // Somebody else's, and willingly — the only kind of follower this still stops. One leader per follower is the column's rule, and for the willing it's also the manners: you ask a person, you don't take them off somebody. A FORCED target reached its verdict above and never gets here.
   if (target.escortedById && target.escortedById !== leader.id) return null;
@@ -92,7 +82,6 @@ function escortReason(target, verdict) {
   if (verdict === "CONSENTED") return "willing";
   const stopper = target.tags?.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
   if (stopper) return stopper.tag.name.toLowerCase();
-  if (verdict === "FORCED") return "your faction";
   return null;
 }
 

@@ -7,7 +7,6 @@ import {
   logAudit,
   craftAllowance,
   unitsOfTagThisTurn,
-  deadSimpleUnitsThisTurn,
   MEDICAL_SIMPLE_PER_TURN,
 } from "@/lib/requests";
 import { craftMoveCost } from "@/lib/craftBudget";
@@ -61,6 +60,7 @@ import {
   applyMood,
   woundMoodFor,
 } from "@lifeweb/db/lib/mood";
+import { movesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -128,7 +128,7 @@ export async function healCharacterRequestImpl({
   );
   const healSkillId = catalog.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   if (!healSkillId || !satisfied.has(healSkillId)) {
-    throw new UserError("You need Medical (Basic) to treat anyone.");
+    throw new UserError("You need Medical I to treat anyone.");
   }
 
   // No `id: { not: character.id }` — treating yourself is the ordinary case.
@@ -232,7 +232,7 @@ export async function healCharacterRequestImpl({
     actorCharacterId: character.id,
     actorName: character.name,
     turnNumber: openTurn?.number ?? null,
-    turnPhase: openTurn?.phase ?? null,
+    dayNumber: openTurn?.dayNumber ?? null,
     note: null,
   };
 
@@ -290,8 +290,8 @@ export async function healCharacterRequestImpl({
         // A heal that goes from free to billed only here (pool filled
         // between reads) must re-check the window, the same race craftRequestImpl's spill re-check guards (review fix, M2).
         if (!outsideMoveCost) {
-          const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
-          if (locked) throw new UserError("Moves are locked for this turn.");
+          const gate = await movesOpen(tx, { turn: openTurn });
+          if (!gate.ok) throw new UserError(gate.message);
         }
         await spendCraftMove(tx, {
           character,

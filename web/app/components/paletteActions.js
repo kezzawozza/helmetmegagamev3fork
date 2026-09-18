@@ -43,7 +43,6 @@ const GM_PAGES = [
   { label: "Structures", href: "/gm/structures" },
   { label: "Dev panel", href: "/gm/dev" },
   { label: "Dev · Characters", href: "/gm/dev?s=characters" },
-  { label: "Dev · Factions", href: "/gm/dev?s=factions" },
   { label: "Dev · Tags", href: "/gm/dev?s=tags" },
   { label: "Dev · Zones", href: "/gm/dev?s=zones" },
   { label: "Dev · Bulk actions", href: "/gm/dev?s=bulk" },
@@ -82,7 +81,7 @@ async function getPaletteIndexImpl() {
   const [character, config] = await Promise.all([
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
-      select: { id: true, name: true, locationId: true, factionId: true },
+      select: { id: true, name: true, locationId: true },
     }),
     // Every entry below links into /chat, so none is offered while Chat
     // is switched off (GameConfig.playPanelEnabled).
@@ -125,7 +124,7 @@ async function getPaletteIndexImpl() {
   if (!gm) return { entries };
 
   const openTurn = await getOpenTurn();
-  const [characters, actions, zones, factions, guildMembers] = await Promise.all([
+  const [characters, actions, zones, guildMembers] = await Promise.all([
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       select: {
@@ -134,7 +133,7 @@ async function getPaletteIndexImpl() {
         status: true,
         discordUserId: true,
         roleTitle: true,
-        faction: { select: { name: true, zone: { select: { name: true } } } },
+        zone: { select: { name: true } },
       },
       take: 1000,
     }),
@@ -152,7 +151,6 @@ async function getPaletteIndexImpl() {
         })
       : Promise.resolve([]),
     prisma.zone.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     listGuildMembers(),
   ]);
 
@@ -164,13 +162,12 @@ async function getPaletteIndexImpl() {
       kind: "player",
       id: c.id,
       label: c.name,
-      hint: [c.roleTitle, c.faction?.name].filter(Boolean).join(" · "),
+      hint: [c.roleTitle, c.zone?.name].filter(Boolean).join(" · "),
       dim: c.status !== "ALIVE",
       href: `/gm/players/${c.discordUserId}`,
       search: {
         role: c.roleTitle ?? "",
-        faction: c.faction?.name ?? "",
-        zone: c.faction?.zone?.name ?? "",
+        zone: c.zone?.name ?? "",
         username: [member?.username, member?.globalName].filter(Boolean).join(" "),
       },
     });
@@ -208,16 +205,6 @@ async function getPaletteIndexImpl() {
       hint: a.description ?? "",
       href: `/gm/turns?sel=move/${a.id}`,
       search: { preview: a.description ?? "" },
-    });
-  }
-
-  for (const f of factions) {
-    entries.push({
-      kind: "faction",
-      id: f.id,
-      label: f.name,
-      hint: "faction",
-      href: `/faction?factionId=${f.id}`,
     });
   }
 

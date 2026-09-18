@@ -47,7 +47,7 @@ import {
 import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
@@ -152,7 +152,7 @@ import {
   extractToolFor,
   rollExtraction,
   extractionDm,
-  extractDayKey,
+  extractTurnKey,
 } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
@@ -220,6 +220,7 @@ import {
   formatCharacterName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
+import { movesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -926,8 +927,8 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       // outside, but that read and this spend are not atomic with each
       // other, the same reasoning craftRequestImpl's spill path and
       // healCharacterRequestImpl's own in-tx checks already act on.
-      const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
-      if (locked) throw new UserError("Moves are locked for this turn.");
+      const gate = await movesOpen(tx, { turn: openTurn });
+      if (!gate.ok) throw new UserError(gate.message);
       // The Move is claimed first: it is the contended thing, and a refusal
       // here rolls back everything below it (craftRequestImpl's project path
       // does the same).
@@ -2726,7 +2727,7 @@ export async function changeNameRequestImpl({
 //
 // It costs NO Move. It used to spend the Routine through fileAutoRoutine, which
 // is where its "once per turn" came from for free; now it carries its own
-// once-a-day claim instead (Character.extractDayKey, FACTORY.md §3). Nothing
+// once-a-turn claim instead (Character.extractTurnKey, FACTORY.md §3). Nothing
 // here touches the Action table or the move lock any more — cutting and working
 // your day are two separate things.
 //
@@ -2759,12 +2760,12 @@ export async function extractGodfleshRequestImpl() {
     throw new UserError(`You're in no state to be swinging anything — you're ${floored.name}.`);
   }
 
-  // Still needed, for the day key and for dating the injury — but no longer as
-  // a gate. The move lock is deliberately NOT consulted: Extract is outside
-  // that window now, the same way the Bird is.
+  // Still needed, for the claim key and for dating the injury — but no longer
+  // as a gate. The move lock is deliberately NOT consulted: Harvest Godflesh is
+  // outside that window, the same way the Bird is.
   const openTurn = await getOpenTurn();
-  const dayKey = extractDayKey(openTurn);
-  if (!dayKey) throw new UserError("No turn is open.");
+  const turnKey = extractTurnKey(openTurn);
+  if (!turnKey) throw new UserError("No turn is open.");
 
   const result = rollExtraction(character.tags);
   const [godflesh, injury] = await Promise.all([
@@ -2796,17 +2797,17 @@ export async function extractGodfleshRequestImpl() {
   await prisma.$transaction(async (tx) => {
     // The claim, and the first thing written — the Bird's shape (BIRD.md): a
     // conditional updateMany whose WHERE *is* the check, so two tabs submitting
-    // at once cannot both cut. A stale key from an earlier day is overwritten
+    // at once cannot both cut. A stale key from an earlier turn is overwritten
     // by the same statement, so nothing has to sweep it.
     const claimed = await tx.character.updateMany({
       where: {
         id: character.id,
-        OR: [{ extractDayKey: null }, { extractDayKey: { not: dayKey } }],
+        OR: [{ extractTurnKey: null }, { extractTurnKey: { not: turnKey } }],
       },
-      data: { extractDayKey: dayKey },
+      data: { extractTurnKey: turnKey },
     });
     if (claimed.count === 0) {
-      throw new UserError("You already harvested Godflesh today.");
+      throw new UserError("You already harvested Godflesh this turn.");
     }
     await addToStack(tx, character.id, godflesh.id, result.quantity, {
       source: "EVENT",
@@ -2880,7 +2881,7 @@ export async function packageItemsRequestImpl({
   if (label) {
     const labelTurn = await getOpenTurn();
     const where = {
-      phase: labelTurn?.phase ?? null,
+      daylight: isDaylight(),
       indoors: character.location?.indoors ?? true,
     };
     if (readBlock(character.tags, where)) throw new UserError(CANNOT_READ);
@@ -2917,7 +2918,7 @@ export async function packageItemsRequestImpl({
     // crate a flat 2× carry multiplier on bulk wealth and undo the whole point
     // of ⬢ having a weight. The picker already leaves them out
     // (web/lib/tagRequests.js#packableTags); this is the lock behind that hint.
-    // The DEPOT still crates ⬢ as freight on the shuttle — that is
+    // The DEPOT still crates ⬢ as freight on the train — that is
     // splitIntoCrates, a different path, and it is not affected.
     if (isResourcesRow(row)) throw new UserError("⬢ are already bulk — they don't go in a crate.");
     // A mount is not cargo, and the MOUNT slot is weightless on purpose, so a

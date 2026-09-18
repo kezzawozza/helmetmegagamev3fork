@@ -5,7 +5,7 @@
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
-import { extractGodfleshRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
+import { extractGodfleshRequest, refineRequest, mineRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
 import { formatMoveAmount } from "@/lib/craftBudget";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import HarmDialog from "./HarmDialog";
@@ -32,7 +32,6 @@ import LessonDialog from "./LessonDialog";
 import KissDialog from "./KissDialog";
 import SearchDialog from "./SearchDialog";
 import PickpocketDialog from "./PickpocketDialog";
-import TaxDialog from "./TaxDialog";
 import WriteDialog from "./WriteDialog";
 import SealDialog from "./SealDialog";
 import BirdDialog from "./BirdDialog";
@@ -82,10 +81,28 @@ export const INSTANT = {
   extract: {
     run: () => extractGodfleshRequest(),
     confirm: () => ({
-      title: "Cut Godflesh?",
+      title: "Harvest Godflesh?",
       message:
-        "You wade out and cut. Once a day, and it costs you no turn. It rolls 1d6: a 6 pays extra, and a 1 means it grabbed hold of you first.",
+        "You wade out and cut. Up to once a turn, and it costs you no Move. It rolls 1d6: a 6 pays extra, and a 1 means it grabbed hold of you first.",
       confirmLabel: "Cut",
+    }),
+  },
+  refine: {
+    run: () => refineRequest(),
+    confirm: () => ({
+      title: "Refine Godflesh?",
+      message:
+        "You spend the turn on the Factory floor. One Godflesh in, eight Squeeze out — the cubes come off the line when the turn closes.",
+      confirmLabel: "Refine",
+    }),
+  },
+  mine: {
+    run: () => mineRequest(),
+    confirm: () => ({
+      title: "Mine?",
+      message:
+        "You spend the turn in the seam. You are paid immediately — and if you know what you are looking at, you might turn something up on top of it.",
+      confirmLabel: "Mine",
     }),
   },
   // No question first — the tooltip already says what pressing it does, and
@@ -131,7 +148,6 @@ export const DIALOGS = {
   kiss: KissDialog,
   search: SearchDialog,
   pickpocket: PickpocketDialog,
-  tax: TaxDialog,
   write: WriteDialog,
   seal: SealDialog,
   bird: BirdDialog,

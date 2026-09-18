@@ -32,10 +32,10 @@ const ATTRIBUTES = {
     describe: () => "**Godflesh**: you can cut it out of the water here.",
   },
 
-  // The Godard Factory floor: labor refines Godflesh into Squeeze instead of paying ⬢, no LocationYield row needed.
+  // The Godard Factory floor: the Refine button turns Godflesh into Squeeze instead of paying ⬢, no LocationMining row needed.
   refinery: {
     type: "boolean",
-    describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze.",
+    describe: () => "**Refinery**: you can refine Godflesh into Squeeze here.",
   },
 
   // A placeholder stand-in for the Farms rework (db/lib/soilery.js): gates the Sow/Reap buttons.
@@ -122,22 +122,14 @@ function gateLines(gates) {
     });
 }
 
-// caller-loaded — must match what the web console tells the Merchant (an unseen turret is a trap, not a threat).
+// caller-loaded — must match what the web console says (an unseen turret is a trap, not a threat).
 function depotLines(ctx = {}) {
   const depot = ctx.depot;
   if (!depot) return [];
 
   const lines = [];
-  if (!depot.powered) {
-    lines.push("**Generator**: it's off, so nothing in here works.");
-  } else if (depot.fuelTurnsLeft == null) {
-    lines.push("**Generator**: it's running.");
-  } else {
-    const days = depot.fuelTurnsLeft;
-    lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left.`);
-  }
-  lines.push(depot.shuttleDocked ? "**Shuttle**: it's here." : "**Shuttle**: it's not here.");
-  if (depot.turretArmed && depot.powered) {
+  lines.push(depot.trainHere ? "**Train**: it's at the platform." : "**Train**: the rails are empty.");
+  if (depot.turretArmed) {
     lines.push("**Turret**: it's armed.");
   }
   return lines;
@@ -176,7 +168,7 @@ function structureLines(ctx = {}) {
   });
 }
 
-// The labor readout is NOT here (db/lib/laborYield.js#qualityWord); the caller prints it first.
+// The mining readout is NOT here (db/lib/miningYield.js#qualityWord); the caller prints it first.
 function describeLocation(location, ctx = {}) {
   return [
     placementLine(location),

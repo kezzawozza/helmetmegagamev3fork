@@ -11,12 +11,11 @@
 const { rollWithAdvantage } = require("./advantage");
 const { consumeInspiredIfUsed } = require("./tagWrites");
 const { gambitModifierTotal } = require("./gambitModifier");
-const { moveWindow } = require("./turnClock");
-const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
+const { movesOpen } = require("./turnGate");
 
 // mood feeds the penitent's Gambit modifier, same as a hand-filed Gambit
 // (Hunger comes off held tags instead, already part of `tags` below).
@@ -35,7 +34,8 @@ const CONFESSION_CHARACTER_SELECT = {
       tagId: true,
       quantity: true,
       tag: {
-        select: { id: true, slug: true, name: true, psychological: true },
+        // gambitBonus: read back by db/lib/gambitModifier.js below.
+        select: { id: true, slug: true, name: true, psychological: true, gambitBonus: true },
       },
     },
   },
@@ -70,14 +70,12 @@ function confessableTags(penitent) {
 const GONE = "That confession's gone.";
 const LOCKED_IN = "You've already locked in a Move this turn.";
 
+// A thin shim over db/lib/turnGate.js#movesOpen, kept only because both call sites here want the turn row back as well as
+// the verdict. `blocked` is the reason to say out loud, null when the player may act — which covers the lock AND the game
+// being out of session, two things this used to have no way to tell apart.
 async function openTurnAndWindow(db) {
-  const [turn, frozen] = await Promise.all([
-    db.turn.findFirst({ where: { status: "OPEN" } }),
-    clockFrozen(db),
-  ]);
-  if (!turn) return { turn: null, locked: true };
-  const { locked } = moveWindow(turn, { clockFrozen: frozen });
-  return { turn, locked };
+  const gate = await movesOpen(db);
+  return { turn: gate.turn, locked: !gate.ok, blocked: gate.message };
 }
 
 // One confession is one whole Routine, always — a chaplain hears one person a
@@ -144,9 +142,9 @@ async function createConfessionOffer(
   prisma,
   { penitentId, chaplainId, tagId },
 ) {
-  const { turn, locked } = await openTurnAndWindow(prisma);
+  const { turn, locked, blocked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open." };
-  if (locked) return { ok: false, reason: "Moves are locked for this turn." };
+  if (locked) return { ok: false, reason: blocked };
 
   const [chaplain, penitent, tag] = await Promise.all([
     loadCharacter(prisma, chaplainId),
@@ -241,7 +239,7 @@ async function acceptConfession(prisma, offer, responder) {
   if (!fresh || fresh.status !== "PENDING")
     return { ok: false, reason: GONE, dms: [] };
 
-  const { turn, locked } = await openTurnAndWindow(prisma);
+  const { turn, locked, blocked } = await openTurnAndWindow(prisma);
   if (!turn || turn.id !== offer.turnId) {
     return await cancelWith(
       prisma,
@@ -249,8 +247,7 @@ async function acceptConfession(prisma, offer, responder) {
       "That confession was for a turn that's over.",
     );
   }
-  if (locked)
-    return await cancelWith(prisma, offer, "Moves are locked for this turn.");
+  if (locked) return await cancelWith(prisma, offer, blocked);
 
   const [chaplain, penitent, tag] = await Promise.all([
     loadCharacter(prisma, offer.teacherId),

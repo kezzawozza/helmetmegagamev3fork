@@ -1,0 +1,101 @@
+/* Page shell: the container, header and foot from
+   docs/design/mockups/character/index.html (DESIGN-SYSTEM.md "Page shell").
+   Imported last in layout.js so it wins over globals.css/chat.css/sheet.css
+   without editing any of them. Every override here matches the selector it
+   overrides at equal specificity. */
+
+/* ---------- the container (PageShell.js) ---------- */
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 10px 40px;
+}
+.page--narrow {
+  max-width: 760px;
+}
+.page--full {
+  max-width: none;
+  padding-inline: 0;
+}
+
+/* ---------- the header (AppHeader.js) ---------- */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0 7px;
+  border-bottom: 1px solid var(--border);
+  background-image: url("/assets/chrome/bg.png");
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: auto 6px;
+  margin-bottom: 12px;
+}
+.app-header .crumbs {
+  color: var(--muted);
+  min-width: 0;
+}
+.app-header .crumbs b {
+  color: var(--text);
+  font-weight: bold;
+}
+.app-header .crumbs-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.app-header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The quiet right side of the header: TurnMeta, LockChip and BascinetClock,
+   as plain muted text beside the Esc link. The mockup's own header draws one
+   thin line — <b>Character</b> — Ravenheart, day 14 on the left, one
+   underlined link on the right — and nothing boxed. Bascinet's call was to
+   quiet all three rather than fold them into the crumbs line, so they stay
+   three separate items; this just strips the .chip chrome (border,
+   background, radius) each one wore. Pair with the existing .mono utility
+   for a numeral-bearing note (LockChip's countdown, BascinetClock's time),
+   the same job .chip-mono did for them as chips. LockChip's two danger
+   states don't use this class at all — see LockChip.js. */
+.app-header .header-note {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
+/* ---------- the foot (PageShell.js) ---------- */
+.foot {
+  margin-top: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+}
+
+/* ---------- the rail, restyled (NavRail.js) ----------
+   Square corners, a hairline against the page (.app-rail already carries
+   border-right/background from globals.css — left alone), and the active
+   item marked with an edge rather than a filled pill. Scoped to the same
+   min-width the desktop rule lives at in globals.css, so the mobile bottom
+   bar (which never draws this pseudo-element) is untouched. */
+@media (min-width: 721px) {
+  .rail-item[data-active="true"]::before {
+    border-radius: 0;
+    width: 2px;
+    height: 100%;
+    top: 0;
+    transform: none;
+    background: var(--accent-text);
+  }
+}

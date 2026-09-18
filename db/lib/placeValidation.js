@@ -4,7 +4,7 @@
 // here, so these are cheap to unit test.
 //
 // Slug rules mirror docs/systemdocs/SYNC.md's zones.yaml conventions: a slug
-// is what db:import-zones and every existing archive/roles/labordrops
+// is what db:import-zones and every existing archive/roles
 // reference matches on, so it has to be a safe, stable identifier — lowercase
 // letters, digits and hyphens, starting with a letter, same shape a Discord
 // channel/role name tolerates without mangling.

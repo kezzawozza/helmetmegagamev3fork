@@ -17,7 +17,6 @@ import {
   kissRequestImpl,
   searchRequestImpl,
 } from "./actions/offers.js";
-import { taxRequestImpl } from "./actions/tax.js";
 import { transferRequestImpl } from "./actions/transfer.js";
 import { stealRequestImpl } from "./actions/steal.js";
 import { pickpocketRequestImpl, pickpocketTakeImpl } from "./actions/pickpocket.js";
@@ -53,6 +52,8 @@ import {
 } from "./actions/misc.js";
 import { farmRequestImpl } from "./actions/soilery.js";
 import { breakInArelitzRequestImpl } from "./actions/arelitz.js";
+import { refineRequestImpl } from "./actions/refine.js";
+import { mineRequestImpl } from "./actions/mine.js";
 import {
   birdMessageRequestImpl,
   birdReplyRequestImpl,
@@ -110,10 +111,6 @@ export async function kissRequest(input) {
 
 export async function searchRequest(input) {
   return guarded(() => searchRequestImpl(input));
-}
-
-export async function taxRequest(input) {
-  return guarded(() => taxRequestImpl(input));
 }
 
 export async function transferRequest(input) {
@@ -224,6 +221,14 @@ export async function farmRequest(input) {
 
 export async function breakInArelitzRequest(input) {
   return guarded(() => breakInArelitzRequestImpl(input));
+}
+
+export async function refineRequest() {
+  return guarded(() => refineRequestImpl());
+}
+
+export async function mineRequest() {
+  return guarded(() => mineRequestImpl());
 }
 
 export async function packageItemsRequest(input) {

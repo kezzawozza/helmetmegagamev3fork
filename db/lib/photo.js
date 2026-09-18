@@ -17,8 +17,11 @@ function photoCaption(readout) {
   }
 
   const appearance = readout.appearance || "Nothing you can make out.";
-  const tags = joinBits(readout.tags.map((t) => t.name));
-  return [appearance, tags].filter(Boolean).join(" ");
+  // The office rides along, so the prose frozen onto the Tag says what the
+  // modal says. Null for a hood and for a seat nobody reads off a look, both
+  // decided once in db/lib/examine.js.
+  const bits = joinBits([readout.roleTitle, ...readout.tags.map((t) => t.name)]);
+  return [appearance, bits].filter(Boolean).join(" ");
 }
 
 // `Photo (Young Man)`. Subject in the NAME, not just description — the name

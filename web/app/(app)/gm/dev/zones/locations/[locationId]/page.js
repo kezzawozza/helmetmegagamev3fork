@@ -19,7 +19,7 @@ export default async function DevLocationPage({ params }) {
     where: { id: locationId },
     include: {
       zone: { select: { id: true, name: true } },
-      yields: true,
+      mining: true,
       rooms: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] },
       linksA: { include: { b: { select: { id: true, name: true } } } },
       linksB: { include: { a: { select: { id: true, name: true } } } },
@@ -27,7 +27,7 @@ export default async function DevLocationPage({ params }) {
   });
   if (!location) notFound();
 
-  const yields = location.yields.map((y) => ({ kind: y.kind, base: y.base, current: y.current }));
+  const mining = location.mining ? { base: location.mining.base, current: location.mining.current } : null;
   const rooms = location.rooms.map((r) => ({
     id: r.id,
     slug: r.slug,
@@ -71,7 +71,7 @@ export default async function DevLocationPage({ params }) {
             options: entry.options ?? null,
           }))}
         />
-        <YieldPanel locationId={location.id} rows={yields} />
+        <YieldPanel locationId={location.id} row={mining} />
         <RoomsList locationId={location.id} rows={rooms} canSuper={tier === "super"} />
         <LinksPanel locationId={location.id} links={links} />
       </PageShell>

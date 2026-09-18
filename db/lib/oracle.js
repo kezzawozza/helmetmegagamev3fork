@@ -6,6 +6,7 @@
 const { complete } = require("./oracleClient");
 const { correspondentPrompt, editorPrompt, splitEditorReply } = require("./oraclePrompts");
 const { loadTurnMaterial, zoneBlock, threatsBlock, linkCharacterTokens, aggregatesSeenByZone } = require("./oracleInput");
+const { TURN_CLOCK_SELECT } = require("./turnClock");
 const { AGGREGATE } = require("./oracleAudit");
 
 // Whether a run is even possible. Checked at RUN time rather than baked into the side-effect payload, so enabling the Oracle between the advance and the resume does the obvious thing.
@@ -194,7 +195,9 @@ async function runOracle(prisma, { turnId, step, skipIfComplete = false }) {
 
   const turn = await prisma.turn.findUnique({
     where: { id: turnId },
-    select: { id: true, number: true, startedAt: true },
+    // TURN_CLOCK_SELECT, because oracleInput.js#turnWindow asks this row for its Move cutoff. Selecting `startedAt` alone
+    // still returns an ANSWER — turnClock.js falls back to deriving one — it is just silently the 24-hour answer.
+    select: { id: true, number: true, ...TURN_CLOCK_SELECT },
   });
   if (!turn) return { ran: false, reason: "No such turn." };
 

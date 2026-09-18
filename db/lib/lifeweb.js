@@ -9,9 +9,9 @@ const { getGameState } = require("./gameState");
 const BLOOD_MAX = 100;
 
 // At or below this, the Tower isn't holding the valley together any more —
-// read by the turn announcement, /lifeweb's status label, and the labor
-// resolver, which cuts every payout by 95% and stops Basic labor
-// (db/lib/laborAccess.js). Lives here, not db/index.js, so db/lib/ modules
+// read by the turn announcement, /lifeweb's status label, and the mining
+// resolver, which cuts every payout by 95%
+// (db/lib/mining.js). Lives here, not db/index.js, so db/lib/ modules
 // can reach it without a barrel require resolving to a partial exports object.
 const LIFEWEB_SPUTTER_THRESHOLD = 20;
 const FEED_PERSON_AMOUNT = 100;

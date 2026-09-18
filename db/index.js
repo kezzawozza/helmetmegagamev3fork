@@ -33,8 +33,11 @@ const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runXomPass } = require("./lib/xomPass");
 const { runDepotPass } = require("./lib/depotPass");
+const { runTrainArrivalPass } = require("./lib/trainArrivalPass");
+const { runTrainDeparturePass } = require("./lib/trainDeparturePass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
-const { getGameState, readGameState } = require("./lib/gameState");
+const { getGameState, readGameState, inSession } = require("./lib/gameState");
+const { normalizeTurnLength, nextBoundaryAfter, nextDayNumber } = require("./lib/turnClock");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
@@ -43,10 +46,8 @@ const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
 const { runAscensionPass } = require("./lib/ascensionPass");
 const { endGameInDb } = require("./lib/gameEnd");
 const { runBirdPass } = require("./lib/birdPass");
-const { runAutoLaborPass } = require("./lib/autoLaborPass");
-const { runLaborYieldPass } = require("./lib/laborYield");
+const { runMiningYieldPass } = require("./lib/miningYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
-const { runTaxPass } = require("./lib/taxPass");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
 const { runResearchPass } = require("./lib/researchPass");
@@ -65,7 +66,6 @@ const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
 const { syncDesiresFromYaml } = require("./lib/syncDesires");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
-const { syncLaborDropsFromYaml } = require("./lib/syncLaborDrops");
 const {
   SPECIAL_CHANNELS,
   NARROWCAST_SLUGS,
@@ -80,7 +80,7 @@ const globalForPrisma = globalThis;
 // module into two separate chunks/registries in the web build, and gating
 // the cache meant two PrismaClients per container. transactionOptions raises
 // Prisma's defaults (2s/5s) because the per-character transactions in
-// db/lib/autoLaborPass.js compete for pool slots at turn rollover.
+// the turn passes compete for pool slots at turn rollover.
 const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -221,18 +221,13 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
 // cron advance and the GM dashboard's manual close-turn. Returns Discord work
 // (posts/DMs) for the caller's runSideEffects() rather than sending it here.
 const TURN_PASSES = [
-  "autoLabor",
   "lessons",
   // Research (db/lib/researchPass.js): same slot as Lessons, and right after
-  // it for the same reason lessons follows autoLabor — after only because it
-  // shares the slot, not because either depends on the other's result.
+  // it — after only because it shares the slot, not because either depends on
+  // the other's result.
   "research",
   "confessions",
   "stagedPush",
-  // What a filed tax collects (db/lib/taxPass.js). Right after stagedPush
-  // (a GM's own adjudication outranks a player verb) and before hunger — a
-  // tax is the same kind of levy, and can push someone into Hunger.
-  "tax",
   "tagExpiry",
   // Counts Damaged Vision stacks and turns 5 of them into Blind. After
   // tagExpiry so a stack that grew this turn is counted, before the sweep so
@@ -283,10 +278,10 @@ const TURN_PASSES = [
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
   "corpseFollow",
-  // The map's own weather. Late on purpose: it must land AFTER "autoLabor" so
-  // a day is paid at the coefficients that were live during it, and what this
-  // writes is what the next turn's labor is worth.
-  "laborYield",
+  // The map's own weather. Late on purpose: what this writes is what the NEXT
+  // turn's mining is worth, so a day already paid keeps the coefficient it was
+  // priced at.
+  "miningYield",
   "lifewebDecay",
   // What the buildings MAKE (db/lib/structureYieldPass.js). Late, and after
   // "carry" in particular: the pour lands on a Room's floor, so it must not
@@ -303,10 +298,29 @@ const TURN_PASSES = [
   // stable Room's floor, so this must not run before "carry"'s own overflow
   // drop might already be putting things there.
   "arelitzLay",
-  // The Depot's hardware: the generator burns a turn of fuel, the shuttle's
-  // six-turn clock runs out, and the turret sweeps whoever is standing in the
-  // room. Last, so the turret fires on the sheet everything else left behind —
-  // in particular the armour the carry pass may have made someone drop.
+  // The train, on its every-other-turn cycle (db/lib/train.js). Departure
+  // first, so that if the cycle is ever retuned to run both halves on one
+  // close, selling can never sweep crates that landed the same close.
+  //
+  // Both sit after `carry`, for the reason carry's own comment gives: crates
+  // land in a Room stash, and nothing may put things on a floor before the
+  // overburdened shed has finished putting things there. And both sit before
+  // `depot`, so the last thing that happens at the Depot is the gun firing on
+  // whoever came to meet the train.
+  //
+  // They deliberately do NOT go up with the income passes. A settled sale
+  // credits an ACCOUNT, and no upkeep pass can spend an account — only ⬢ and
+  // coin — so the income-before-upkeep rule does not reach here.
+  "trainDeparture",
+  "trainArrival",
+  // The Merchant's gun, sweeping whoever is standing in the room. Last, so it
+  // fires on the sheet everything else left behind — in particular the armour
+  // the carry pass may have made someone drop.
+  //
+  // The key stays "depot" although the pass is only the turret now: it is
+  // written into Turn.resolvedPasses, and renaming it makes every
+  // half-resolved turn look like it still owes the pass. Same precedent as
+  // "lessons" (TURN-ENGINE.md §2b).
   "depot",
   // The Gatehouse gun, for the same reason and in the same breath. Separate
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
@@ -368,34 +382,9 @@ async function resolveNeeds(turn, config) {
       );
   }
 
-  // Auto-labor first: income has to land before Hunger's upkeep charge, and it
-  // must run while the turn is still the one being closed. It also has to run
-  // BEFORE the yield drift pass below, so a day's payouts use the coefficients
-  // that were live during that day.
-  let autoLabor = null;
-  if (!done.has("autoLabor")) {
-    autoLabor = await runAutoLaborPass(prisma, turn).catch(async (err) => {
-      await passFailed("Auto-labor", err);
-      return null;
-    });
-    if (autoLabor) await markDone("autoLabor");
-  }
-  const { dms: autoLaborDms = [], ...autoLaborSummary } = autoLabor ?? {};
-  if (autoLabor?.filed) {
-    await prisma.auditLog
-      .create({
-        data: {
-          actorDiscordUserId: "system",
-          actionType: "auto_labor_resolved",
-          details: autoLaborSummary,
-        },
-      })
-      .catch((err) => console.error("Auto-labor audit log failed:", err));
-  }
 
   // Offer expiry (db/lib/offerExpiryPass.js): every PENDING offer on the turn,
-  // before the push closes it, and PENDING offers expire. After autoLabor
-  // only so a learner who never accepted still worked their day.
+  // before the push closes it, and PENDING offers expire.
   let lessons = null;
   if (!done.has("lessons")) {
     lessons = await runOfferExpiryPass(prisma, turn).catch(async (err) => {
@@ -467,9 +456,9 @@ async function resolveNeeds(turn, config) {
   }
 
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
-  // load-bearing: after autoLabor (which stamps appliedEffects), before
-  // tagExpiry/expirySweep (a staged grant/cure must land first), and before
-  // hunger (deferred Routine/Labor income must land before upkeep).
+  // load-bearing: before tagExpiry/expirySweep (a staged grant/cure must land
+  // first), and before hunger (deferred Routine income must land before
+  // upkeep).
   let stagedPush = null;
   if (!done.has("stagedPush")) {
     stagedPush = await runStagedPushPass(prisma, turn).catch(
@@ -507,29 +496,6 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Staged push audit log failed:", err));
-  }
-
-  // What a filed tax collects (db/lib/taxPass.js). See TURN_PASSES's own
-  // comment on "tax" above for why it sits exactly here.
-  if (!done.has("tax")) {
-    const taxed = await runTaxPass(prisma, turn).catch(async (err) => {
-      await passFailed("Tax", err);
-      return null;
-    });
-    if (taxed) {
-      await markDone("tax");
-      if (taxed.applied > 0 || taxed.skipped > 0) {
-        await prisma.auditLog
-          .create({
-            data: {
-              actorDiscordUserId: "system",
-              actionType: "taxes_collected",
-              details: taxed,
-            },
-          })
-          .catch((err) => console.error("Tax audit log failed:", err));
-      }
-    }
   }
 
   // The caving release (db/lib/cavingPass.js). Directly after the staged push,
@@ -988,7 +954,8 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
 
-  // Dawn afflictions: Guilt Ridden and Insomniac each carry a nightly chance
+  // Dawn afflictions (named for the turn phase it used to ride; it runs every
+  // close now): Guilt Ridden and Insomniac each carry a chance
   // of waking Exhausted. After hunger so it sees the final sheet, same as
   // carry below. See db/lib/dawnAfflictionPass.js.
   let dawnAfflictions = null;
@@ -1124,26 +1091,26 @@ async function resolveNeeds(turn, config) {
   }
 
   // Drift every Location's yield coefficients one turn forward
-  // (db/lib/laborYield.js). Random and therefore NOT idempotent, which is
+  // (db/lib/miningYield.js). Random and therefore NOT idempotent, which is
   // exactly why it is a named pass: markDone stops a resumed advance from
   // drifting the whole map twice.
-  if (!done.has("laborYield")) {
-    const yields = await runLaborYieldPass(prisma, turn).catch(async (err) => {
-      await passFailed("Labor yield drift", err);
+  if (!done.has("miningYield")) {
+    const yields = await runMiningYieldPass(prisma, turn).catch(async (err) => {
+      await passFailed("Mining yield drift", err);
       return null;
     });
     if (yields) {
-      await markDone("laborYield");
+      await markDone("miningYield");
       if (yields.drifted) {
         await prisma.auditLog
           .create({
             data: {
               actorDiscordUserId: "system",
-              actionType: "labor_yields_drifted",
+              actionType: "mining_yields_drifted",
               details: yields,
             },
           })
-          .catch((err) => console.error("Labor yield audit log failed:", err));
+          .catch((err) => console.error("Mining yield audit log failed:", err));
       }
     }
   }
@@ -1219,6 +1186,43 @@ async function resolveNeeds(turn, config) {
     }
   }
 
+  // The train. Each pass checks the turn's parity itself and returns
+  // `ran: false` on the half that is not its turn, so both are entered every
+  // close and exactly one of them does anything.
+  let trainOut = null;
+  let trainIn = null;
+  if (!done.has("trainDeparture")) {
+    trainOut = await runTrainDeparturePass(prisma, turn).catch(async (err) => {
+      await passFailed("Train departure", err);
+      return null;
+    });
+    if (trainOut) await markDone("trainDeparture");
+  }
+  if (!done.has("trainArrival")) {
+    trainIn = await runTrainArrivalPass(prisma, turn).catch(async (err) => {
+      await passFailed("Train arrival", err);
+      return null;
+    });
+    if (trainIn) await markDone("trainArrival");
+  }
+  if (trainOut?.settled || trainIn?.delivered) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "train_ran",
+          details: {
+            settled: trainOut?.settled ?? 0,
+            paid: trainOut?.paid ?? 0,
+            taxed: trainOut?.taxed ?? 0,
+            delivered: trainIn?.delivered ?? 0,
+            crates: trainIn?.crates ?? 0,
+          },
+        },
+      })
+      .catch((err) => console.error("Train audit log failed:", err));
+  }
+
   // The Depot's hardware. Returns the ambient lines and DMs it owes rather
   // than speaking them — see TURN-ENGINE.md §3.
   let depot = null;
@@ -1254,19 +1258,13 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Gatehouse turret audit log failed:", err));
   }
 
-  if (
-    depot &&
-    (depot.turretShots || depot.generatorDied || depot.shuttleDeparted)
-  ) {
+  if (depot?.turretShots) {
     await prisma.auditLog
       .create({
         data: {
           actorDiscordUserId: "system",
           actionType: "depot_resolved",
           details: {
-            fuelBurned: depot.fuelBurned,
-            generatorDied: depot.generatorDied,
-            shuttleDeparted: depot.shuttleDeparted,
             turretShots: depot.turretShots,
             turretOutcomes: depot.turretOutcomes,
           },
@@ -1296,7 +1294,6 @@ async function resolveNeeds(turn, config) {
   return {
     lifewebBlood,
     hungerNotices,
-    autoLaborDms,
     lessonDms,
     researchDms,
     confessionDms,
@@ -1324,7 +1321,7 @@ async function resolveNeeds(turn, config) {
     xomShouts,
     routineNotices,
     gambitRollNotices,
-    depotLines: depot?.lines ?? [],
+    depotLines: [...(trainOut?.lines ?? []), ...(trainIn?.lines ?? []), ...(depot?.lines ?? [])],
     // Both guns' DMs, delivered by one loop. It was `depotDms` when there was
     // only the one turret.
     turretDms: [...(depot?.dms ?? []), ...(gatehouse?.dms ?? [])],
@@ -1421,7 +1418,7 @@ async function resumeTurnSideEffects(prisma_, { skipTurnId = null } = {}) {
   return { resumed: true, turnNumber: unfinished.number };
 }
 
-// Resolves the OPEN turn and opens the next, alternating DAWN/DUSK. Shared
+// Resolves the OPEN turn and opens the next. Shared
 // by the bot's cron advance and the GM "End Turn" action. Discord side
 // effects are returned as a `runSideEffects()` thunk rather than run here —
 // the message wipe can take minutes, so a caller awaits it only where safe
@@ -1450,9 +1447,23 @@ async function advanceTurn() {
     };
   }
 
+  // The session gate, beside the phase gate and for the same reason: both
+  // callers land here, so a game between sittings can never tick — not from
+  // the bot's poll, and not from a GM who forgot the game was shut. A GM who
+  // means it starts the session first (db/lib/session.js).
+  if (!inSession(config, state)) {
+    return {
+      advanced: false,
+      refused: "NOT_IN_SESSION",
+      previousTurn: null,
+      newTurn: openTurn,
+      note: null,
+      runSideEffects: async () => {},
+    };
+  }
+
   let lifewebBlood = state.lifewebBlood;
   let hungerNotices = [];
-  let autoLaborDms = [];
   let lessonDms = [];
   let researchDms = [];
   let confessionDms = [];
@@ -1512,8 +1523,7 @@ async function advanceTurn() {
     ({
       lifewebBlood,
       hungerNotices,
-      autoLaborDms,
-      lessonDms,
+        lessonDms,
       researchDms,
       confessionDms,
       tagExpiryDms,
@@ -1609,8 +1619,7 @@ async function advanceTurn() {
       ({
         lifewebBlood,
         hungerNotices,
-        autoLaborDms,
-        lessonDms,
+            lessonDms,
         confessionDms,
         tagExpiryDms,
         catatonicDms,
@@ -1645,10 +1654,9 @@ async function advanceTurn() {
 
   const lastTurn =
     openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
-  const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
   // Picked once, here, and remembered on the Turn row — a repost of the
   // announcement must show the same picture, not roll a new one.
-  const banner = await nextTurnBanner(prisma, phase);
+  const banner = await nextTurnBanner(prisma);
   const lifewebFlavor =
     lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD
       ? "The Lifeweb sputters, failing."
@@ -1656,12 +1664,19 @@ async function advanceTurn() {
   const note =
     [lifewebFlavor, state.nextTurnNote].filter(Boolean).join("\n\n") || null;
 
+  // The length is read from config exactly HERE and nowhere else, which is what
+  // makes a GM's change take effect at the next turn rather than under whoever
+  // is mid-action: every deadline afterwards comes off the row (turnClock.js).
+  const startedAt = new Date();
+  const turnLengthHours = normalizeTurnLength(config.turnLengthHours);
   const newTurn = await prisma.turn.create({
     data: {
       number: (lastTurn?.number ?? 0) + 1,
-      phase,
+      dayNumber: nextDayNumber(lastTurn, startedAt),
+      turnLengthHours,
+      endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
       banner,
-      gameDate: new Date(),
+      startedAt,
       status: "OPEN",
     },
   });
@@ -1675,12 +1690,7 @@ async function advanceTurn() {
   // /chat carries the day line (HALL.md §5). /archive folds them back into the
   // single sticky day divider it always drew — a TURN_START row is never
   // rendered as a row, and the divider keys on the day.
-  const turnStartContent = [
-    `Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`,
-    note,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const turnStartContent = [`Day ${newTurn.dayNumber}`, note].filter(Boolean).join("\n");
   const turnStartZones = await prisma.zone
     .findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } })
     .catch(() => []);
@@ -1711,8 +1721,8 @@ async function advanceTurn() {
   // that a redeploy landing mid-fan-out used to lose the rest of it forever.
   const sideEffectPayload = buildSideEffectPayload({
     newTurnId: newTurn.id,
+    previousDayNumber: lastTurn?.dayNumber ?? null,
     note,
-    autoLaborDms,
     lessonDms,
     researchDms,
     confessionDms,
@@ -1796,7 +1806,6 @@ module.exports = {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
-  syncLaborDropsFromYaml,
   SPECIAL_CHANNELS,
   NARROWCAST_SLUGS,
   buildNarrowcastContext,
@@ -1827,12 +1836,14 @@ module.exports = {
   ...require("./lib/roleCapacity"),
   ...require("./lib/gameState"),
   ...require("./lib/gameConfigFields"),
-  ...require("./lib/production"),
   ...require("./lib/depot"),
   ...require("./lib/depotState"),
   ...require("./lib/depotTurret"),
   ...require("./lib/turretBurst"),
   ...require("./lib/depotCrates"),
+  ...require("./lib/depotManifests"),
+  ...require("./lib/train"),
+  ...require("./lib/bankAccounts"),
   ...require("./lib/startingTags"),
   ...require("./lib/locationAttributes"),
   ...require("./lib/formatTagRequirement"),
@@ -1845,8 +1856,8 @@ module.exports = {
   ...require("./lib/moveEffects"),
   ...require("./lib/resourceStack"),
   ...require("./lib/resourceDelta"),
-  ...require("./lib/laborAccess"),
-  ...require("./lib/laborYield"),
+  ...require("./lib/mining"),
+  ...require("./lib/miningYield"),
   // Only the pure helper — the revoke functions take prisma as a parameter
   // and are kept off the barrel; require db/lib/accessSweep.js by path.
   zoneChannelIds: require("./lib/accessSweep").zoneChannelIds,

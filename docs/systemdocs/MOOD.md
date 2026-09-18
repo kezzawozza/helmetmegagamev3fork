@@ -400,7 +400,7 @@ by display name.
 **Who starts with what** (`docs/roles.yaml`, `db/lib/threats.js`): Rough Camper
 and Outsider on both Brigands and the Tribune; those two plus Brave on the
 Tribunal Ordinator; Rough Camper on the Fisherman; Rough Camper and Spelunker
-on the Mercenary; the `commoner-hunter` kit unpacks Rough Camper; the Demoness
+on the Mercenary; the Demoness
 seat assigns Rough Camper, the Judge assigns Rough Camper, Outsider and Brave.
 
 ## 8. Nobles
@@ -430,8 +430,8 @@ held: **after `hunger`** (it reads the final `hungry`/`starving` bands), **after
 (the final sheet) and **before `corpseFollow`**. It used to matter that it also
 ran before `travelArrival`, so a traveller paid the night where they set out
 from; travel lands at once now (`MAP.md` §3), so everybody simply pays the
-night for wherever they ended the day standing — which is also what auto-labor
-and the turrets now read.
+night for wherever they ended the day standing — which is also what the
+turrets now read.
 
 Per ALIVE character it gathers the terms — place, drift, HUNGER, BOUND, CORPSE,
 NOBLE_MEAL — and applies them in one write through `applyMoodTerms`, its own

@@ -9,12 +9,7 @@ import {
   handsOf,
   handsUsed,
 } from "@lifeweb/db/lib/equipSlots";
-import {
-  BOAT_CONFLICT_SLUGS,
-  FAST_TRAVEL_SLUGS,
-  STOWABLE_SLUGS,
-  WATER_TRAVEL_SLUGS,
-} from "@lifeweb/db/lib/mounts";
+import { FAST_TRAVEL_SLUGS, STOWABLE_SLUGS } from "@lifeweb/db/lib/mounts";
 import { armorWord, combineArmor } from "@lifeweb/db/lib/armorValue";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { carryBonusLabel } from "@/lib/sheetCards";
@@ -85,9 +80,6 @@ function fact(tag) {
 // why. Everything else on the board is filtered on the slot alone, because the
 // slot really is the whole rule there.
 function mountMenu(fits, wornRows, { indoors, motionSick }) {
-  const out = new Set(wornRows.map((ct) => ct.tag.slug));
-  const boatOut = [...WATER_TRAVEL_SLUGS].some((slug) => out.has(slug));
-  const rideOut = [...BOAT_CONFLICT_SLUGS].some((slug) => out.has(slug));
   const why = new Set();
   const options = fits.filter((ct) => {
     const slug = ct.tag.slug;
@@ -95,12 +87,8 @@ function mountMenu(fits, wornRows, { indoors, motionSick }) {
       why.add("there is no setting one up indoors");
       return false;
     }
-    if (motionSick && (FAST_TRAVEL_SLUGS.has(slug) || WATER_TRAVEL_SLUGS.has(slug))) {
+    if (motionSick && FAST_TRAVEL_SLUGS.has(slug)) {
       why.add("your stomach won't have it");
-      return false;
-    }
-    if ((boatOut && BOAT_CONFLICT_SLUGS.has(slug)) || (rideOut && WATER_TRAVEL_SLUGS.has(slug))) {
-      why.add("you are either riding or poling");
       return false;
     }
     return true;
@@ -230,6 +218,11 @@ export default function EquipBoard({
   // locked door is absent here for exactly the reason it is absent there.
   // Never passed for somebody else's sheet: the board only acts when isSelf.
   stash = [],
+  // { weightUsed, weightCap, … } from db/lib/carry.js, for the line at the foot
+  // of the board. The band's Carrying tile shows the same two numbers; this
+  // repeats them because the board above is what CHANGES them, and taking a
+  // coat off to get under the cap should not mean scrolling back up to check.
+  carry = null,
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
@@ -315,10 +308,8 @@ export default function EquipBoard({
   // end, which is the exact person the room menu exists for.
   if (equippable.length === 0 && stashOffers.length === 0) {
     return (
-      <section className="panel p-4">
-        <div className="section-title">
-          <h2>Equipped</h2>
-        </div>
+      <section className="panel p-3">
+        <h2 className="panel-header">Equipment</h2>
         <p className="text-sm text-muted">
           You&apos;re not carrying anything that can be worn or readied.
         </p>
@@ -327,11 +318,14 @@ export default function EquipBoard({
   }
 
   return (
-    <section className="panel p-4 equip-board">
+    <section className="panel p-3 equip-board">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="section-title">Equipped</h2>
-        <span className="mono text-sm text-muted">
-          Melee: {armorWord(melee)} · Ballistic: {armorWord(ballistic)}
+        <h2 className="panel-header">Equipment</h2>
+        {/* What the rig comes to, in the header, the way the mockup draws it:
+            the shield mark and the word, twice, melee then ballistic. */}
+        <span className="text-sm text-muted">
+          <span aria-hidden="true">⛊</span> {armorWord(melee)} · <span aria-hidden="true">⛊</span>{" "}
+          {armorWord(ballistic)}
         </span>
       </div>
 
@@ -452,13 +446,22 @@ export default function EquipBoard({
         return (
           <div key={slot} className="equip-row">
             <span className="field-label equip-row-title">
-              {SLOT_TITLES[slot]}
-              {slot === "WEAPON" ? (
-                <span className="mono" data-over={hands > handCap ? "true" : undefined}>
-                  {" "}
-                  {hands}/{handCap}
-                </span>
-              ) : null}
+              <span>{SLOT_TITLES[slot]}</span>
+              {/* The one hint about how the slot fills, on the right of the
+                  row's own line — "Mail, then Over", "4 hands", "one thing".
+                  Named layers come from equipSlots.js rather than being written
+                  out again here, so a slot that gains a layer says so. */}
+              <span className="equip-row-hint">
+                {slot === "WEAPON" ? (
+                  <span className="mono" data-over={hands > handCap ? "true" : undefined}>
+                    {hands}/{handCap} hands
+                  </span>
+                ) : LAYER_NAMES[slot] ? (
+                  LAYER_NAMES[slot].join(", then ")
+                ) : (
+                  "one thing"
+                )}
+              </span>
             </span>
             {/* The slot's own cells, widened to whatever actually had to be
                 drawn — a stray layer on a layered row, or a second piece in an
@@ -494,17 +497,18 @@ export default function EquipBoard({
         return (
           <div className="equip-row">
             <span className="field-label equip-row-title">
-              {SLOT_TITLES.ACCESSORY}
+              <span>{SLOT_TITLES.ACCESSORY}</span>
               {/* Counted like the hands above, and for the same reason: this
                   row is the one that used to take everything, so the number is
                   what tells a player it no longer does. `data-over` covers a
                   character who was already over the cap when it came in. */}
-              <span
-                className="mono"
-                data-over={inSlot.length > MAX_ACCESSORIES ? "true" : undefined}
-              >
-                {" "}
-                {inSlot.length}/{MAX_ACCESSORIES}
+              <span className="equip-row-hint">
+                <span
+                  className="mono"
+                  data-over={inSlot.length > MAX_ACCESSORIES ? "true" : undefined}
+                >
+                  {inSlot.length}/{MAX_ACCESSORIES}
+                </span>
               </span>
             </span>
             <div className="equip-cells equip-cells-wrap">
@@ -540,7 +544,9 @@ export default function EquipBoard({
         if (strayEquipped.length === 0 && strayFits.length === 0) return null;
         return (
           <div className="equip-row">
-            <span className="field-label equip-row-title">Other</span>
+            <span className="field-label equip-row-title">
+              <span>Other</span>
+            </span>
             <div className="equip-cells equip-cells-wrap">
               {strayEquipped.map((unit) => (
                 <WornCell
@@ -568,6 +574,32 @@ export default function EquipBoard({
           </div>
         );
       })()}
+
+      {/* What it all weighs, under a rule at the foot of the board. Same two
+          numbers as the band's Carrying tile and the same meter, off the same
+          `carry` object — nothing here derives a second opinion. */}
+      {carry && (
+        <div>
+          <div className="sheet-carry-line carry-line">
+            <span className="field-label">Carrying</span>
+            <span className="mono" data-over={carry.weightUsed > carry.weightCap ? "true" : undefined}>
+              {carry.weightUsed} / {carry.weightCap} lb
+            </span>
+          </div>
+          <span
+            className="sheet-meter meter"
+            data-over={carry.weightUsed > carry.weightCap ? "true" : undefined}
+            role="img"
+            aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}
+          >
+            <span
+              style={{
+                width: `${Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))}%`,
+              }}
+            />
+          </span>
+        </div>
+      )}
 
       <FormError>{error}</FormError>
     </section>

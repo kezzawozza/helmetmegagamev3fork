@@ -60,7 +60,6 @@ function fakePrisma({ counts = {}, rows = {} } = {}) {
     quest: model("quest"),
     roomGuest: model("roomGuest"),
     playerThread: model("playerThread"),
-    faction: model("faction"),
     // ⬢ are a RoomTag row now (db/lib/resourceStack.js), not a `Room.resources`
     // column — hardDeleteBlockers' readRoomResources looks up the `resources`
     // tag's id, then that room's stack row by the compound key. `rows.roomTag`
@@ -102,11 +101,11 @@ test("retiring an already-retired place is a no-op success", async () => {
 
 test("hardDeleteBlockers lists every reference to a room", async () => {
   const prisma = fakePrisma({
-    counts: { roomGuest: 2, playerThread: 1, faction: 1, roomTag: 0 },
+    counts: { roomGuest: 2, playerThread: 1, roomTag: 0 },
     rows: { room: [{ id: "r1", questId: null }], roomTag: [{ roomId: "r1", tagId: "tag-resources", quantity: 30 }] },
   });
   const blockers = await hardDeleteBlockers(prisma, "room", "r1");
-  assert.equal(blockers.length, 4); // guests, conversation, faction, and the 30 ⬢ stash — not roomTag (0)
+  assert.equal(blockers.length, 3); // guests, conversation, and the 30 ⬢ stash — not roomTag (0)
 });
 
 test("hardDeleteBlockers reports a nonzero stash and a minting quest too", async () => {

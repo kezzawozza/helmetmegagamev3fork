@@ -24,6 +24,12 @@ const FEED_ROW_SELECT = {
   channelKind: true,
   editedAt: true,
   deletedAt: true,
+  // Stamped from the open turn as the row was written (same column
+  // ARCHIVE_ROW_SELECT already reads below) — carried onto the live feed too
+  // now, so it can rule a .daybreak divider where the scene crosses into a
+  // new turn. Also safe on every row, hooded or not: a turn number names no
+  // speaker.
+  turnNumber: true,
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
@@ -50,6 +56,7 @@ function feedRowShape(row, extra = {}) {
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
     source: row.source ?? "DISCORD",
     channelKind: row.channelKind ?? null,
+    turnNumber: row.turnNumber ?? null,
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...rest,
@@ -82,8 +89,7 @@ const ARCHIVE_ROW_SELECT = {
   ...FEED_ROW_SELECT,
   id: true,
   kind: true,
-  turnNumber: true,
-  turnPhase: true,
+  dayNumber: true,
   zoneName: true,
   threadName: true,
   channelKind: true,
@@ -108,7 +114,7 @@ async function archiveRowsShape(prisma, rows) {
       id: row.id,
       kind: row.kind,
       turnNumber: row.turnNumber ?? null,
-      turnPhase: row.turnPhase ?? null,
+      dayNumber: row.dayNumber ?? null,
       zoneName: row.zoneName ?? null,
       threadName: row.threadName ?? null,
       channelKind: row.channelKind ?? null,
@@ -145,7 +151,7 @@ function forgetGameId() {
   gameIdMemo = { id: null, at: 0 };
 }
 
-// The open turn, so a row can be stamped with when it happened in the fiction. Callers that already hold the turn (advanceTurn, the auto-labor pass) pass it in to skip the lookup.
+// The open turn, so a row can be stamped with when it happened in the fiction. Callers that already hold the turn (advanceTurn, the turn passes) pass it in to skip the lookup.
 async function resolveTurn(prisma, turn) {
   if (turn) return turn;
   return prisma.turn.findFirst({ where: { status: "OPEN" } });
@@ -178,7 +184,7 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         kind: "MESSAGE",
         gameId,
         turnNumber: turn?.number ?? null,
-        turnPhase: turn?.phase ?? null,
+        dayNumber: turn?.dayNumber ?? null,
         sentAt: entry.sentAt ?? new Date(),
         zoneId: entry.zoneId ?? null,
         zoneName: entry.zoneName ?? null,
@@ -220,7 +226,7 @@ async function recordArchiveEvent(prisma, entry) {
         kind: entry.kind,
         gameId,
         turnNumber: turn?.number ?? null,
-        turnPhase: turn?.phase ?? null,
+        dayNumber: turn?.dayNumber ?? null,
         sentAt: entry.sentAt ?? new Date(),
         zoneId: entry.zoneId ?? null,
         zoneName: entry.zoneName ?? null,

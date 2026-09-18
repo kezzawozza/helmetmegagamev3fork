@@ -58,11 +58,13 @@ const held = (tag, { equipped = false, expiresTurn = null, quantity } = {}) => (
   tag: { slug: tag.slug, forcedName: tag.forcedName, name: tag.name, concealsIdentity: tag.concealsIdentity, concealSprite: tag.concealSprite, forcesConceal: false, equipLayer: tag.equipLayer },
 });
 
-const speaker = (tags) => ({
+// `roleTitle` is the CHARACTER's own title and `role.examineVisible` the seat's
+// answer to whether a look may read it — presentedStateFrom needs both.
+const speaker = (tags, { roleTitle = "Serpent", examineVisible = true } = {}) => ({
   name: "Semyun Varyutskaya",
   appearance: "Tall, with a burn along one jaw.",
-  roleTitle: null,
-  factionId: null,
+  roleTitle,
+  role: roleTitle ? { examineVisible } : null,
   concealed: false,
   tags: [held(RESOURCES_TAG, { quantity: 4 }), ...tags],
 });
@@ -129,6 +131,31 @@ test("the name and the appearance come off the snapshot", () => {
   assert.equal(subject.appearance, "Tall, with a burn along one jaw.");
 });
 
+test("the role title is frozen too, and a rename afterwards does not reach the line", () => {
+  const state = roundTrip(speaker([]));
+  const subject = rehydrateSubject({ live: { ...live, roleTitle: "Bishop" }, state, tags: [] });
+  // The live row is spread in first; the frozen title has to win anyway.
+  assert.equal(subject.visibleRoleTitle, "Serpent");
+  assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleTitle, "Serpent");
+});
+
+test("a seat nobody reads off a look freezes no title at all", () => {
+  const state = roundTrip(speaker([], { roleTitle: "Brigand", examineVisible: false }));
+  assert.equal(state.roleTitle, null);
+  // And it is absent from the stored payload, not merely dropped on the way out.
+  assert.equal(presentedStateFrom(speaker([], { roleTitle: "Brigand", examineVisible: false })).rt, null);
+  const subject = rehydrateSubject({ live, state, tags: [] });
+  assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleTitle, null);
+});
+
+test("a hood carries no title either, however public the seat", () => {
+  const state = roundTrip({ ...speaker([held(ROBES, { equipped: true })]), concealed: true });
+  const subject = rehydrateSubject({ live, state, tags: [ROBES] });
+  const readout = examineReadout({ subject, openTurnNumber: 9 });
+  assert.equal(readout.concealed, true);
+  assert.equal(readout.roleTitle, undefined);
+});
+
 test("readPresentedState refuses anything it does not recognise", () => {
   assert.equal(readPresentedState(null), null);
   assert.equal(readPresentedState(undefined), null);
@@ -140,8 +167,9 @@ test("readPresentedState refuses anything it does not recognise", () => {
 });
 
 test("readPresentedState survives junk inside a well-formed payload", () => {
-  const state = readPresentedState({ v: 1, n: 7, a: null, r: null, s: "x", f: null, c: 1, t: [null, ["ok", 1, 3], [4, 1, 1], ["bad", 0, "soon"]] });
+  const state = readPresentedState({ v: 1, n: 7, a: null, r: null, rt: 7, s: "x", f: null, c: 1, t: [null, ["ok", 1, 3], [4, 1, 1], ["bad", 0, "soon"]] });
   assert.equal(state.name, null);
+  assert.equal(state.roleTitle, null);
   assert.equal(state.resources, null);
   assert.equal(state.concealed, true);
   assert.deepEqual(state.tags, [

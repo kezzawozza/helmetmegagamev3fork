@@ -452,10 +452,11 @@ Room stashes are a **seed, never a top-up** — the "Seed these items now"
 action at `/gm/dev/zones` (`seedRoomStash`, `web/app/(app)/gm/dev/zones/actions.js`):
 once the five cheeses are eaten there are no more.
 
-**The fragmentation grenade lands at 0.067% — about 1 in 1,500 cave fishing
-labors.** Getting there is what made the labor-drop die adopt caving's rarity
+**The fragmentation grenade lands at 0.067% — about 1 in 1,500 draws.**
+Getting there is what made the old mining drop die adopt caving's rarity
 tiers: under the old uniform draw the floor was 1/poolsize and it would have
-shipped eight times too common. See `LABORDROPS.md` §2.
+shipped eight times too common. (That die is gone now — `MINING.md` §3b — but
+the tier vocabulary it borrowed is still `CAVING.md` §3's.)
 
 ## 12. Two catalog bugs fixed here
 

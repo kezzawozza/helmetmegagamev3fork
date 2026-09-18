@@ -15,7 +15,6 @@ export const loadHeaderIdentity = cache(async () => {
       name: true,
       updatedAt: true,
       roleTitle: true,
-      faction: { select: { id: true, name: true } },
     },
   });
 });

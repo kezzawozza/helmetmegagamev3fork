@@ -151,16 +151,6 @@ export function roleExcluded(tag, roleSlug) {
   return (tag.excludedRoleSlugs ?? []).includes(roleSlug);
 }
 
-// The three trades a Commoner picks between; createCharacter defaults to the Farmer.
-export const COMMONER_KIT_SLUGS = ["commoner-farmer", "commoner-fisherman", "commoner-hunter"];
-export const DEFAULT_COMMONER_KIT_SLUG = "commoner-farmer";
-
-// Buying `laboring-fishing` outright (7 pts vs. the kit's 1) must not also grant a Farmer crate.
-export const LABORING_SPECIALISATION_SLUGS = [
-  "laboring-farming",
-  "laboring-hunting",
-  "laboring-fishing",
-];
 
 // Menus must derive category tabs from THIS, or an all-locked category advertises its own secret.
 export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {

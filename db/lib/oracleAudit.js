@@ -50,11 +50,9 @@ const INCLUDED = new Set([
 
   // Said to a whole zone at once — a PA carries an @here, so it's an event, not scenery.
   "intercom_broadcast",
-  "faction_leader_set",
-  "faction_treasurer_assigned",
-  "faction_treasurer_revoked",
-  "faction_member_added",
-  "faction_member_removed",
+  // A GM's proclamation, read into a zone as a notice rather than a remark
+  // (db/lib/decree.js). The loudest thing the game says out loud.
+  "decree_broadcast",
 
   // Arrivals and departures — GM-actioned kills/revives are here because the OUTCOME is a fiction fact even when the actor isn't.
   "character_created",
@@ -77,7 +75,7 @@ const INCLUDED = new Set([
 
 // Rows worth one line for the WHOLE TURN rather than one per character — the
 // Oracle wants "hunger was charged" once, not ninety times.
-const AGGREGATE = new Set(["hunger_resolved", "auto_labor_resolved", "caving_resolved", "tag_expiry_resolved"]);
+const AGGREGATE = new Set(["hunger_resolved", "caving_resolved", "tag_expiry_resolved"]);
 
 // A person shopping — real events, but a hundred crowd out what matters, so folded into one line per character by collapseShopping() below.
 const SHOPPING = new Set(["request_add_tag", "request_remove_tag", "request_buy_tags"]);
@@ -99,9 +97,11 @@ const DETAIL_KEYS = [
   "toName",
   "fromName",
   "locationName",
-  "labor",
+  "mining",
   "text",
   "desireName",
+  // A decree's heading (db/lib/decree.js); "body" below carries its words.
+  "title",
   "untilTurn",
   "blood",
   "died",
@@ -123,7 +123,7 @@ const MEANINGFUL_WHEN_FALSE = new Set(["concealed"]);
 
 // "request_heal_character" -> "heal_character" — the prefix outlived the Request table.
 function verb(actionType) {
-  return String(actionType || "").replace(/^(request|gm|move|desire|faction|character|catatonic)_/, "") || actionType;
+  return String(actionType || "").replace(/^(request|gm|move|desire|character|catatonic)_/, "") || actionType;
 }
 
 function truncate(text, max) {

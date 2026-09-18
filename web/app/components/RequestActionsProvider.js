@@ -48,10 +48,6 @@ export default function RequestActionsProvider({
   characterTags = [],
   resources = 0,
   transferParties = null,
-  // Your faction's silo, when there is one and you are in its zone: a
-  // deposit-only destination the Transfer dialog pins above the rooms here
-  // (FACTIONS.md). Null the rest of the time.
-  transferSilo = null,
   // Load vs caps for the Transfer dialog's projection line (CARRY.md).
   carry = null,
   // Why this character's eyes cannot look anyone over right now, or null.
@@ -185,6 +181,19 @@ export default function RequestActionsProvider({
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
+  // Refine, the Factory floor's other verb — and the one that spends the whole
+  // day. `refineBlocked` is the same sentence refineRequestImpl throws on a
+  // bypassed request.
+  canSeeRefine = false,
+  canRefine = false,
+  refineBlocked = null,
+  // Mine (db/lib/mining.js). Holding Prospecting is what decides whether the
+  // button exists at all; `mineBlocked` carries being outside the Caves, the
+  // LocationMining row, the Exhausted lockout and the once-a-turn Move rule,
+  // resolved alongside the same resolveMiningRate the action re-runs.
+  canSeeMine = false,
+  canMine = false,
+  mineBlocked = null,
   // The Farms placeholder (db/lib/soilery.js). Same posture as Extract just
   // above: whether this ground is a Soilery is a fact about where you're
   // standing, resolved server-side in character/page.js. `farmBlocked` is
@@ -240,7 +249,6 @@ export default function RequestActionsProvider({
   isThanati = false,
   isThanatiLeader = false,
   isCerberon = false,
-  canTax = false,
   canWarrant = false,
   atHideout = false,
   hideoutRooms = [],
@@ -334,7 +342,6 @@ export default function RequestActionsProvider({
     carry,
     farmMaxCrops,
     transferParties,
-    transferSilo,
     lootTargets,
     consumeTargets,
     bindTargets,
@@ -497,6 +504,8 @@ export default function RequestActionsProvider({
       gateReason: {
         examine: examineBlocked,
         extract: extractBlocked,
+        refine: refineBlocked,
+        mine: mineBlocked,
         farm: farmBlocked,
         breakin: breakInBlocked,
         kiss: kissBlocked,
@@ -537,6 +546,10 @@ export default function RequestActionsProvider({
       canButcher,
       canSeeExtract,
       canExtract,
+      canSeeRefine,
+      canRefine,
+      canSeeMine,
+      canMine,
       canSeeFarm,
       canFarm,
       canSeeBreakIn,
@@ -555,7 +568,6 @@ export default function RequestActionsProvider({
       isThanati,
       isThanatiLeader,
       isCerberon,
-      canTax,
       canWarrant,
       atHideout,
       canRecover: recoverMissing.length > 0,
@@ -577,6 +589,8 @@ export default function RequestActionsProvider({
       researchHint,
       examineBlocked,
       extractBlocked,
+      refineBlocked,
+      mineBlocked,
       farmBlocked,
       breakInBlocked,
       kissBlocked,
@@ -598,6 +612,10 @@ export default function RequestActionsProvider({
       canButcher,
       canSeeExtract,
       canExtract,
+      canSeeRefine,
+      canRefine,
+      canSeeMine,
+      canMine,
       canSeeFarm,
       canFarm,
       canSeeBreakIn,
@@ -616,7 +634,6 @@ export default function RequestActionsProvider({
       isThanati,
       isThanatiLeader,
       isCerberon,
-      canTax,
       canWarrant,
       atHideout,
     ],

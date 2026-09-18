@@ -29,13 +29,11 @@ const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
-const { readRoomResources, takeRoomResources } = require("./resourceStack");
 // roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
 // the ⬢ and books nothing; this one records the ledger row and the CLAMP
-// shortfall. A rite minting ⬢ onto a floor or a Famine eating a silo is real
-// money appearing and disappearing, and /gm/economy reconciles every account
-// against its ledger sum — unbooked, a Famine reads as every faction silo
-// drifting by up to 100 ⬢.
+// shortfall. A rite minting ⬢ onto a floor is real money appearing out of
+// nowhere, and /gm/economy reconciles every account against its ledger sum —
+// unbooked, it reads as that floor drifting.
 const { addRoomResources } = require("./roomStash");
 const {
   THANATI_SLUG,
@@ -282,7 +280,7 @@ const EFFECTS = {
       equipLayer: source.equipLayer,
       twoHanded: source.twoHanded,
       requiredTagId: source.requiredTagId,
-      laborBonus: source.laborBonus ?? undefined,
+      miningBonus: source.miningBonus ?? undefined,
       inspectVisibility: source.inspectVisibility,
       meleeArmor: source.meleeArmor,
       ballisticArmor: source.ballisticArmor,
@@ -359,41 +357,6 @@ const EFFECTS = {
   async panic({ db, room }) {
     await roomLine(db, room, `${INGREDIENTS_CONSUMED} Name a zone.`);
     return { awaiting: "zone", result: { awaiting: "zone" } };
-  },
-
-  async famine({ db, room }) {
-    const factions = await db.faction.findMany({
-      where: { siloRoomId: { not: null } },
-      select: { name: true, siloRoom: { select: { id: true } } },
-    });
-    const blighted = {};
-    await db.$transaction(async (tx) => {
-      for (const f of factions) {
-        if (!f.siloRoom) continue;
-        // Read inside the transaction now — the balance is a stack row, and
-        // takeRoomResources is the guarded decrement the old `gte` where-clause
-        // was: it takes the whole 100 (or whatever is there) or nothing.
-        const held = await readRoomResources(tx, f.siloRoom.id);
-        const take = Math.min(100, held);
-        if (take <= 0) continue;
-        if (await takeRoomResources(tx, f.siloRoom.id, take)) {
-          blighted[f.name] = take;
-          // Booked by hand rather than through roomStash's clamped writer,
-          // because the strict take above is the guard this wants and the
-          // clamped one would give up that race safety. Same bargain
-          // thanatiActions.js strikes: you bypassed the booking primitive, so
-          // write the row yourself. A Famine eats real money, and unbooked it
-          // reads as every silo drifting on /gm/economy.
-          await record(
-            tx,
-            { from: { kind: "room", id: f.siloRoom.id, name: f.name }, to: BURN, form: "BALANCE", amount: take },
-            { reason: "RITE_COST" },
-          );
-        }
-      }
-    });
-    await roomLine(db, room, INGREDIENTS_CONSUMED);
-    return { result: { blighted } };
   },
 
   async reflection({ db, room }) {

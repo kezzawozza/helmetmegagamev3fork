@@ -10,17 +10,17 @@ function sortLinks(links) {
 
 test("sankeyFromFlows: a known row set produces the expected nodes and links", () => {
   const rows = [
-    { turnNumber: 1, reason: "LABOR", form: "BALANCE", fromKind: "world", toKind: "character", amount: 10, entryCount: 1 },
-    { turnNumber: 1, reason: "LABOR", form: "BALANCE", fromKind: "world", toKind: "character", amount: 5, entryCount: 1 },
+    { turnNumber: 1, reason: "MINING", form: "BALANCE", fromKind: "world", toKind: "character", amount: 10, entryCount: 1 },
+    { turnNumber: 1, reason: "MINING", form: "BALANCE", fromKind: "world", toKind: "character", amount: 5, entryCount: 1 },
     { turnNumber: 1, reason: "HUNGER", form: "BALANCE", fromKind: "character", toKind: "world", amount: 4, entryCount: 1 },
   ];
   const { nodes, links } = sankeyFromFlows(rows);
 
   const nodeIds = nodes.map((n) => n.id).sort();
-  assert.deepEqual(nodeIds, ["bucket:character", "reason:HUNGER", "reason:LABOR"]);
+  assert.deepEqual(nodeIds, ["bucket:character", "reason:HUNGER", "reason:MINING"]);
 
-  const labor = nodes.find((n) => n.id === "reason:LABOR");
-  assert.equal(labor.column, 0);
+  const mining = nodes.find((n) => n.id === "reason:MINING");
+  assert.equal(mining.column, 0);
   const hunger = nodes.find((n) => n.id === "reason:HUNGER");
   assert.equal(hunger.column, 2);
   const bucket = nodes.find((n) => n.id === "bucket:character");
@@ -28,7 +28,7 @@ test("sankeyFromFlows: a known row set produces the expected nodes and links", (
 
   assert.deepEqual(sortLinks(links), [
     { source: "bucket:character", target: "reason:HUNGER", value: 4 },
-    { source: "reason:LABOR", target: "bucket:character", value: 15 },
+    { source: "reason:MINING", target: "bucket:character", value: 15 },
   ]);
 });
 
@@ -42,15 +42,15 @@ test("sankeyFromFlows: TRANSFER and INTERNAL rows are skipped", () => {
 
 test("sankeyFromFlows: zero and negative values are dropped", () => {
   const rows = [
-    { reason: "LABOR", fromKind: "world", toKind: "character", amount: 0 },
-    { reason: "LABOR", fromKind: "world", toKind: "character", amount: -5 },
+    { reason: "MINING", fromKind: "world", toKind: "character", amount: 0 },
+    { reason: "MINING", fromKind: "world", toKind: "character", amount: -5 },
   ];
   assert.deepEqual(sankeyFromFlows(rows), { nodes: [], links: [] });
 });
 
 test("sankeyFromFlows: no link ever references a node that isn't in the node list", () => {
   const rows = [
-    { reason: "LABOR", fromKind: "world", toKind: "character", amount: 10 },
+    { reason: "MINING", fromKind: "world", toKind: "character", amount: 10 },
     { reason: "HUNGER", fromKind: "room", toKind: "world", amount: 3 },
     { reason: "UNATTRIBUTED", fromKind: "world", toKind: "unknownKind", amount: 99 },
   ];

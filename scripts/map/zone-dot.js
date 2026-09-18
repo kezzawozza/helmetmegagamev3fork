@@ -15,8 +15,8 @@
 //   blue      = crosses a zone otherwise, so the hop costs the Move
 //   label     = whatever locked/hidden/announce/keyed the edge
 //
-// Each node's label also carries its `yield:` block (LABORING.md §3); a
-// Location with no row for a kind reads `×`, not a zero.
+// Each node's label also carries its `mining:` coefficient (MINING.md §2);
+// a Location with no row at all carries nothing, because it cannot be dug.
 
 const fs = require("fs");
 const path = require("path");
@@ -25,10 +25,7 @@ const yaml = require("js-yaml");
 const ROOT = path.resolve(__dirname, "..", "..");
 const ZONES_PATH = path.join(ROOT, "docs", "zones.yaml");
 
-// Fixed display order (the LaborKind enum in schema.prisma), so two
-// Locations' yields line up down the page.
-const LABOR_KINDS = ["hunting", "farming", "fishing", "prospecting"];
-const LABOR_EMOJI = { hunting: "🏹", farming: "🌾", fishing: "🎣", prospecting: "⛏️" };
+const MINING_EMOJI = "⛏️";
 
 // Mirrors db/lib/mounts.js#WATER_ZONE_SLUGS as its own small copy — this
 // reads docs/zones.yaml, not the game's runtime state.
@@ -54,17 +51,13 @@ function collectZones(doc) {
 function collectLocations(zoneOrLevel) {
   const locations = new Map();
   for (const [locId, loc] of Object.entries(zoneOrLevel.locations ?? {})) {
-    locations.set(locId, { name: loc.name, yield: loc.yield ?? null, indoors: Boolean(loc.indoors) });
+    locations.set(locId, { name: loc.name, mining: loc.mining ?? null, indoors: Boolean(loc.indoors) });
   }
   return locations;
 }
 
-function yieldLabel(yield_) { // omits a kind with no row rather than printing a 0
-  if (!yield_) return null;
-  const parts = LABOR_KINDS.filter((kind) => yield_[kind] != null).map(
-    (kind) => `${LABOR_EMOJI[kind]} ${yield_[kind]}`,
-  );
-  return parts.length ? parts.join(", ") : null;
+function miningLabel(mining) { // a Location with no coefficient carries no line
+  return mining == null ? null : `${MINING_EMOJI} ${mining}`;
 }
 
 function collectEdges(doc) { // one normalized shape, bare pair or a mapping with `pair:`
@@ -190,7 +183,7 @@ function buildDot(zones, edges) {
     lines.push(`    fillcolor="${ZONE_FILL[zoneId] ?? "white"}";`);
     for (const [locId, loc] of zone.locations) {
       const fullId = `${zoneId}/${locId}`;
-      const yieldLine = yieldLabel(loc.yield);
+      const yieldLine = miningLabel(loc.mining);
       const label = yieldLine ? `${loc.name}\n${yieldLine}` : loc.name;
       const peripheries = loc.indoors ? ", peripheries=2" : ""; // double border, not a color or word
       const nodeLine = `${dotId(fullId)} [label=${JSON.stringify(label)}${peripheries}];`;

@@ -14,8 +14,15 @@ function isMerchantRole(slug) {
   return slug === MERCHANT_ROLE_SLUG;
 }
 
-// Where the shuttle is parked — a LOCATION slug (docs/zones.yaml), one hop east of Customs via
-// `connections:`. Buying/selling both require standing here, same as the Lifeweb requiring the Fortress.
+// The Meister's office, and the room whose key decides who reads /treasury.
+// A ROOM rather than a tag: the terminal is a thing on a desk, so the gate is
+// standing in the Keep and being able to get through that door — whichever key
+// docs/zones.yaml says opens it. See docs/systemdocs/DEPOT.md §0h.
+const MEISTERS_OFFICE_ROOM_SLUG = "keep-meisters-office";
+const KEEP_LOCATION_SLUG = "keep";
+
+// Where the counter is — a LOCATION slug (docs/zones.yaml), one hop east of Customs via
+// `connections:`. Buying and selling both require standing here, same as the Lifeweb requiring the Fortress.
 const DEPOT_LOCATION_SLUG = "depot";
 
 // The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays RESOURCE_EXPORT_PRICE for them back, so the
@@ -41,6 +48,8 @@ function normalizeQuantity(raw) {
 
 module.exports = {
   MERCHANT_LICENSE_SLUG,
+  MEISTERS_OFFICE_ROOM_SLUG,
+  KEEP_LOCATION_SLUG,
   MERCHANT_ROLE_SLUG,
   isMerchantRole,
   DEPOT_LOCATION_SLUG,

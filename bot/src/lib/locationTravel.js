@@ -48,7 +48,7 @@ const CANCEL_ID = "loc:cancel";
 // so the select writes it immediately and Confirm reads it back from the database.
 
 // Loaded with exactly the shape performLocationMove and escortAuthority need — a partial row would
-// silently mis-authorize an escort. ESCORT_SELECT is the wider shape (carries the faction relation).
+// silently mis-authorize an escort. ESCORT_SELECT is the wider shape.
 async function loadMover(discordUserId) {
   return prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },

@@ -225,7 +225,7 @@ export default function MoveDesk({
           </h2>
           <p className="text-xs text-muted">
             {move.roleTitle && <>{move.roleTitle} · </>}
-            {move.locationLabel} · {move.factionName || "No faction"} · {move.resources} ⬢ on hand
+            {move.locationLabel} · {move.resources} ⬢ on hand
           </p>
           {move.standingHere?.length ? (
             <p className="text-xs text-muted">Standing here: {move.standingHere.join(" · ")}</p>
@@ -307,7 +307,6 @@ export default function MoveDesk({
               options={[
                 { value: "ROUTINE", label: "Routine" },
                 { value: "GAMBIT", label: "Gambit" },
-                { value: "LABOR", label: "Labor" },
               ]}
             />
           )}
@@ -342,9 +341,7 @@ export default function MoveDesk({
             ? ""
             : edits.moveKind === "GAMBIT"
               ? "Saving rolls a fresh d6 and applies their current Hunger."
-              : edits.moveKind === "LABOR"
-                ? "Saving clears the roll. A Labor is never arbitrated — its payout came from the range already on it."
-                : "Saving clears the roll — a Routine never carries one."}
+              : "Saving clears the roll — a Routine never carries one."}
         </p>
         {declared && (
           <p className="text-xs text-muted">

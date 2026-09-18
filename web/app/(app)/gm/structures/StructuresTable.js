@@ -31,7 +31,7 @@ const VERBS = {
       confirm: {
         title: "Damage this structure?",
         message:
-          "It reads as damaged on Examine and the Move card, and its labor bonus or kit stops serving until repaired.",
+          "It reads as damaged on Examine and the Move card, and its mining bonus or kit stops serving until repaired.",
         confirmLabel: "Damage",
       },
     },

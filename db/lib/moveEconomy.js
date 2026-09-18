@@ -13,7 +13,7 @@ function lockIsLive(action, now = new Date()) {
   return Boolean(action.lockExpiresAt && action.lockExpiresAt > now);
 }
 
-// A Labor Move's resources land at confirm now, so deleting without reverting would leave ⬢ behind.
+// A Mine's resources land at the press, so deleting without reverting would leave ⬢ behind.
 async function undoTravelClaims(tx, action) {
   const data = travelClaimsToUndo(action);
   if (data) await tx.character.update({ where: { id: action.characterId }, data });

@@ -1,11 +1,10 @@
 // Dependency-free fuzzy person-search, the one shared implementation — typo
-// tolerance plus "found by anything about them" (role, faction, etc), not just name substrings.
+// tolerance plus "found by anything about them" (role, zone, etc), not just name substrings.
 
 // Field weights, highest wins on a multi-field hit (matchedField reports it).
 const FIELD_WEIGHTS = {
   name: 100,
   role: 80,
-  faction: 70,
   username: 60,
   zone: 50,
   tag: 45,
@@ -21,7 +20,6 @@ const FIELD_ALIASES = {
   name: "name",
   role: "role",
   job: "role",
-  faction: "faction",
   zone: "zone",
   where: "zone",
   user: "username",

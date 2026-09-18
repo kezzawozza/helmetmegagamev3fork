@@ -3,7 +3,7 @@
 // Three things here are easy to get wrong, commented where they happen: the turn window runs lock to lock (derived, not read off AuditLog's turnId), tags are filtered to the two categories that actually move, and a concealed character is written with both faces.
 
 const { auditLinesFor, AGGREGATE } = require("./oracleAudit");
-const { moveCutoffAt } = require("./turnClock");
+const { moveCutoffAt, TURN_CLOCK_SELECT } = require("./turnClock");
 const {
   CONCEALMENT_TAG_FIELDS,
   forcedNameFrom,
@@ -37,12 +37,12 @@ async function turnWindow(prisma, turn) {
     (await prisma.turn.findFirst({
       where: { number: { lt: turn.number }, oraclePages: { some: {} } },
       orderBy: { number: "desc" },
-      select: { number: true, startedAt: true },
+      select: { number: true, ...TURN_CLOCK_SELECT },
     })) ??
     (await prisma.turn.findFirst({
       where: { number: { lt: turn.number } },
       orderBy: { number: "desc" },
-      select: { number: true, startedAt: true },
+      select: { number: true, ...TURN_CLOCK_SELECT },
     }));
   return windowBetween(anchor, turn);
 }
@@ -75,7 +75,6 @@ function moveLine(action, name) {
       action.diceModifier ? `die ${action.diceRoll} -> ${modified} (${action.diceModifier})` : `die ${action.diceRoll}`,
     );
   }
-  if (action.laborTier) bits.push(`tier ${action.laborTier}`);
   if (action.resourceDelta != null) bits.push(`${action.resourceDelta} ⬢`);
   if (action.location?.name) bits.push(action.location.name);
   bits.push(action.moveReviewStatus === "SOLVED" ? "solved" : "unsolved");
@@ -130,7 +129,6 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
       zone: { select: { id: true, name: true } },
       location: { select: { name: true } },
       role: { select: { name: true } },
-      faction: { select: { name: true } },
       tags: {
         select: {
           quantity: true,
@@ -154,7 +152,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
   );
 
   const [actions, auditRows, beats, chat, stagedMessages, stagedEffects, spawns, rites] = await Promise.all([
-    // Moves go by the WINDOW, not turnId: the auto-labor pass files a Move for everybody who filed none, at the PUSH — three hours after N's page is written (db/lib/autoLaborPass.js). Stamped turnId N but created after N's page exists, so on the FK it would appear in no page ever. The window catches it in N+1. A player's own Move is unaffected — filed before the lock, so it lands in its own window either way.
+    // Moves go by the WINDOW, not turnId. A Move the GAME files on somebody's behalf at the PUSH is stamped turnId N but created after N's page is written, so on the FK it would appear in no page ever; the window catches it in N+1. A player's own Move is unaffected — filed before the lock, so it lands in its own window either way.
     prisma.action.findMany({
       where: { createdAt: { gte: window.from, lt: window.to } },
       select: {
@@ -167,7 +165,6 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         diceRoll: true,
         diceModifier: true,
         resourceDelta: true,
-        laborTier: true,
         location: { select: { name: true } },
       },
     }),
@@ -295,7 +292,6 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
   const roster = here.map((character) => {
     const bits = [displayName(character)];
     if (character.role?.name) bits.push(character.role.name);
-    if (character.faction?.name) bits.push(character.faction.name);
     if (character.location?.name) bits.push(character.location.name);
     const live = liveTagNames(character);
     if (live.length) bits.push(live.join(", "));

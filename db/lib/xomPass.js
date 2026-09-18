@@ -22,7 +22,6 @@ const { CATATONIC_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { grantTagSlugs, replaceLowerTiers } = require("./tagWrites");
 const { applyDeathToRow } = require("./characterDeath");
-const { ROLE_GROUPS } = require("./roleGroups");
 const {
   OLD_WAYS_XOM_SLUG,
   FECES_SLUG,
@@ -41,10 +40,9 @@ const {
 } = require("./xom");
 const { alivePassCharacters } = require("./aliveCharacters");
 
-// The Church and the Order of the Silver Cross, who "the Inquisition and the
-// clergy" are — no Faction of either name to query, so read off ROLE_GROUPS.
-const CLERGY_FACTION_SLUGS =
-  ROLE_GROUPS.find((group) => group.slug === "clergy")?.factionSlugs ?? [];
+// "The Inquisition and the clergy" is the Clergy bucket of the role picker —
+// the Church and the Order of the Silver Cross both sit in it (ROLE_GROUPS).
+const CLERGY_GROUP_SLUG = "clergy";
 
 // What the holder is told, per outcome — the ONE way a Xom event tells
 // anybody anything. Nothing broadcasts to a zone: the tag is `catalog:
@@ -56,7 +54,7 @@ const NOTICES = {
   grenade: "There is a **Fragmentation Grenade** in your hand.",
   seizure: "The world goes white and comes back wrong. You are having a **Seizure**.",
   rage: "Something opens behind your eyes and does not close. **Rage**.",
-  melee: "Your hands know things they were never taught. **Melee (Legendary)**.",
+  melee: "Your hands know things they were never taught. **Melee V**.",
   lonely: "You blink, and you are somewhere else entirely.",
   shout: "You hear your own voice before you decide to use it.",
 };
@@ -107,7 +105,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
   const conversations = [];
   const shouts = [];
   const outcomes = {};
-  // Firing mass madness twice would double-DM two entire factions; the first wins.
+  // Firing mass madness twice would double-DM every clergy seat in the game; the first wins.
   let massMadnessFired = false;
   let rolled = 0;
 
@@ -185,7 +183,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
               select: { id: true },
             });
             if (!tag) return false;
-            // The ladder's own rule (TAGS.md §3): lower rungs come off, or Melee (Expert) sits under Legendary forever.
+            // The ladder's own rule (TAGS.md §3): lower rungs come off, or Melee IV sits under Melee V forever.
             await replaceLowerTiers(tx, character.id, tag.id);
             const granted = await grantTagSlugs(tx, character.id, [MELEE_LEGENDARY_SLUG], turn.number + 1);
             return granted.some((row) => (row.added ?? 0) > 0);
@@ -297,19 +295,15 @@ async function pickCompany(prisma, characterId, rng) {
   return { id: pick.id, name: pick.name, locationId: pick.locationId, locationName: pick.location?.name ?? null };
 }
 
-// Madness on every living clergy character at once, roller included — the
-// god does not check sides. Two arms because a character's own faction can
-// drift from their seat's. NOT stackable, so a second dose on someone who
-// already has it is a documented no-op leaving expiresTurn alone. Don't "fix" it.
+// Madness on every living clergy character at once, roller included — the god
+// does not check sides. The SEAT is what counts: a character is clergy because
+// of the role they hold, and there is nothing else left to be clergy by. NOT
+// stackable, so a second dose on someone who already has it is a documented
+// no-op leaving expiresTurn alone. Don't "fix" it.
 async function strikeTheClergy(prisma, turn, madnessTag) {
-  if (CLERGY_FACTION_SLUGS.length === 0 || !madnessTag) return [];
+  if (!madnessTag) return [];
   const victims = await alivePassCharacters(prisma, {
-    where: {
-      OR: [
-        { faction: { slug: { in: CLERGY_FACTION_SLUGS } } },
-        { role: { faction: { slug: { in: CLERGY_FACTION_SLUGS } } } },
-      ],
-    },
+    where: { role: { groupSlug: CLERGY_GROUP_SLUG } },
     select: { id: true, name: true, discordUserId: true },
   });
   if (victims.length === 0) return [];
@@ -331,4 +325,4 @@ async function strikeTheClergy(prisma, turn, madnessTag) {
   return struck;
 }
 
-module.exports = { runXomPass, CLERGY_FACTION_SLUGS, NOTICES, GIB_REASON };
+module.exports = { runXomPass, CLERGY_GROUP_SLUG, NOTICES, GIB_REASON };

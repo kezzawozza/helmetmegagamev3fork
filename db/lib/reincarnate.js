@@ -159,14 +159,11 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
         discordMirrored: previous?.discordMirrored ?? false,
         roleId: role.id,
         roleTitle: role.name,
-        factionId: role.factionId,
         // Denormalization contract: every locationId writer also writes zoneId.
         locationId: role.startingLocationId ?? null,
         zoneId: role.startingLocation?.zoneId ?? null,
         // Unspent, on purpose — see the bonus note above.
         tagPoints: budget,
-        isLeader: role.grantsLeader,
-        isTreasurer: role.grantsTreasurer,
       },
     });
 

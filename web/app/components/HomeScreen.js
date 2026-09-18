@@ -27,7 +27,7 @@ export default function HomeScreen({ turnLabel }) {
       {/* A second door, only under LOCAL_MODE: the button above always signs
           in as the superadmin id with no character, which is the wrong shape
           for testing anything a player sees. This one rolls a fresh identity
-          and a stock Commoner to go with it. */}
+          and a stock Migrant to go with it. */}
       {local && (
         <form action={startAsLocalPlayer}>
           <button type="submit" className="btn-secondary">

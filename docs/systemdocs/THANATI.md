@@ -26,8 +26,9 @@ HIDDEN; `db/lib/examine.js#examineReadout` adds one line — "Thanati" or
 (`viewerIsThanati`, passed by `examineActions.js`). Robes and mask are
 ordinary worn equipment and show to anyone.
 
-There is **no Faction row**. Cultists keep their cover faction; the roster is
-Recall Comrades, the hideout is a pointer on `GameState`.
+The cult is a set of tags and nothing else. Cultists keep whatever seat they
+hold in the open; the roster is Recall Comrades, and the hideout is a pointer
+on `GameState`.
 
 ## 2. The tags
 
@@ -192,7 +193,6 @@ words where a room or a player hears anything:
 | Omniscience | 1 skinless-brain, a photograph | every participant is DMed the target's full tag list; print spent |
 | Summoning | 1 saltpeter, 15 ⬢ | every living Thanati not on hallowed ground moves to this Location and is unbound |
 | Panic | 1 heart, 20 ⬢ | room hears "Name a zone."; status **AWAITING**; the next participant line naming a Zone (else a Location) sets everyone there to mood −100, Panicking (`answerPanic`) |
-| Famine | 1 feces, 1 lavish-meal, 10 ⬢ | every faction silo loses up to 100 ⬢ |
 | Reflection | 1 black-robes (floor), 15 ⬢ | `shimmering-robes` on the floor (counts as robes for chanting) |
 | Rage | 1 ravenheart-red | every participant gets `rage`: every mood harm ×0, Desires locked but cruelty |
 | Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target **gibbed** wherever they stand, their Location hears "… explodes into mist!", remains dropped in a random public Room there — there is no body to drop them beside |

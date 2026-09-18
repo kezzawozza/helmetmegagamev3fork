@@ -1,5 +1,5 @@
-# Source of truth for every playable role/faction, synced into
-# Postgres by db/lib/syncRoles.js#syncRolesFromYaml (npm run db:sync-roles).
+# Source of truth for every playable role, synced into Postgres by
+# db/lib/syncRoles.js#syncRolesFromYaml (npm run db:sync-roles).
 #
 # PROSE STYLE — every prose value in this file (`intro`, each `description`
 # bullet) is a `>-` folded block scalar, one physical line per bullet, no
@@ -8,30 +8,36 @@
 # load-bearing: `Role.description` is a String[] and each element is rendered
 # as one Markdown bullet on the role charter, so an element carrying a newline
 # breaks the bullet. Never use `|` on `description` — it hands the sync one
-# string where Prisma wants an array, and the sync throws mid-pass with the
-# factions already written.
+# string where Prisma wants an array, and the sync throws mid-pass.
 # docs/locations.yaml follows the same rule.
 #
-# Factions and roles are maps keyed by slug (`baron:`, not `- slug: baron`);
-# `zones:` stays a sequence, since a zone here carries only a name. See
-# docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
+# Roles are grouped the way the character-creation picker groups them: by
+# SOCIAL POSITION, not by where the seat stands. `groups` and `roles` are maps
+# keyed by slug (`baron:`, not `- slug: baron`). See docs/tags.yaml's header
+# for why, and db/lib/yamlEntries.js.
 #
-# `slug` is the stable match key across syncs, on both factions and roles —
-# same contract as docs/locations.yaml's `id` and docs/tags.yaml's `slug`.
-# Renaming later means changing `name`, NOT `slug`; a changed slug is treated
-# as a brand-new row (old one pruned) rather than a rename.
+# The group slugs and their display names live in db/lib/roleGroups.js, not
+# here — a key in this file that is not one of them fails the sync's up-front
+# validation pass, before anything is written, rather than landing roles under
+# a heading nobody named. `other` is the trailing bucket, labelled "Elsewhere".
 #
-# Threats — Sympathizer, the Demoness, the Judge — are
-# NOT in this file. They were never read by any sync (a GM hands those seats
-# out by hand and they never appear in the player-facing picker), so the whole
-# brief lives in db/lib/threats.js instead (docs/systemdocs/THREATS.md).
+# This file used to nest zones -> factions -> roles. Factions were removed in
+# 10/2026 and the zone layer went with them: every role declares its own
+# `starting_zone` and `starting_location`, so the nesting was saying twice
+# what those two already say.
+#
+# `slug` is the stable match key across syncs. Renaming later means changing
+# `name`, NOT `slug`; a changed slug is treated as a brand-new row (old one
+# pruned) rather than a rename.
+#
+# Threats — Sympathizer, the Demoness, the Judge — are NOT in this file. They
+# were never read by any sync (a GM hands those seats out by hand and they
+# never appear in the player-facing picker), so the whole brief lives in
+# db/lib/threats.js instead (docs/systemdocs/THREATS.md).
 #
 # The Brigands are the exception, and used to be listed here as a threat too:
-# they ARE in this file, with weights, so they sync like any other faction and
-# do appear in the picker. Nothing in db/, web/ or bot/ special-cases them.
-# They sit in the Town zone — their roles start in the Forest, which is a Town
-# location, and under the Silo reach rules (FACTIONS.md) a faction's zone is
-# where its Silo is. Town robbers bank in Town.
+# they ARE in this file, with weights, so they sync like any other seat and do
+# appear in the picker. Nothing in db/, web/ or bot/ special-cases them.
 #
 # `weight` (only present on `multiple: true` roles) is the seat cap,
 # expressed as seats allowed per 100 total players — the picker computes
@@ -48,37 +54,37 @@
 # (Baron, Heir, Bishop, the Brigands, ...) are listed in
 # code — db/lib/roleCapacity.js#PERMANENT_SEAT_ROLE_SLUGS, by slug — not here.
 #
-# `leader: true` / `treasurer: true` set Character.isLeader/isTreasurer at
-# creation. These were once entries in `starting_tags`, but Leader and
-# Treasurer are plain booleans on Character, not Tags (see
-# docs/systemdocs/TAGS.md §6).
+# `whitelist: true` is who may claim this seat at all. Picking a whitelisted
+# role needs the @Leader Whitelist Discord role (db/lib/roleIds.js), always —
+# that used to be a Dev Panel switch and is now simply the rule. It is a
+# HOSTING decision: these are the named seats the game cannot open without, so
+# they are also the ones the assignment roll fills first
+# (db/lib/roleAssignment.js) and the ones the picker marks with a ★.
 #
-# `whitelist: true` is a SEPARATE thing, and used to be the same thing: who
-# may claim this seat at all. Picking a whitelisted role needs the @Leader
-# Whitelist Discord role (db/lib/roleIds.js), always — that used to be a Dev
-# Panel switch and is now simply the rule. It rode on `leader:` until
-# the two were split, which conflated a hosting decision with a faction
-# mechanic — the Baron HAS to lead the Court whether or not his seat is gated,
-# and the Hand and the Arbiter are gated without leading anything. Every
-# `leader: true` role is also whitelisted today, but that is a choice, not a
-# rule: set both, independently.
+# `examine_visible` (optional, defaults TRUE) is whether examining somebody in
+# this seat reads the title off them. Most seats in this game are public
+# offices — the Bishop, the Sheriff and the Innkeeper are known to be what they
+# are — so leaving the key out means visible. It is set to `false` on the four
+# seats that live on not being known: the two Brigands and the two Tribunal
+# seats. A hooded character reads out no role either way, the same as they read
+# out no name.
+#
+# `bank_account` (role-level, optional) opens a fingerprinted account at the
+# Depot for this character at creation: `treasury` for a claim on the coin in
+# the Keep's Vault, `offshore` for money the Company holds off-world (the
+# Merchant's and his Dockers'). Absent means no account — the Black Hills seats
+# arrive without one, and open one at the counter if they ever want one. The
+# account opens EMPTY; a starting purse is physical obols in `starting_tags`.
+# See docs/systemdocs/DEPOT.md §0g.
 #
 # `starting_resources` (role-level) is how many Resources that character
-# starts play with. A faction's Silo is not listed here: its opening balance
-# is computed at seed time from the weights of the faction's roles — see
-# db/lib/factionSilo.js.
+# starts play with.
 #
 # `starting_zone` (role-level) is a Zone **slug** from docs/zones.yaml — it
 # decides where the character starts, and therefore which zone role (and so
 # which Discord category) they get on creation. Must be a presence zone: the
 # Caves group itself is not standable, but its levels (caverns, railroad,
 # aberrant-pits) are.
-#
-# `silo` (faction-level, optional) is a Room **slug** from docs/zones.yaml —
-# the room this faction banks in. CREATE-ONLY, exactly like `parent:` below:
-# it seeds the pointer when the faction row is first written and is never
-# re-applied, because a Leader or Treasurer re-points their own silo in play
-# and a re-sync must not drag it back. See docs/systemdocs/FACTIONS.md.
 #
 # `starting_location` (role-level, optional) is a Location **slug** from
 # docs/zones.yaml — it decides which Location channel (and "Location: {Name}"
@@ -93,1447 +99,1423 @@
 #
 # `extra_starting_points` (optional, defaults 0) is added to
 # GameConfig.startingTagPoints to form that role's point-buy budget.
-zones:
-  - name: Fortress
-    factions:
-      the-court:
-        name: The Court
-        silo: servants-storehouse
-        roles:
-          baron:
-            name: Baron
-            # The seat fixes the holder's gender -> Role.lockedGender.
-            gender: MAN
-            intro: >-
-              You are the Baron of Ravenheart. Lead the people to peace, justice, and prosperity and walk the path of your ancestors.
-            description:
-              - >-
-                You are the ruler. Your job isn't an easy one.
-              - >-
-                Choose a last name — a Dynasty name. Ensure that if you die, at least your heir will continue on.
-              - >-
-                Whether you understand the gravity of the situation or live in perpetual dissociation, you are charged with the survival of one of Earth's last bastions. This is Ravenheart — a garden, a home. Your ancestors strove to protect it. Some will see you as a dictator, some will see you as a fool — it does not matter! This will outlive you, outlive them!
-              - >-
-                Stay happy. An unhappy Baron is an unproductive, dangerous baron.
-              - >-
-                The Council Room has an intercom. Anyone standing at that table can speak into it, and everyone above ground will hear — except the Black Hills, which no speaker was ever strung out to. The yard also has an automated machine gun turret which can be turned on from the Censor's office. It can't tell hostiles or friendlies apart.
-              - >-
-                You have three missions:
-              - >-
-                Be organized. Communicate, force your Hand to work, check in on people.
-              - >-
-                Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away the darkness…
-              - >-
-                Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
-              - >-
-                Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
-              - >-
-                A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
-              - >-
-                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
-            difficulty: hard
-            multiple: false
-            starting_resources: 5
-            starting_zone: fortress
-            starting_location: keep
-            extra_starting_points: 7
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Armory Key
-              - Ravenhearter
-              - Nobility
-              - Cerberus Key
-              - Baron's Key
-              - Elevator Key
-              - Baron's Scepter
-              - Brigandine
-              - Sabre
-              - Literate
-              - Courtier
-              - Obol x25
-              - Post-Christian
-              - Appraisal
-            doc_elements:
-              - godking
-              - squeeze
-              - courtstructure
-              - lifewebbasic
-              - cerberon
-              - armory
-              - ravenhearteconomy
-              - charon
-          baroness:
-            name: Baroness
-            # The seat fixes the holder's gender -> Role.lockedGender.
-            gender: WOMAN
-            intro: >-
-              Assist the Baron as only someone who loves him can. Raise and protect the Heir, and be the Mistress of the Keep.
-            description:
-              - >-
-                Your Baron is a stressed, overburdened, and threatened man. You do not understand everything, but he has a project. Ravenheart is one of humanity's last bastions. Do what you can to protect him — and the Heir.
-            difficulty: easy
-            multiple: false
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: keep
-            starting_tags:
-              - Ravenhearter
-              - Courtier
-              - Nobility
-              - Jewelry
-              - Literate
-              - Baroness's Key
-              - Obol x5
-              - Post-Christian
-            doc_elements:
-              - godking
-              - courtstructure
-              - lifewebbasic
-          heir:
-            name: Heir
-            # The seat fixes the holder's gender -> Role.lockedGender.
-            gender: MAN
-            intro: >-
-              You are your father's son. Are you the exact opposite of him, or his closest ally?
-            description:
-              - >-
-                Life is good as the Heir — but that may change one day. Will you make an effort to reveal the gravity of your situation, or will you dawdle your days away?
-            difficulty: easy
-            multiple: false
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: keep
-            extra_starting_points: 5
-            starting_tags:
-              - Ravenhearter
-              - Courtier
-              - Nobility
-              - Literate
-              - Heir's Key
-              - Obol x5
-              - Post-Christian
-            doc_elements:
-              - godking
-              - courtstructure
-              - lifewebbasic
-          successor:
-            name: Successor
-            # The seat fixes the holder's gender -> Role.lockedGender.
-            gender: WOMAN
-            intro: >-
-              You are the Baron's daughter. Bring some light to the darkness.
-            description: []
-            difficulty: easy
-            multiple: false
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: keep
-            starting_tags:
-              - Ravenhearter
-              - Courtier
-              - Nobility
-              - Jewelry
-              - Literate
-              - Successor's Key
-              - Post-Christian
-            doc_elements:
-              - godking
-              - courtstructure
-              - lifewebbasic
-          hand:
-            name: Hand
-            intro: >-
-              You're the Baron's best friend and perhaps the only man he can truly trust. At his side, shape the course of Ravenheart for the better.
-            description:
-              - >-
-                The Baron works best when he's informed and has a court that's loyal and organized. You are his everloyal spymaster, executor, and voice. Without you, Ravenheart may very well collapse.
-              - >-
-                Whether you understand the gravity of the situation or live in perpetual dissociation, you are charged with the survival of one of Earth's last bastions. This is Ravenheart — a garden, a home.
-              - >-
-                You have three missions:
-              - >-
-                Be organized. Communicate, check in on people. Execute the Baron's vision. In order to do these things, you must win people's loyalty. If the people trust and follow you, there is no danger you cannot overcome.
-              - >-
-                Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away the darkness…
-              - >-
-                Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
-              - >-
-                A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
-              - >-
-                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
-            difficulty: normal
-            multiple: false
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: keep
-            extra_starting_points: 7
-            treasurer: true
-            whitelist: true
-            starting_tags:
-              - Armory Key
-              - Ravenhearter
-              - Courtier
-              - Literate
-              - Hand's Pin
-              - Hand's Key
-              - Elevator Key
-              - Obol x10
-            doc_elements:
-              - godking
-              - squeeze
-              - courtstructure
-              - lifewebbasic
-              - courtier
-              - cerberon
-              - armory
-              - ravenhearteconomy
-              - charon
-          meister:
-            name: Meister
-            intro: >-
-              You are the Keep's brains, but more importantly, its circulatory system. Organize the various systems of Ravenheart and ensure the economy remains in order.
-            description:
-              - >-
-                Make sure the Town sends its taxes — your main contact there is the Headman — and oversee that no one is taking undue amounts of Resources from the Silo. The town's labor feeds Ravenheart but doesn't produce any surplus. The true money to be made comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
-              - >-
-                Your part in fate is not well-loved nor well-understood, but it is essential. You bear the weight of Ravenheart on your shoulders — or that's what it seems like to you.
-              - >-
-                In order to do your job effectively, communication and coordination is key. You can use the Keep's messenger ravens to contact others over long distances, and should consider keeping records of the events of the day, to be referenced down the line.
-              - >-
-                A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
-            difficulty: normal
-            multiple: false
-            starting_resources: 2
-            starting_zone: fortress
-            starting_location: keep
-            treasurer: true
-            whitelist: true
-            starting_tags:
-              - Ravenhearter
-              - Courtier
-              - Frail
-              - Medical (Basic)
-              - Literate
-              - Meister's Key
-              - Bird
-              - Obol x5
-              - Taxman
-            doc_elements:
-              - godking
-              - squeeze
-              - courtstructure
-              - lifewebbasic
-              - courtier
-              - medical
-              - ravenhearteconomy
-          arbiter:
-            name: Arbiter
-            intro: >-
-              Represent the God-King Enoch II's interests, support Ravenheart's defense, and advise the Baron.
-            description:
-              - >-
-                You are not a born citizen of Ravenheart, unlike the rest of these people. Your home and allegiance is back in the Kingdom, and as such, you are here to serve His Majesty God-King Enoch II's interests — primarily by ensuring neither Ravenheart's court nor its peasants get uppity, and secondarily by aiding in the organization of its defenses against both internal and external threats. Whether you happen to personally like the Baron or not is up to you.
-              - >-
-                Unless the God-King orders you otherwise, ensure you're helping the fortress however you can. It is particularly important that you aid in economic matters, such as in the organization of Godard Factory or the town's taxation. Ensure the Meister and the Headman do their jobs.
-              - >-
-                Ask the Baron how you can help him. Your service will surely be appreciated.
-            difficulty: normal
-            multiple: false
-            whitelist: true
-            starting_resources: 2
-            starting_zone: fortress
-            starting_location: keep
-            starting_tags:
-              - Ravenhearter
-              - Literate
-              - Sabre
-              - Major's Insignia
-              - Obol x4
-              - Appraisal
-            doc_elements:
-              - godking
-              - courtstructure
-              - ravenhearteconomy
-          courtier:
-            name: Courtier
-            intro: >-
-              Live life indulgently or honorably — there is not much binding you except your own decisions. What freedom!
-            description:
-              - >-
-                For whatever reason, the Baron keeps you around in his court. Convince the Censor to launch an expedition into the caves, host marvelous feasts, or duel your fellow courtiers for the Successor's affection. It is your day to make of it what you will.
-              - >-
-                As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and desires and work to fulfill them.
-            difficulty: easy
-            multiple: true
-            weight: 6
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: keep
-            starting_tags:
-              - Ravenhearter
-              - Courtier
-              - Literate
-            doc_elements:
-              - godking
-              - courtier
-              - courtstructure
-          minstrel:
-            name: Minstrel
-            intro: >-
-              Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
-            description:
-              - >-
-                Peddle what you smuggle to the courtiers — quietly.
-            difficulty: easy
-            multiple: true
-            weight: 1
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: keep
-            starting_tags:
-              - Ravenhearter
-              - Musician
-              - Instrument
-            doc_elements:
-              - godking
-              - courtier
-              - courtstructure
-          servant:
-            name: Servant
-            intro: >-
-              Keep the fortress running.
-            description:
-              - >-
-                Clean, cook, maintain, and serve.
-              - >-
-                Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
-            difficulty: easy
-            multiple: true
-            weight: 3
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: servant-wing
-            starting_tags:
-              - Ravenhearter
-              - Servant
-              - Cooking (Basic)
-            doc_elements:
-              - godking
-              - courtier
-              - courtstructure
-      cerberon:
-        name: Cerberon
-        silo: garrison-mess-hall
-        parent: The Court
-        roles:
-          censor:
-            name: Censor
-            intro: >-
-              Bravely lead the Cerberi against the enemies of Ravenheart.
-            description:
-              - >-
-                Ravenheart is an ancient bastion of humanity and a beacon of light. It is your solemn duty — at least on paper — to uphold that.
-              - >-
-                You win through leadership, proactivity, communication, and organization. Think carefully. Speak with the Baron. Do not ride into battle unless necessary — be a strategist first, a footsoldier second. Always be a step ahead of the darkness. If you have eyes everywhere, plans, if you know and see, nothing can stop you.
-              - >-
-                The Cerberi are men, but they are also dogs. Remind them that in service of Ravenheart, they should be capable of the savagery their position demands.
-            difficulty: hard
-            multiple: false
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: garrison
-            leader: true
-            whitelist: true
-            treasurer: true
-            starting_tags:
-              - Censor's Helmet
-              - Armory Key
-              - Cerberus Key
-              - Censor's Key
-              - Ravenhearter
-              - Cerberon
-              - Tactician
-              - Melee (Trained)
-              - Melee (Shield Wall)
-              - Ranged (Basic)
-              - Teaching
-              - Disabler
-              - Truncheon
-              - Broadsword
-              - Shield
-              - Radio System (Cerberon)
-              - Radio Bracelet (Cerberon)
-              - Literate
-              - Obol x2
-              - Post-Christian
-            doc_elements:
-              - godking
-              - courtstructure
-              - cerberon
-              - armory
-              - combat
-          incarn:
-            name: Incarn
-            intro: >-
-              You are a warrior monk, the Warden, the unbound spirit of the Keep.
-            description:
-              - >-
-                Guard the Keep, process prisoners, pray to God, and guard the Silver Cross. Your allegiance is to God first and foremost, and Ravenheart second. Fortunately, the Baron is on the side of order more often than not, so your cause tends to be aligned with his. Do not stoop to the madness of passion, Incarn. Be resolute, quiet, and powerful.
-              - >-
-                Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact. It terrifies and burns demonic creatures.
-              - >-
-                Your role is as organizational as it is combat-like — you should assist the Censor in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger — always be a step ahead of the darkness.
-            difficulty: normal
-            multiple: false
-            starting_resources: 2
-            starting_zone: fortress
-            starting_location: garrison
-            treasurer: true
-            starting_tags:
-              - Armory Key
-              - Ravenhearter
-              - Melee (Trained)
-              - Ranged (Basic)
-              - Cerberon
-              - Cerberus Key
-              - Melee (Shield Wall)
-              - Pious
-              - Incarn's Key
-              - Cudgel
-              - Disabler
-              - Mail Coif
-              - Mail Shirt
-              - Post-Christian
-            doc_elements:
-              - courtstructure
-              - cerberon
-              - postchristianity
-              - armory
-              - combat
-          cerberus:
-            name: Cerberus
-            intro: >-
-              Serve the Baron and defend Ravenheart. You are the man of the hour.
-            description:
-              - >-
-                You are a member of the Cerberon, one of the prowling dogs of the Keep. Armed with your disabler, cudgel, and your weapon of choice from the armory, execute the Censor's will.
-              - >-
-                You are loyal to the Censor and the Baron, although extreme circumstances could change that.
-            difficulty: easy
-            multiple: true
-            weight: 6
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: garrison
-            starting_tags:
-              - Cerberus Helmet
-              - Ravenhearter
-              - Cerberon
-              - Cerberus Key
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Melee (Shield Wall)
-              - Disabler
-              - Radio Bracelet (Cerberon)
-              - Truncheon
-              - Mail Coif
-              - Mail Shirt
-              - Post-Christian
-              - Obol x1
-            doc_elements:
-              - courtstructure
-              - cerberon
-              - armory
-              - combat
-          squire:
-            name: Squire
-            intro: >-
-              Train. One day, you might become a knight.
-            description: []
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 1
-            starting_zone: fortress
-            starting_location: garrison
-            starting_tags:
-              - Ravenhearter
-              - Cerberon
-              - Cerberus Key
-              - Cudgel
-              - Simple Helm
-              - Buckler
-              - Mail Coif
-              - Mail Shirt
-              - Post-Christian
-            doc_elements:
-              - courtstructure
-              - cerberon
-              - armory
-              - combat
-  - name: Town
-    factions:
-      the-church:
-        name: The Church
-        silo: cathedral-pantry
-        roles:
-          bishop:
-            name: Bishop
-            intro: >-
-              Keep people's souls on the straight and narrow. Prevent the world from descending into animalness.
-            description:
-              - >-
-                It's not the first time dark days have come to Ravenheart; God will ensure the people survive. Your task is to serve as a shining example of goodness during the transition.
-              - >-
-                At some point, you'll have to decide between peacefulness or the Order of the Silver Cross.
-              - >-
-                You can make Holy Water.
-              - >-
-                Along with the Chaplains, you have the power to take confessions, dispelling psychological drawback tags.
-            difficulty: normal
-            multiple: false
-            starting_resources: 1
-            starting_zone: town
-            starting_location: cathedral
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Cathedral Key
-              - Ravenhearter
-              - Chaplain
-              - Blessing
-              - Teaching
-              - Pious
-              - Literate
-              - Post-Christian
-              - Bishop's Mitre
-              - Vestments
-              - Cross
-            doc_elements:
-              - townstarting
-              - postchristianity
-              - church
-              - ravenhearteconomy
-          chaplain:
-            name: Chaplain
-            intro: >-
-              Care for the needy, lend an ear, and kindle goodness in others.
-            description:
-              - >-
-                It's not the first time dark days have come to Ravenheart; God will ensure the people survive. Your task is to serve as a shining example of goodness during the transition.
-              - >-
-                Do as you wish to help the people, including caring for bums, taking confessions, or spending your time criticizing sinners.
-              - >-
-                Along with the Bishop, you have the power to take confessions, dispelling psychological drawback tags.
-            difficulty: easy
-            multiple: true
-            weight: 3
-            starting_resources: 1
-            starting_zone: town
-            starting_location: cathedral
-            starting_tags:
-              - Cathedral Key
-              - Ravenhearter
-              - Chaplain
-              - Teaching
-              - Pious
-              - Literate
-              - Post-Christian
-              - Vestments
-              - Cross
-            doc_elements:
-              - townstarting
-              - postchristianity
-              - church
-          scholastic:
-            name: Scholastic
-            intro: >-
-              You are a servant of the truth, delving to places no other man would. Contemplate, search for knowledge — occult or otherwise — and write your magnum opus.
-            description:
-              - >-
-                Earth is a speck in the infinite firmament. You have always been humbled — or perhaps energized — by the Truth. Try to understand it. Investigate the world around you, find out its hidden truths, and create your own Great Work. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself _never_ fall asleep.
+groups:
+  # Court
+  court:
+    baron:
+      name: Baron
+      # The seat fixes the holder's gender -> Role.lockedGender.
+      gender: MAN
+      intro: >-
+        You are the Baron of Ravenheart. Lead the people to peace, justice, and prosperity and walk the path of your ancestors.
+      description:
+        - >-
+          You are the ruler. Your job isn't an easy one.
+        - >-
+          Choose a last name — a Dynasty name. Ensure that if you die, at least your heir will continue on.
+        - >-
+          Whether you understand the gravity of the situation or live in perpetual dissociation, you are charged with the survival of one of Earth's last bastions. This is Ravenheart — a garden, a home. Your ancestors strove to protect it. Some will see you as a dictator, some will see you as a fool — it does not matter! This will outlive you, outlive them!
+        - >-
+          Stay happy. An unhappy Baron is an unproductive, dangerous baron.
+        - >-
+          The Council Room has an intercom. Anyone standing at that table can speak into it, and everyone above ground will hear — except the Black Hills, which no speaker was ever strung out to. The yard also has an automated machine gun turret which can be turned on from the Censor's office. It can't tell hostiles or friendlies apart.
+        - >-
+          You have three missions:
+        - >-
+          Be organized. Communicate, force your Hand to work, check in on people.
+        - >-
+          Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away the darkness…
+        - >-
+          Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
+        - >-
+          Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
+        - >-
+          A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+        - >-
+          The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
+      difficulty: hard
+      bank_account: treasury
+      multiple: false
+      starting_resources: 5
+      starting_zone: fortress
+      starting_location: keep
+      extra_starting_points: 7
+      whitelist: true
+      starting_tags:
+        - Armory Key
+        - Ravenhearter
+        - Nobility
+        - Cerberus Key
+        - Baron's Key
+        - Elevator Key
+        - Baron's Scepter
+        - Brigandine
+        - Sabre
+        - Literate
+        - Courtier
+        - Obol x25
+        - Post-Christian
+        - Appraisal
+      doc_elements:
+        - godking
+        - squeeze
+        - courtstructure
+        - lifewebbasic
+        - cerberon
+        - armory
+        - ravenhearteconomy
+        - charon
+    baroness:
+      name: Baroness
+      # The seat fixes the holder's gender -> Role.lockedGender.
+      gender: WOMAN
+      intro: >-
+        Assist the Baron as only someone who loves him can. Raise and protect the Heir, and be the Mistress of the Keep.
+      description:
+        - >-
+          Your Baron is a stressed, overburdened, and threatened man. You do not understand everything, but he has a project. Ravenheart is one of humanity's last bastions. Do what you can to protect him — and the Heir.
+      difficulty: easy
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: keep
+      starting_tags:
+        - Ravenhearter
+        - Courtier
+        - Nobility
+        - Jewelry
+        - Literate
+        - Baroness's Key
+        - Obol x5
+        - Post-Christian
+      doc_elements:
+        - godking
+        - courtstructure
+        - lifewebbasic
+    heir:
+      name: Heir
+      # The seat fixes the holder's gender -> Role.lockedGender.
+      gender: MAN
+      intro: >-
+        You are your father's son. Are you the exact opposite of him, or his closest ally?
+      description:
+        - >-
+          Life is good as the Heir — but that may change one day. Will you make an effort to reveal the gravity of your situation, or will you dawdle your days away?
+      difficulty: easy
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: keep
+      extra_starting_points: 5
+      starting_tags:
+        - Ravenhearter
+        - Courtier
+        - Nobility
+        - Literate
+        - Heir's Key
+        - Obol x5
+        - Post-Christian
+      doc_elements:
+        - godking
+        - courtstructure
+        - lifewebbasic
+    successor:
+      name: Successor
+      # The seat fixes the holder's gender -> Role.lockedGender.
+      gender: WOMAN
+      intro: >-
+        You are the Baron's daughter. Bring some light to the darkness.
+      description: []
+      difficulty: easy
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: keep
+      starting_tags:
+        - Ravenhearter
+        - Courtier
+        - Nobility
+        - Jewelry
+        - Literate
+        - Successor's Key
+        - Post-Christian
+      doc_elements:
+        - godking
+        - courtstructure
+        - lifewebbasic
+    hand:
+      name: Hand
+      intro: >-
+        You're the Baron's best friend and perhaps the only man he can truly trust. At his side, shape the course of Ravenheart for the better.
+      description:
+        - >-
+          The Baron works best when he's informed and has a court that's loyal and organized. You are his everloyal spymaster, executor, and voice. Without you, Ravenheart may very well collapse.
+        - >-
+          Whether you understand the gravity of the situation or live in perpetual dissociation, you are charged with the survival of one of Earth's last bastions. This is Ravenheart — a garden, a home.
+        - >-
+          You have three missions:
+        - >-
+          Be organized. Communicate, check in on people. Execute the Baron's vision. In order to do these things, you must win people's loyalty. If the people trust and follow you, there is no danger you cannot overcome.
+        - >-
+          Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away the darkness…
+        - >-
+          Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
+        - >-
+          A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+        - >-
+          The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: keep
+      extra_starting_points: 7
+      whitelist: true
+      starting_tags:
+        - Armory Key
+        - Ravenhearter
+        - Courtier
+        - Literate
+        - Hand's Pin
+        - Hand's Key
+        - Elevator Key
+        - Obol x10
+      doc_elements:
+        - godking
+        - squeeze
+        - courtstructure
+        - lifewebbasic
+        - courtier
+        - cerberon
+        - armory
+        - ravenhearteconomy
+        - charon
+    meister:
+      name: Meister
+      intro: >-
+        You are the Keep's brains, but more importantly, its circulatory system. Organize the various systems of Ravenheart and ensure the economy remains in order.
+      description:
+        - >-
+          Make sure the Town sends its taxes — your main contact there is the Headman — and oversee that no one is taking undue amounts of Resources out of the Keep's stores. The town's labor feeds Ravenheart but doesn't produce any surplus. The true money to be made comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
+        - >-
+          Your terminal lists every account in Ravenheart and the coin in the Vault standing behind them, and it sets the sell tax — a cut of every sale at the Depot, taken before the seller is paid, paid into the Vault. Set it too high and people stop selling; set it too low and the Vault empties and nobody can draw their own money out.
+        - >-
+          Your part in fate is not well-loved nor well-understood, but it is essential. You bear the weight of Ravenheart on your shoulders — or that's what it seems like to you.
+        - >-
+          In order to do your job effectively, communication and coordination is key. You can use the Keep's messenger ravens to contact others over long distances, and should consider keeping records of the events of the day, to be referenced down the line.
+        - >-
+          A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 2
+      starting_zone: fortress
+      starting_location: keep
+      whitelist: true
+      starting_tags:
+        - Ravenhearter
+        - Courtier
+        - Frail
+        - Medical I
+        - Literate
+        - Meister's Key
+        - Bird
+        - Obol x5
+      doc_elements:
+        - godking
+        - squeeze
+        - courtstructure
+        - lifewebbasic
+        - courtier
+        - medical
+        - ravenhearteconomy
+    arbiter:
+      name: Arbiter
+      intro: >-
+        Represent the God-King Enoch II's interests, support Ravenheart's defense, and advise the Baron.
+      description:
+        - >-
+          You are not a born citizen of Ravenheart, unlike the rest of these people. Your home and allegiance is back in the Kingdom, and as such, you are here to serve His Majesty God-King Enoch II's interests — primarily by ensuring neither Ravenheart's court nor its peasants get uppity, and secondarily by aiding in the organization of its defenses against both internal and external threats. Whether you happen to personally like the Baron or not is up to you.
+        - >-
+          Unless the God-King orders you otherwise, ensure you're helping the fortress however you can. It is particularly important that you aid in economic matters, such as in the organization of Godard Factory or the town's taxation. Ensure the Meister and the Headman do their jobs.
+        - >-
+          Ask the Baron how you can help him. Your service will surely be appreciated.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      whitelist: true
+      starting_resources: 2
+      starting_zone: fortress
+      starting_location: keep
+      starting_tags:
+        - Ravenhearter
+        - Literate
+        - Sabre
+        - Major's Insignia
+        - Obol x4
+        - Appraisal
+      doc_elements:
+        - godking
+        - courtstructure
+        - ravenhearteconomy
+    courtier:
+      name: Courtier
+      intro: >-
+        Live life indulgently or honorably — there is not much binding you except your own decisions. What freedom!
+      description:
+        - >-
+          For whatever reason, the Baron keeps you around in his court. Convince the Censor to launch an expedition into the caves, host marvelous feasts, or duel your fellow courtiers for the Successor's affection. It is your day to make of it what you will.
+        - >-
+          As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and desires and work to fulfill them.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 6
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: keep
+      starting_tags:
+        - Ravenhearter
+        - Courtier
+        - Literate
+      doc_elements:
+        - godking
+        - courtier
+        - courtstructure
+    minstrel:
+      name: Minstrel
+      intro: >-
+        Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
+      description:
+        - >-
+          Peddle what you smuggle to the courtiers — quietly.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 1
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: keep
+      starting_tags:
+        - Ravenhearter
+        - Musician
+        - Instrument
+      doc_elements:
+        - godking
+        - courtier
+        - courtstructure
+    servant:
+      name: Servant
+      intro: >-
+        Keep the fortress running.
+      description:
+        - >-
+          Clean, cook, maintain, and serve.
+        - >-
+          Take Cooking II if you want to run the kitchens properly as the Chef.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 3
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: servant-wing
+      starting_tags:
+        - Ravenhearter
+        - Servant
+        - Cooking I
+      doc_elements:
+        - godking
+        - courtier
+        - courtstructure
 
-                You can Research held items in the Cathedral, uncovering lost or secret crafting recipes.
-            difficulty: normal
-            multiple: true
-            weight: 1
-            starting_resources: 1
-            starting_zone: town
-            starting_location: cathedral
-            starting_tags:
-              - Research
-              - Cathedral Key
-              - Ravenhearter
-              - Literate
-              - Post-Christian
-            doc_elements:
-              - townstarting
-              - postchristianity
-              - church
-      the-sanctuary:
-        name: The Sanctuary
-        silo: sanctuary-supply-storage
-        roles:
-          esculap:
-            name: Esculap
-            intro: >-
-              Lead the Sanctuary. Don't accrue debt. Treat only the rich and the noble. Develop medicines, put bodies back together, or pursue the good of science. Be the Eye in the Storm — or lose yourself to curiosity.
-            description:
-              - >-
-                Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
-              - >-
-                How you view your task — whether you're a savior or a businessman — is up to you. However, medicine is costly, so consider following tradition and only treating those with coin (or those with noble blood). It wouldn't do for the Sanctuary to rack up high debts just to save some peasants. The Sanctuary operates independently. It is your sole charge, and no one can give you orders (well, they can, but it would be counterproductive and unprecedented). However, it is protected by the Baron.
-              - >-
-                With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment.
-              - >-
-                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
-              - >-
-                You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
-            difficulty: normal
-            multiple: false
-            starting_resources: 26
-            starting_zone: town
-            starting_location: sanctuary
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Sanctuary Key
-              - Ravenhearter
-              - Medical (Expert)
-              - Brewing (Expert)
-              - Literate
-              - Esculap's Vest
-              - Obol x10
-            doc_elements:
-              - townstarting
-              - medical
-          serpent:
-            name: Serpent
-            intro: >-
-              Cure illnesses, perform surgeries, and brew potions, and keep people in this world — where they're needed.
-            description:
-              - >-
-                Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
-              - >-
-                How you view your task — whether you're a savior or a businessman — is up to you. However, medicine is costly, so consider following tradition and only treating those with coin (or those with noble blood). It wouldn't do for the Sanctuary to rack up high debts just to save some peasants. The Sanctuary operates independently. However, it is protected by the Baron.
-              - >-
-                With science, the sky's the limit. You can brew medicines and potions, and even experiment for the good of science.
-              - >-
-                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
-              - >-
-                You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
-            difficulty: normal
-            multiple: true
-            weight: 4
-            starting_resources: 8
-            starting_zone: town
-            starting_location: sanctuary
-            starting_tags:
-              - Sanctuary Key
-              - Ravenhearter
-              - Medical (Skilled)
-              - Brewing (Skilled)
-              - Literate
-            doc_elements:
-              - townstarting
-              - medical
-      order-of-the-silver-cross:
-        name: Order of the Silver Cross
-        silo: cathedral-order-chambers
-        parent: The Church
-        roles:
-          inquisitor:
-            name: Inquisitor
-            intro: >-
-              Uphold your everlasting duty to expunge the barony's corruption.
-            description:
-              - >-
-                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
-              - >-
-                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
-              - >-
-                Get the Bishop on your side. Deploy the Preacher wisely to radicalize and convert people to fundamentalism. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
-              - >-
-                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
-            difficulty: hard
-            multiple: false
-            starting_resources: 1
-            starting_zone: town
-            starting_location: cathedral
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Order Key
-              - Cathedral Key
-              - Ravenhearter
-              - Pious
-              - Melee (Basic)
-              - War Hammer
-              - Silver Knife
-              - Shield
-              - Mail Shirt
-              - Post-Christian
-              - Inquisitor's Longcoat
-              - Fundamentalist
-              - Torturer
-              - Literate
-            doc_elements:
-              - townstarting
-              - postchristianity
-              - church
-          practicus:
-            name: Practicus
-            intro: >-
-              Serve the Inquisitor. Radicalize the Town, the Church, and possibly even the Court.
-            description:
-              - >-
-                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
-              - >-
-                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
-              - >-
-                Get the Bishop on your side. Follow the Inquisitor's orders. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
-              - >-
-                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 1
-            starting_zone: town
-            starting_location: cathedral
-            starting_tags:
-              - Order Key
-              - Ravenhearter
-              - Pious
-              - Melee (Basic)
-              - Mail Shirt
-              - Truncheon
-              - Post-Christian
-              - Practicii's Robes
-              - Gas Mask
-              - Fundamentalist
-              - Torturer
-            doc_elements:
-              - townstarting
-              - postchristianity
-              - church
-          preacher:
-            name: Preacher
-            intro: >-
-              You are the Order's face. Speak in the Town Square for all to hear.
-            description:
-              - >-
-                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
-              - >-
-                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
-              - >-
-                Get the Bishop on your side. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
-              - >-
-                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
-            difficulty: easy
-            multiple: true
-            weight: 1
-            starting_resources: 1
-            starting_zone: town
-            starting_location: cathedral
-            starting_tags:
-              - Order Key
-              - Ravenhearter
-              - Pious
-              - Post-Christian
-              - Fundamentalist
-            doc_elements:
-              - townstarting
-              - postchristianity
-              - church
-      the-town:
-        name: The Town
-        silo: square-warehouse
-        roles:
-          headman:
-            name: Headman
-            intro: >-
-              Lead the Town. Ensure it works and pays its taxes.
-            description:
-              - >-
-                On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
-              - >-
-                Your main job is to tax people. You are beholden to the Meister, the Baron's taxperson, and things have gotten nasty in the past when the tithe didn't meet expectations. If the Silo's not full next time he comes, it won't be a pretty day. You also ought to pay tithe to the Church, for all they do for the town, and pay the Sheriff, for their work.
-            difficulty: hard
-            multiple: false
-            starting_resources: 1
-            starting_zone: town
-            starting_location: square
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Ravenhearter
-              - Insightful
-              - Old
-              - Laboring (Skilled)
-              - Laboring (Farming)
-              - Literate
-              - Headman's Cap
-              - Sewer Key
-              - Headman's Key
-              - Taxman
-            doc_elements:
-              - townstarting
-              - farming
-              - ravenhearteconomy
-          sheriff:
-            name: Sheriff
-            intro: >-
-              Keep the peace in the Town, six-shooter at your hip.
-            description:
-              - >-
-                On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Sheriff!
-              - >-
-                You have a trusty .45 six-shooter, a reject from the Fortress's armory.
-            difficulty: normal
-            multiple: true
-            weight: 1
-            starting_resources: 1
-            starting_zone: town
-            starting_location: square
-            starting_tags:
-              - Ravenhearter
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Neoclassic R&W10
-              - Cudgel
-              - Sheriff's Badge
-            doc_elements:
-              - townstarting
-              - combat
-          metalsmith:
-            name: Metalsmith
-            intro: >-
-              Forge anything from basic tools to siege implements and legendary weapons.
-            description:
-              - >-
-                With smithing, you are only limited by your Resources and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures…
-              - >-
-                You're not on the Headman's payroll, so it's important you find clients so that you can feed yourself.
-              - >-
-                The theory is important to keep in mind. Axes are good at breaking shields; blunt weapons harm people even in full armor; swords excel in one-to-one combat.
-              - >-
-                Simple tools and weapons are cheap and quick; a moderate or high-quality piece — a proper sword, a breastplate — costs more of both, and something truly exceptional costs more still. Check the smithing price list for exact numbers.
-              - >-
-                You can also make Unique Tags — name and describe them yourself. You'll have to roll to see what the quality ends up being.
-            difficulty: normal
-            multiple: true
-            weight: 2
-            starting_resources: 20
-            starting_zone: town
-            starting_location: square
-            starting_tags:
-              - Ravenhearter
-              - Smithing
-              - Smithy Key
-            doc_elements:
-              - townstarting
-              - smithing
-              - combat
-              - independent
-          commoner:
-            name: Commoner
-            intro: >-
-              You're a commoner. Make a living during the day, live your life at night.
-            description:
-              - >-
-                There are many commoners, but each have their own lives, trades, and secrets.
-              - >-
-                Choose a Commoner Kit. You can be a farmer, a fisherman, a hunter, or ply your own trade. Fishermen start with a boat and hunters with bows, but farmers make by far the most production.
-              - >-
-                Different locations have different yields. The only place to farm in Ravenheart is in the Farms, a small location south of the town. To hunt, consider going to the Black Hills; to fish, go to the rivers around town or to the Marshes.
-              - >-
-                As a commoner, you have to pay taxes to the headman. Typically, the taxation rate leaves the farmers with almost no surplus.
-              - >-
-                If you fail to pay your taxes, you will likely face a brutal death. Even massed together, commoners are incapable of revolting against the Fortress. In any case, taxation is not the greatest threat: it is the evil that hides in the shadows of Ravenheart. Proper laboring supplies the Cerberon with the necessary resources to protect the lands.
-            difficulty: easy
-            multiple: true
-            weight: unlimited
-            starting_resources: 1
-            starting_zone: town
-            starting_location: square
-            starting_tags:
-              - Ravenhearter
-              - Laboring (Skilled)
-            doc_elements:
-              - townstarting
-              - production
-              - independent
-          mortus:
-            name: Mortus
-            intro: >-
-              Bring spirits to peace and feed the Lifeweb.
-            description:
-              - >-
-                You have two jobs, both of them sacred: to feed the Lifeweb and to bury people, bringing their souls to peace.
-              - >-
-                The Mortii take a lifelong vow dedicating themselves to powering the Lifeweb. They are often exiles, outcasts, or infirms. Why did you take the vow?
-              - >-
-                The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time — or you can kidnap people and feed them manually. Dead bodies cannot be fed to the Lifeweb. Dead bodies can, however, be buried to bring the person's soul to peace (as a Routine Move).
-              - >-
-                Any crimes you commit in service of your vow are not crimes.
-              - >-
-                You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain themselves, but if dead people are scarce, you can ask the Headman for some food.
-            difficulty: easy
-            multiple: true
-            weight: 3
-            starting_resources: 1
-            starting_zone: town
-            starting_location: underquarter
-            starting_tags:
-              - Ravenhearter
-              - Mortus
-              - Mortus Key
-              - Mortus Rags
-              - Melee (Basic)
-              - Cudgel
-            doc_elements:
-              - townstarting
-              - lifeweb
-              - respawning
-          bum:
-            name: Bum
-            intro: >-
-              You live in a shell and sleep with the dogs, but you understand life (or think you do).
-            description:
-              - >-
-                Beg for food and coin.
-            difficulty: easy
-            multiple: true
-            weight: 4
-            starting_resources: 1
-            starting_zone: town
-            starting_location: underquarter
-            extra_starting_points: -3
-            starting_tags:
-              - Ravenhearter
-              - Unhygienic
-              - Ugly
-            doc_elements:
-              - townstarting
-          pusher:
-            name: Pusher
-            intro: >-
-              Sell drugs, run the gambling den, peddle to people's worldly desires. Hire a few bums to be your goons.
-            description:
-              - >-
-                Sell drugs. The Abandoned Theater in the Underquarter is yours; run a gambling den.
-              - >-
-                You start with an assortment of drugs and can make more.
-            difficulty: normal
-            multiple: false
-            starting_resources: 8
-            starting_zone: town
-            starting_location: underquarter
-            starting_tags:
-              - Ravenhearter
-              - Brewing (Skilled)
-              - Bliss
-              - Poppy
-              - Advanced Poppy
-              - Distilled Coca
-              - Alcohol
-              - Pusher's Key
-            doc_elements:
-              - townstarting
-              - alcoholdrugs
-              - independent
-      the-inn:
-        name: The Inn
-        silo: inn-cellar
-        parent: The Town
-        roles:
-          innkeeper:
-            name: Innkeeper
-            intro: >-
-              Name and run the inn: set prices, hire and fire staff, and run an actual, living business.
-            description:
-              - >-
-                The inn is a game of its own. It's up to you to figure out how to make a living out of it. For one thing, you can consider asking the Merchant for a loan.
-              - >-
-                Cook fine meals, brew alcohol, hire bards and pretty ladies — keep the Customer coming back, yes, but be creative. Running an information network or turning the Inn into a place for people to find jobs are possible ways you can take advantage of owning Ravenheart's most popular enterprise.
-              - >-
-                You are responsible for paying your staff. They have to eat.
-            difficulty: normal
-            multiple: false
-            starting_resources: 9
-            starting_zone: town
-            starting_location: old-cock-inn
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Inn Key x3
-              - Room A Key x2
-              - Room B Key x2
-              - Room C Key x2
-              - Ravenhearter
-              - Cooking (Basic)
-              - Brewing (Basic)
-              - Appraisal
-            doc_elements:
-              - townstarting
-              - alcoholdrugs
-              - inn
-          inn-staff:
-            name: Inn Staff
-            intro: >-
-              Work the floor, the kitchen, or the cellar — whatever the Inn needs.
-            description:
-              - >-
-                Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)), wait tables, or just keep the room talking — pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 1
-            starting_zone: town
-            starting_location: old-cock-inn
-            starting_tags:
-              - Inn Key
-              - Ravenhearter
-              - Cooking (Basic)
-            doc_elements:
-              - townstarting
-              - alcoholdrugs
-              - inn
-              - independent
-  - name: Caves
-    factions:
-      the-company:
-        name: The Company
-        silo: depot-cargo-bay
-        roles:
-          merchant:
-            name: Merchant
-            intro: >-
-              Make your fortune buying and selling Tags.
-            description:
-              - >-
-                Ravenheart's poor souls are a great source of business, but it's a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
-              - >-
-                Your License lets you call down a shuttle. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
-              - >-
-                You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
-              - >-
-                The Company will advance you up to 75 ¢ against the business. Your licence will be revoked if you fail to pay it.
-              - >-
-                You may issue loans, lending at high rates and calling on your Dockers to collect.
-              - >-
-                Taking the shuttle instead of the Railroad like a normal migrant costs 30 ⬢. And you have to have your license.
-            difficulty: hard
-            multiple: false
-            starting_resources: 10
-            starting_zone: caves
-            starting_location: depot
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Cart
-              - Literate
-              - Merchant's Garb
-              - Merchant's License
-              - Depot Keycard
-              - Silencer
-              - Obol x20
-              - Nobility
-              - Appraisal
-            doc_elements:
-              - godking
-              - squeeze
-              - townstarting
-          docker:
-            name: Docker
-            intro: >-
-              Serve the Merchant and get drunk during the night.
-            description:
-              - >-
-                Maybe they'll let you get a ride on their spaceship if things ever get bad around here.
-              - >-
-                You are the legs of the Merchant's business. The Depot is at the bottom of the Caves and their customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe them. That is also you.
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 1
-            starting_zone: caves
-            starting_location: depot
-            starting_tags:
-              - Depot Keycard
-              - Appraisal
-            doc_elements:
-              - townstarting
-              - merchant
-      unaffiliated:
-        name: Unaffiliated
-        roles:
-          migrant:
-            name: Migrant
-            intro: >-
-              Make it to the fortress.
-            description: []
-            difficulty: easy
-            multiple: true
-            weight: unlimited
-            starting_resources: 1
-            starting_zone: caves
-            starting_location: caves-abandoned-camp
-            extra_starting_points: 6
-            starting_tags: [Pale]
-            doc_elements: [caving]
-          mercenary:
-            name: Mercenary
-            intro: >-
-              Sell your sword or delve into the caves for pay.
-            description:
-              - >-
-                You're not under anyone's payroll. It's therefore your responsibility to provide for yourself. There's a few ways to do that: selling your sword to someone; or going into the caves, retrieving items of value, and selling it to the Merchant or the Sanctuary. Trust me, the Sanctuary loves cave fungus!
-              - >-
-                If you'd prefer the virtuous angle, you can be a hedge knight instead.
-            difficulty: normal
-            multiple: true
-            weight: 3
-            starting_resources: 4
-            starting_zone: caves
-            starting_location: customs
-            starting_tags:
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Butcher
-              - Dagger
-              - Battle Axe
-              - Mail Shirt
-              - Buckler
-              - Mail Coif
-              - Shortbow
-              - Rough Camper
-              - Spelunker
-            doc_elements: [caving]
-  - name: Marshes
-    factions:
-      the-factory:
-        name: The Factory
-        # Godard is one of the Baron's cadet houses, which is the whole
-        # reason the money goes up to the Keep rather than staying here.
-        parent: The Court
-        silo: factory-logistics-room
-        roles:
-          banneret:
-            name: Banneret
-            intro: >-
-              As the Baron's cousin, begrudgingly serve Ravenheart by organizing the production of the valuable Squeeze and selling it to the merchant.
-            description:
-              - >-
-                You are one of Ravenheart's cadet houses, carrying only a fraction of the prestige and responsibility.
-              - >-
-                You have been charged with Godard Factory. While usually looked down upon as a piece of marsh scum, it is very valuable: Squeeze is how Ravenheart obtains obols, functionally funding its warchest.
-              - >-
-                Your whole operation relies on your communication with the merchant and the Keep. It's your job to crate the Squeeze, load it on the cart, and sell it to the merchant — or you can let the Geschef do it. But make sure you're getting a good price. Keep some to pay your employees and give the rest to the Baron, lest the Watch come knocking.
-              - >-
-                Keep your refugees happy with {tag:moonshine}, but also by paying them fair wages. They should make more than commoners — after all, you can afford to pay them. Or just don't pay them and keep them in line.
-              - >-
-                Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
-              - >-
-                There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
-            difficulty: hard
-            multiple: false
-            starting_resources: 4
-            starting_zone: marshes
-            starting_location: factory
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Ravenhearter
-              - Horse
-              - Cart
-              - Nobility
-              - Brigandine
-              - Sabre
-              - Bore Pistol
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Armored Gloves
-              - Factory Key
-              - Banneret's Key
-              - Appraisal
-            doc_elements:
-              - godking
-              - godardfactory
-              - squeeze
-              - ravenhearteconomy
-          geschef:
-            name: Geschef
-            intro: >-
-              Organize operations while the Banneret goes to see the merchant. If the refugees get rowdy, hit them with a stick.
-            description:
-              - >-
-                Your whole operation relies on your communication with the merchant and the Keep.
-              - >-
-                You've survived this operation long enough to become the general manager. A good place to be. You can treat some of the wounds that will surely come and brew the workers Moonshine to keep them happy.
-              - >-
-                Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
-              - >-
-                There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
-            difficulty: normal
-            multiple: false
-            starting_resources: 4
-            starting_zone: marshes
-            starting_location: factory
-            starting_tags:
-              - Ravenhearter
-              - Tough
-              - Old
-              - Big Appetite
-              - Cudgel
-              - Padded Armor
-              - Melee (Basic)
-              - Brewing (Basic)
-              - Medical (Basic)
-              - Cooking (Basic)
-              - Cleaning Powder
-              - Armored Gloves
-              - Factory Key
-              - Banneret's Key
-              - Appraisal
-            doc_elements:
-              - godardfactory
-              - medical
-          refugee:
-            name: Refugee
-            intro: >-
-              Do dangerous work — cutting Godflesh from the marshes — in exchange for good hazard pay and potential social mobility.
-            description:
-              - >-
-                You arrived from the caves. You don't really have a trade or the ability to labor, so your only opportunity to stay alive is through factory work.
-              - >-
-                Cutting Godflesh out is dangerous. However, since it's worthwhile as it is to the merchant, the Banneret should be paying you well. If that's not the case, feel free to do a bit of protesting.
-              - >-
-                But not too much, you know? Your life is worthless here. And an armed revolt? Pffft.
-            difficulty: easy
-            multiple: true
-            weight: 3
-            starting_resources: 2
-            starting_zone: marshes
-            starting_location: factory
-            starting_tags:
-              - Laboring (Basic)
-              - Hatchet
-              - Cleaning Powder
-              - Armored Gloves
-              - Factory Key
-            doc_elements:
-              - godardfactory
-          fisherman:
-            name: Fisherman
-            intro: >-
-              Feed the factory and live a quiet life in the marshes.
-            description:
-              - >-
-                Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It's your job to bring them some food; the Banneret should pay you in obols.
-            difficulty: easy
-            multiple: false
-            starting_resources: 2
-            starting_zone: marshes
-            starting_location: marshes-village
-            starting_tags:
-              - Ravenhearter
-              - Fishing Rod
-              - Fishing Boat
-              - Laboring (Skilled)
-              - Laboring (Fishing)
-              - Fisherman's Key
-              - Rough Camper
-            doc_elements:
-              - godardfactory
+  # Clergy
+  clergy:
+    bishop:
+      name: Bishop
+      intro: >-
+        Keep people's souls on the straight and narrow. Prevent the world from descending into animalness.
+      description:
+        - >-
+          It's not the first time dark days have come to Ravenheart; God will ensure the people survive. Your task is to serve as a shining example of goodness during the transition.
+        - >-
+          At some point, you'll have to decide between peacefulness or the Order of the Silver Cross.
+        - >-
+          You can make Holy Water.
+        - >-
+          Along with the Chaplains, you have the power to take confessions, dispelling psychological drawback tags.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: town
+      starting_location: cathedral
+      whitelist: true
+      starting_tags:
+        - Cathedral Key
+        - Ravenhearter
+        - Chaplain
+        - Blessing
+        - Teaching
+        - Pious
+        - Literate
+        - Post-Christian
+        - Bishop's Mitre
+        - Vestments
+        - Cross
+      doc_elements:
+        - townstarting
+        - postchristianity
+        - church
+        - ravenhearteconomy
+    chaplain:
+      name: Chaplain
+      intro: >-
+        Care for the needy, lend an ear, and kindle goodness in others.
+      description:
+        - >-
+          It's not the first time dark days have come to Ravenheart; God will ensure the people survive. Your task is to serve as a shining example of goodness during the transition.
+        - >-
+          Do as you wish to help the people, including caring for bums, taking confessions, or spending your time criticizing sinners.
+        - >-
+          Along with the Bishop, you have the power to take confessions, dispelling psychological drawback tags.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 3
+      starting_resources: 1
+      starting_zone: town
+      starting_location: cathedral
+      starting_tags:
+        - Cathedral Key
+        - Ravenhearter
+        - Chaplain
+        - Teaching
+        - Pious
+        - Literate
+        - Post-Christian
+        - Vestments
+        - Cross
+      doc_elements:
+        - townstarting
+        - postchristianity
+        - church
+    scholastic:
+      name: Scholastic
+      intro: >-
+        You are a servant of the truth, delving to places no other man would. Contemplate, search for knowledge — occult or otherwise — and write your magnum opus.
+      description:
+        - >-
+          Earth is a speck in the infinite firmament. You have always been humbled — or perhaps energized — by the Truth. Try to understand it. Investigate the world around you, find out its hidden truths, and create your own Great Work. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself _never_ fall asleep.
 
-  - name: Black Hills
-    factions:
-      # THE TRIBUNAL. Not a faction anybody joins: both seats arrive by GM
-      # spawn only (db/lib/threats.js), and both are listed in
-      # SPAWN_ONLY_ROLE_SLUGS so the creation wizard never offers them. They
-      # live under the Black Hills because that is where the shuttle puts them
-      # down — the Fracturing Waterway, the busiest crossing in the zone. They
-      # arrive in the open, on a bridge, where everybody sees them. That is the
-      # point: the Tribunal does not sneak in.
-      #
-      # No `silo:` on purpose: a silo is a faction's shared stash in a room
-      # somebody holds a key to, and the Tribunal has no room here. They carry
-      # what they brought.
-      the-tribunal:
-        name: The Tribunal
-        roles:
-          tribunal-ordinator:
-            name: Tribunal Ordinator
-            intro: >-
-              Serve the God King.
-            description:
-              - >-
-                You are the Tribunal Ordinator, one of the God King's elite special forces soldiers. Your job is to organize your men into Ravenheart and represent His Majesty's supremacy.
-              - >-
-                If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
-              - >-
-                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
-              - >-
-                You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
-            difficulty: hard
-            multiple: true
-            weight: 1
-            starting_resources: 8
-            starting_zone: hills
-            starting_location: hills-waterway
-            starting_tags:
-              - Melee (Skilled)
-              - Ranged (Skilled)
-              - Medical (Skilled)
-              - Melee (Swords)
-              - ML-23
-              - Tribunal Ordinator Helmet
-              - Broadsword
-              - Dagger
-              - Heavy Infantry Armor
-              - Ordinator Insignia
-              - Nuclear Datacard
-              - Fragmentation Grenade
-              - Motorcycle
-              - Supply Kit
-              - Military Autoinjector x2
-              - Relentless
-              - Arthritis
-              - Thick Skull
-              - Strong
-              - Tactician
-              - Cruel
-              - Rough Camper
-              - Outsider
-              - Brave
-              - Literate
-              - Radio (243.000)
-            doc_elements:
-              - godking
-              - ravenhearteconomy
-              - courtstructure
+          You can Research held items in the Cathedral, uncovering lost or secret crafting recipes.
+      difficulty: normal
+      bank_account: treasury
+      multiple: true
+      weight: 1
+      starting_resources: 1
+      starting_zone: town
+      starting_location: cathedral
+      starting_tags:
+        - Research
+        - Cathedral Key
+        - Ravenhearter
+        - Literate
+        - Post-Christian
+      doc_elements:
+        - townstarting
+        - postchristianity
+        - church
+    inquisitor:
+      name: Inquisitor
+      intro: >-
+        Uphold your everlasting duty to expunge the barony's corruption.
+      description:
+        - >-
+          The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
+        - >-
+          Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
+        - >-
+          Get the Bishop on your side. Deploy the Preacher wisely to radicalize and convert people to fundamentalism. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
+        - >-
+          Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
+      difficulty: hard
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: town
+      starting_location: cathedral
+      whitelist: true
+      starting_tags:
+        - Order Key
+        - Cathedral Key
+        - Ravenhearter
+        - Pious
+        - Melee I
+        - War Hammer
+        - Silver Knife
+        - Shield
+        - Mail Shirt
+        - Post-Christian
+        - Inquisitor's Longcoat
+        - Fundamentalist
+        - Torturer
+        - Literate
+      doc_elements:
+        - townstarting
+        - postchristianity
+        - church
+    practicus:
+      name: Practicus
+      intro: >-
+        Serve the Inquisitor. Radicalize the Town, the Church, and possibly even the Court.
+      description:
+        - >-
+          The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
+        - >-
+          Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
+        - >-
+          Get the Bishop on your side. Follow the Inquisitor's orders. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
+        - >-
+          Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 2
+      starting_resources: 1
+      starting_zone: town
+      starting_location: cathedral
+      starting_tags:
+        - Order Key
+        - Ravenhearter
+        - Pious
+        - Melee I
+        - Mail Shirt
+        - Truncheon
+        - Post-Christian
+        - Practicii's Robes
+        - Gas Mask
+        - Fundamentalist
+        - Torturer
+      doc_elements:
+        - townstarting
+        - postchristianity
+        - church
+    preacher:
+      name: Preacher
+      intro: >-
+        You are the Order's face. Speak in the Town Square for all to hear.
+      description:
+        - >-
+          The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
+        - >-
+          Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
+        - >-
+          Get the Bishop on your side. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions. You can torture people from the character panel, forcing them to reveal their secrets.
+        - >-
+          Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 1
+      starting_resources: 1
+      starting_zone: town
+      starting_location: cathedral
+      starting_tags:
+        - Order Key
+        - Ravenhearter
+        - Pious
+        - Post-Christian
+        - Fundamentalist
+      doc_elements:
+        - townstarting
+        - postchristianity
+        - church
 
-          tribune:
-            name: Tribune
-            intro: >-
-              Serve the God King.
-            description:
-              - >-
-                You are a member of the Tribune, the God King's elite special force division. Your job is to represent His Majesty's supremacy.
-              - >-
-                If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
-              - >-
-                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
-              - >-
-                You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
-            difficulty: hard
-            multiple: true
-            weight: unlimited
-            starting_resources: 8
-            starting_zone: hills
-            starting_location: hills-waterway
-            starting_tags:
-              - Melee (Skilled)
-              - Ranged (Skilled)
-              - Medical (Basic)
-              - CTT4&3 Rifle
-              - Bore Pistol
-              - Tribunal Helmet
-              - Trench Knife
-              - Heavy Infantry Armor
-              - C4
-              - Fragmentation Grenade
-              - Motorcycle
-              - Supply Kit
-              - Military Autoinjector x2
-              - Tough
-              - Rough Camper
-              - Outsider
-              - Literate
-              - Radio (243.000)
-            doc_elements:
-              - godking
-              - ravenhearteconomy
-              - courtstructure
+  # Cerberon
+  cerberon:
+    censor:
+      name: Censor
+      intro: >-
+        Bravely lead the Cerberi against the enemies of Ravenheart.
+      description:
+        - >-
+          Ravenheart is an ancient bastion of humanity and a beacon of light. It is your solemn duty — at least on paper — to uphold that.
+        - >-
+          You win through leadership, proactivity, communication, and organization. Think carefully. Speak with the Baron. Do not ride into battle unless necessary — be a strategist first, a footsoldier second. Always be a step ahead of the darkness. If you have eyes everywhere, plans, if you know and see, nothing can stop you.
+        - >-
+          The Cerberi are men, but they are also dogs. Remind them that in service of Ravenheart, they should be capable of the savagery their position demands.
+      difficulty: hard
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: garrison
+      whitelist: true
+      starting_tags:
+        - Censor's Helmet
+        - Armory Key
+        - Cerberus Key
+        - Censor's Key
+        - Ravenhearter
+        - Cerberon
+        - Tactician
+        - Melee II
+        - Melee (Shield Wall)
+        - Ranged I
+        - Teaching
+        - Disabler
+        - Truncheon
+        - Broadsword
+        - Shield
+        - Radio System (Cerberon)
+        - Radio Bracelet (Cerberon)
+        - Literate
+        - Obol x2
+        - Post-Christian
+      doc_elements:
+        - godking
+        - courtstructure
+        - cerberon
+        - armory
+        - combat
+    incarn:
+      name: Incarn
+      intro: >-
+        You are a warrior monk, the Warden, the unbound spirit of the Keep.
+      description:
+        - >-
+          Guard the Keep, process prisoners, pray to God, and guard the Silver Cross. Your allegiance is to God first and foremost, and Ravenheart second. Fortunately, the Baron is on the side of order more often than not, so your cause tends to be aligned with his. Do not stoop to the madness of passion, Incarn. Be resolute, quiet, and powerful.
+        - >-
+          Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact. It terrifies and burns demonic creatures.
+        - >-
+          Your role is as organizational as it is combat-like — you should assist the Censor in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger — always be a step ahead of the darkness.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 2
+      starting_zone: fortress
+      starting_location: garrison
+      starting_tags:
+        - Armory Key
+        - Ravenhearter
+        - Melee II
+        - Ranged I
+        - Cerberon
+        - Cerberus Key
+        - Melee (Shield Wall)
+        - Pious
+        - Incarn's Key
+        - Cudgel
+        - Disabler
+        - Mail Coif
+        - Mail Shirt
+        - Post-Christian
+      doc_elements:
+        - courtstructure
+        - cerberon
+        - postchristianity
+        - armory
+        - combat
+    cerberus:
+      name: Cerberus
+      intro: >-
+        Serve the Baron and defend Ravenheart. You are the man of the hour.
+      description:
+        - >-
+          You are a member of the Cerberon, one of the prowling dogs of the Keep. Armed with your disabler, cudgel, and your weapon of choice from the armory, execute the Censor's will.
+        - >-
+          You are loyal to the Censor and the Baron, although extreme circumstances could change that.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 6
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: garrison
+      starting_tags:
+        - Cerberus Helmet
+        - Ravenhearter
+        - Cerberon
+        - Cerberus Key
+        - Melee I
+        - Ranged I
+        - Melee (Shield Wall)
+        - Disabler
+        - Radio Bracelet (Cerberon)
+        - Truncheon
+        - Mail Coif
+        - Mail Shirt
+        - Post-Christian
+        - Obol x1
+      doc_elements:
+        - courtstructure
+        - cerberon
+        - armory
+        - combat
+    squire:
+      name: Squire
+      intro: >-
+        Train. One day, you might become a knight.
+      description: []
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 2
+      starting_resources: 1
+      starting_zone: fortress
+      starting_location: garrison
+      starting_tags:
+        - Ravenhearter
+        - Cerberon
+        - Cerberus Key
+        - Cudgel
+        - Simple Helm
+        - Buckler
+        - Mail Coif
+        - Mail Shirt
+        - Post-Christian
+      doc_elements:
+        - courtstructure
+        - cerberon
+        - armory
+        - combat
 
-      brigands:
-        name: Brigands
-        silo: grand-ravine-camp
-        roles:
-          brigand-leader:
-            name: Brigand Leader
-            intro: >-
-              You raided a shipment on the way to the Fortress — well done!
-            description:
-              - >-
-                Some call you scum. But what do they know of freedom?
-              - >-
-                The Brigand Leader is given the sacred task of organizing their small band of scrappy men. Keep them in line; earn their loyalty, buy them booze, or bully them into submission. Also, find a place to make your base.
-              - >-
-                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your Resources together and plan your next move.
-              - >-
-                As a Brigand, you can do whatever you want. But here are some goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
-              - >-
-                You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
-              - >-
-                A little hint: some of the Cerberi might take bribes.
-            difficulty: normal
-            multiple: false
-            starting_resources: 3
-            starting_zone: hills
-            starting_location: hills-grand-ravine
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Ravine Camp
-              - Brigand Leader
-              - Brigand
-              - Laboring (Basic)
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Padded Armor
-              - Broadsword
-              - Mail Coif
-              - Buckler
-              - Crossbow
-              - Plebeian Hood
-              - Rough Camper
-              - Outsider
-          brigand:
-            name: Brigand
-            intro: >-
-              You raided a shipment on the way to the Fortress — well done!
-            description:
-              - >-
-                Some call you scum. But what do they know of freedom?
-              - >-
-                You successfully raided a tax caravan. You're rich! But the Cerberon might be looking for you. Put your Resources together and plan your next move.
-              - >-
-                As a Brigand, you can do whatever you want. But there are some things you should probably aim for: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
-              - >-
-                You are probably afraid of direct conflict. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
-              - >-
-                A little hint: some of the Cerberi might take bribes.
-            difficulty: easy
-            multiple: true
-            weight: 3
-            starting_resources: 2
-            starting_zone: hills
-            starting_location: hills-grand-ravine
-            starting_tags:
-              - Ravine Camp
-              - Brigand
-              - Laboring (Basic)
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Dagger
-              - Padded Armor
-              - Gladius
-              - Padded Cap
-              - Buckler
-              - Shortbow
-              - Plebeian Hood
-              - Rough Camper
-              - Outsider
+  # Saviors
+  saviors:
+    esculap:
+      name: Esculap
+      intro: >-
+        Lead the Sanctuary. Don't accrue debt. Treat only the rich and the noble. Develop medicines, put bodies back together, or pursue the good of science. Be the Eye in the Storm — or lose yourself to curiosity.
+      description:
+        - >-
+          Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
+        - >-
+          How you view your task — whether you're a savior or a businessman — is up to you. However, medicine is costly, so consider following tradition and only treating those with coin (or those with noble blood). It wouldn't do for the Sanctuary to rack up high debts just to save some peasants. The Sanctuary operates independently. It is your sole charge, and no one can give you orders (well, they can, but it would be counterproductive and unprecedented). However, it is protected by the Baron.
+        - >-
+          With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment.
+        - >-
+          If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
+        - >-
+          You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 26
+      starting_zone: town
+      starting_location: sanctuary
+      whitelist: true
+      starting_tags:
+        - Sanctuary Key
+        - Ravenhearter
+        - Medical III
+        - Brewing III
+        - Literate
+        - Esculap's Vest
+        - Obol x10
+      doc_elements:
+        - townstarting
+        - medical
+    serpent:
+      name: Serpent
+      intro: >-
+        Cure illnesses, perform surgeries, and brew potions, and keep people in this world — where they're needed.
+      description:
+        - >-
+          Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
+        - >-
+          How you view your task — whether you're a savior or a businessman — is up to you. However, medicine is costly, so consider following tradition and only treating those with coin (or those with noble blood). It wouldn't do for the Sanctuary to rack up high debts just to save some peasants. The Sanctuary operates independently. However, it is protected by the Baron.
+        - >-
+          With science, the sky's the limit. You can brew medicines and potions, and even experiment for the good of science.
+        - >-
+          If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
+        - >-
+          You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
+      difficulty: normal
+      bank_account: treasury
+      multiple: true
+      weight: 4
+      starting_resources: 8
+      starting_zone: town
+      starting_location: sanctuary
+      starting_tags:
+        - Sanctuary Key
+        - Ravenhearter
+        - Medical II
+        - Brewing II
+        - Literate
+      doc_elements:
+        - townstarting
+        - medical
+
+  # Business
+  business:
+    merchant:
+      name: Merchant
+      intro: >-
+        Make your fortune buying and selling Tags.
+      description:
+        - >-
+          Ravenheart's poor souls are a great source of business, but it's a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
+        - >-
+          Your License opens the whole manifest — everything the station stocks, sealed goods included — where everyone else gets a short shelf. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
+        - >-
+          You deal in obols (¢), not ⬢. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them on: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
+        - >-
+          The Company will advance you up to 75 ¢ against the business. Your licence will be revoked if you fail to pay it.
+        - >-
+          You may issue loans, lending at high rates and calling on your Dockers to collect.
+        - >-
+          Your account is held off-world, so it is not a claim on the Keep's Vault the way everyone else's is. Nobody can freeze it and nobody can rob it.
+      difficulty: hard
+      bank_account: offshore
+      multiple: false
+      starting_resources: 10
+      starting_zone: caves
+      starting_location: depot
+      whitelist: true
+      starting_tags:
+        - Cart
+        - Literate
+        - Merchant's Garb
+        - Merchant's License
+        - Depot Keycard
+        - Silencer
+        - Obol x20
+        - Nobility
+        - Appraisal
+      doc_elements:
+        - godking
+        - squeeze
+        - townstarting
+        - merchant
+    docker:
+      name: Docker
+      intro: >-
+        Serve the Merchant and get drunk during the night.
+      description:
+        - >-
+          Maybe they'll let you get a ride on their spaceship if things ever get bad around here.
+        - >-
+          You are the legs of the Merchant's business. The Depot is at the bottom of the Caves and their customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe them. That is also you.
+        - >-
+          Your keycard cracks a sealed crate, and lets you sell into the Merchant's books instead of your own.
+      difficulty: easy
+      bank_account: offshore
+      multiple: true
+      weight: 2
+      starting_resources: 1
+      starting_zone: caves
+      starting_location: depot
+      starting_tags:
+        - Depot Keycard
+        - Appraisal
+      doc_elements:
+        - townstarting
+        - merchant
+    banneret:
+      name: Banneret
+      intro: >-
+        As the Baron's cousin, begrudgingly serve Ravenheart by organizing the production of the valuable Squeeze and selling it to the merchant.
+      description:
+        - >-
+          You are one of Ravenheart's cadet houses, carrying only a fraction of the prestige and responsibility.
+        - >-
+          You have been charged with Godard Factory. While usually looked down upon as a piece of marsh scum, it is very valuable: Squeeze is how Ravenheart obtains obols, functionally funding its warchest.
+        - >-
+          Your whole operation relies on your communication with the merchant and the Keep. It's your job to crate the Squeeze, load it on the cart, and sell it to the merchant — or you can let the Geschef do it. But make sure you're getting a good price. Keep some to pay your employees and give the rest to the Baron, lest the Watch come knocking.
+        - >-
+          Keep your refugees happy with {tag:moonshine}, but also by paying them fair wages. They should make more than commoners — after all, you can afford to pay them. Or just don't pay them and keep them in line.
+        - >-
+          Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
+        - >-
+          There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
+      difficulty: hard
+      bank_account: treasury
+      multiple: false
+      starting_resources: 4
+      starting_zone: marshes
+      starting_location: factory
+      whitelist: true
+      starting_tags:
+        - Ravenhearter
+        - Horse
+        - Cart
+        - Nobility
+        - Brigandine
+        - Sabre
+        - Bore Pistol
+        - Melee I
+        - Ranged I
+        - Armored Gloves
+        - Factory Key
+        - Banneret's Key
+        - Appraisal
+      doc_elements:
+        - godking
+        - godardfactory
+        - squeeze
+        - ravenhearteconomy
+    geschef:
+      name: Geschef
+      intro: >-
+        Organize operations while the Banneret goes to see the merchant. If the refugees get rowdy, hit them with a stick.
+      description:
+        - >-
+          Your whole operation relies on your communication with the merchant and the Keep.
+        - >-
+          You've survived this operation long enough to become the general manager. A good place to be. You can treat some of the wounds that will surely come and brew the workers Moonshine to keep them happy.
+        - >-
+          Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
+        - >-
+          There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 4
+      starting_zone: marshes
+      starting_location: factory
+      starting_tags:
+        - Ravenhearter
+        - Tough
+        - Old
+        - Big Appetite
+        - Cudgel
+        - Padded Armor
+        - Melee I
+        - Brewing I
+        - Medical I
+        - Cooking I
+        - Cleaning Powder
+        - Armored Gloves
+        - Factory Key
+        - Banneret's Key
+        - Appraisal
+      doc_elements:
+        - godardfactory
+        - medical
+    refugee:
+      name: Refugee
+      intro: >-
+        Do dangerous work — cutting Godflesh from the marshes — in exchange for good hazard pay and potential social mobility.
+      description:
+        - >-
+          You arrived from the caves. You don't really have a trade or the ability to labor, so your only opportunity to stay alive is through factory work.
+        - >-
+          Cutting Godflesh out is dangerous. However, since it's worthwhile as it is to the merchant, the Banneret should be paying you well. If that's not the case, feel free to do a bit of protesting.
+        - >-
+          But not too much, you know? Your life is worthless here. And an armed revolt? Pffft.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 3
+      starting_resources: 2
+      starting_zone: marshes
+      starting_location: factory
+      starting_tags:
+        - Hatchet
+        - Cleaning Powder
+        - Armored Gloves
+        - Factory Key
+      doc_elements:
+        - godardfactory
+
+  # Soil
+  soil:
+    headman:
+      name: Headman
+      intro: >-
+        Lead the Town. Ensure it works and pays its taxes.
+      description:
+        - >-
+          On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
+        - >-
+          Your main job is to tax people. You are beholden to the Meister, the Baron's taxperson, and things have gotten nasty in the past when the tithe didn't meet expectations. If the Warehouse isn't full next time he comes, it won't be a pretty day. You also ought to pay tithe to the Church, for all they do for the town, and pay the Sheriff, for their work.
+      difficulty: hard
+      bank_account: treasury
+      multiple: false
+      starting_resources: 1
+      starting_zone: town
+      starting_location: square
+      whitelist: true
+      starting_tags:
+        - Ravenhearter
+        - Insightful
+        - Old
+        - Soilery
+        - Literate
+        - Headman's Cap
+        - Sewer Key
+        - Headman's Key
+      doc_elements:
+        - townstarting
+        - farming
+        - ravenhearteconomy
+    sheriff:
+      name: Sheriff
+      intro: >-
+        Keep the peace in the Town, six-shooter at your hip.
+      description:
+        - >-
+          On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Sheriff!
+        - >-
+          You have a trusty .45 six-shooter, a reject from the Fortress's armory.
+      difficulty: normal
+      bank_account: treasury
+      multiple: true
+      weight: 1
+      starting_resources: 1
+      starting_zone: town
+      starting_location: square
+      starting_tags:
+        - Ravenhearter
+        - Melee I
+        - Ranged I
+        - Neoclassic R&W10
+        - Cudgel
+        - Sheriff's Badge
+      doc_elements:
+        - townstarting
+        - combat
+    metalsmith:
+      name: Metalsmith
+      intro: >-
+        Forge anything from basic tools to siege implements and legendary weapons.
+      description:
+        - >-
+          With smithing, you are only limited by your Resources and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures…
+        - >-
+          You're not on the Headman's payroll, so it's important you find clients so that you can feed yourself.
+        - >-
+          The theory is important to keep in mind. Axes are good at breaking shields; blunt weapons harm people even in full armor; swords excel in one-to-one combat.
+        - >-
+          Simple tools and weapons are cheap and quick; a moderate or high-quality piece — a proper sword, a breastplate — costs more of both, and something truly exceptional costs more still. Check the smithing price list for exact numbers.
+        - >-
+          You can also make Unique Tags — name and describe them yourself. You'll have to roll to see what the quality ends up being.
+      difficulty: normal
+      bank_account: treasury
+      multiple: true
+      weight: 2
+      starting_resources: 20
+      starting_zone: town
+      starting_location: square
+      starting_tags:
+        - Ravenhearter
+        - Smithing I
+        - Smithy Key
+      doc_elements:
+        - townstarting
+        - smithing
+        - combat
+        - independent
+    # Added 2026-09-18 with the Prospecting rework (MINING.md). Starts at the
+    # Inn rather than the cave mouth on purpose: the walk down is part of the
+    # job, and a prospector who never comes up never meets the smith he needs.
+    prospector:
+      name: Prospector
+      intro: >-
+        Enter the caves, obtain resources, and strike the earth.
+      description:
+        - >-
+          You can either sell resources directly to the Depot, or skip the sales tax by directly cutting a deal with the people that need them — like smiths and doctors.
+        - >-
+          The ores you obtain can be worked by smiths, turning them into highly valuable trinkets. However, they can also be sold raw for a small profit.
+        - >-
+          You can mine by using the Mine button while in the caves.
+        - >-
+          The caves are very, very dangerous. The depths especially so. However, the deeper you go, the higher the reward.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 2
+      starting_resources: 1
+      starting_zone: town
+      starting_location: old-cock-inn
+      starting_tags:
+        - Ravenhearter
+        - Prospecting
+        - Rations x2
+        - Prospector's Pick
+      doc_elements:
+        - townstarting
+        - ravenhearteconomy
+        - independent
+    mortus:
+      name: Mortus
+      intro: >-
+        Bring spirits to peace and feed the Lifeweb.
+      description:
+        - >-
+          You have two jobs, both of them sacred: to feed the Lifeweb and to bury people, bringing their souls to peace.
+        - >-
+          The Mortii take a lifelong vow dedicating themselves to powering the Lifeweb. They are often exiles, outcasts, or infirms. Why did you take the vow?
+        - >-
+          The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time — or you can kidnap people and feed them manually. Dead bodies cannot be fed to the Lifeweb. Dead bodies can, however, be buried to bring the person's soul to peace (as a Routine Move).
+        - >-
+          Any crimes you commit in service of your vow are not crimes.
+        - >-
+          You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain themselves, but if dead people are scarce, you can ask the Headman for some food.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 3
+      starting_resources: 1
+      starting_zone: town
+      starting_location: underquarter
+      starting_tags:
+        - Ravenhearter
+        - Mortus
+        - Mortus Key
+        - Mortus Rags
+        - Melee I
+        - Cudgel
+      doc_elements:
+        - townstarting
+        - lifeweb
+        - respawning
+    bum:
+      name: Bum
+      intro: >-
+        You live in a shell and sleep with the dogs, but you understand life (or think you do).
+      description:
+        - >-
+          Beg for food and coin.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 4
+      starting_resources: 1
+      starting_zone: town
+      starting_location: underquarter
+      extra_starting_points: -3
+      starting_tags:
+        - Ravenhearter
+        - Unhygienic
+        - Ugly
+      doc_elements:
+        - townstarting
+    pusher:
+      name: Pusher
+      intro: >-
+        Sell drugs, run the gambling den, peddle to people's worldly desires. Hire a few bums to be your goons.
+      description:
+        - >-
+          Sell drugs. The Abandoned Theater in the Underquarter is yours; run a gambling den.
+        - >-
+          You start with an assortment of drugs and can make more.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 8
+      starting_zone: town
+      starting_location: underquarter
+      starting_tags:
+        - Ravenhearter
+        - Brewing II
+        - Bliss
+        - Poppy
+        - Advanced Poppy
+        - Distilled Coca
+        - Alcohol
+        - Pusher's Key
+      doc_elements:
+        - townstarting
+        - alcoholdrugs
+        - independent
+    innkeeper:
+      name: Innkeeper
+      intro: >-
+        Name and run the inn: set prices, hire and fire staff, and run an actual, living business.
+      description:
+        - >-
+          The inn is a game of its own. It's up to you to figure out how to make a living out of it. For one thing, you can consider asking the Merchant for a loan.
+        - >-
+          Cook fine meals, brew alcohol, hire bards and pretty ladies — keep the Customer coming back, yes, but be creative. Running an information network or turning the Inn into a place for people to find jobs are possible ways you can take advantage of owning Ravenheart's most popular enterprise.
+        - >-
+          You are responsible for paying your staff. They have to eat.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_resources: 9
+      starting_zone: town
+      starting_location: old-cock-inn
+      whitelist: true
+      starting_tags:
+        - Inn Key x3
+        - Room A Key x2
+        - Room B Key x2
+        - Room C Key x2
+        - Ravenhearter
+        - Cooking I
+        - Brewing I
+        - Appraisal
+      doc_elements:
+        - townstarting
+        - alcoholdrugs
+        - inn
+    inn-staff:
+      name: Inn Staff
+      intro: >-
+        Work the floor, the kitchen, or the cellar — whatever the Inn needs.
+      description:
+        - >-
+          Keep the Inn running under the Innkeeper. Cook (Cooking II), brew (Brewing II), wait tables, or just keep the room talking — pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 2
+      starting_resources: 1
+      starting_zone: town
+      starting_location: old-cock-inn
+      starting_tags:
+        - Inn Key
+        - Ravenhearter
+        - Cooking I
+      doc_elements:
+        - townstarting
+        - alcoholdrugs
+        - inn
+        - independent
+    fisherman:
+      name: Fisherman
+      intro: >-
+        Feed the factory and live a quiet life in the marshes.
+      description:
+        - >-
+          Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It's your job to bring them some food; the Banneret should pay you in obols.
+      difficulty: easy
+      bank_account: treasury
+      multiple: false
+      starting_resources: 2
+      starting_zone: marshes
+      starting_location: marshes-village
+      starting_tags:
+        - Ravenhearter
+        - Fisherman's Key
+        - Rough Camper
+      doc_elements:
+        - godardfactory
+
+  # Outsiders
+  outsiders:
+    migrant:
+      name: Migrant
+      intro: >-
+        Make it to the fortress.
+      description: []
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: unlimited
+      starting_resources: 1
+      starting_zone: caves
+      starting_location: caves-abandoned-camp
+      extra_starting_points: 6
+      starting_tags: [Pale]
+      doc_elements: [caving]
+    mercenary:
+      name: Mercenary
+      intro: >-
+        Sell your sword or delve into the caves for pay.
+      description:
+        - >-
+          You're not under anyone's payroll. It's therefore your responsibility to provide for yourself. There's a few ways to do that: selling your sword to someone; or going into the caves, retrieving items of value, and selling it to the Merchant or the Sanctuary. Trust me, the Sanctuary loves cave fungus!
+        - >-
+          If you'd prefer the virtuous angle, you can be a hedge knight instead.
+      difficulty: normal
+      bank_account: treasury
+      multiple: true
+      weight: 3
+      starting_resources: 4
+      starting_zone: caves
+      starting_location: customs
+      starting_tags:
+        - Melee I
+        - Ranged I
+        - Butcher
+        - Dagger
+        - Battle Axe
+        - Mail Shirt
+        - Buckler
+        - Mail Coif
+        - Shortbow
+        - Rough Camper
+        - Spelunker
+      doc_elements: [caving]
+    brigand-leader:
+      name: Brigand Leader
+      intro: >-
+        You raided a shipment on the way to the Fortress — well done!
+      description:
+        - >-
+          Some call you scum. But what do they know of freedom?
+        - >-
+          The Brigand Leader is given the sacred task of organizing their small band of scrappy men. Keep them in line; earn their loyalty, buy them booze, or bully them into submission. Also, find a place to make your base.
+        - >-
+          You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your Resources together and plan your next move.
+        - >-
+          As a Brigand, you can do whatever you want. But here are some goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
+        - >-
+          You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
+        - >-
+          A little hint: some of the Cerberi might take bribes.
+      difficulty: normal
+      multiple: false
+      examine_visible: false
+      starting_resources: 3
+      starting_zone: hills
+      starting_location: hills-grand-ravine
+      whitelist: true
+      starting_tags:
+        - Ravine Camp
+        - Brigand Leader
+        - Brigand
+        - Prospecting
+        - Melee I
+        - Ranged I
+        - Padded Armor
+        - Broadsword
+        - Mail Coif
+        - Buckler
+        - Crossbow
+        - Plebeian Hood
+        - Rough Camper
+        - Outsider
+    brigand:
+      name: Brigand
+      intro: >-
+        You raided a shipment on the way to the Fortress — well done!
+      description:
+        - >-
+          Some call you scum. But what do they know of freedom?
+        - >-
+          You successfully raided a tax caravan. You're rich! But the Cerberon might be looking for you. Put your Resources together and plan your next move.
+        - >-
+          As a Brigand, you can do whatever you want. But there are some things you should probably aim for: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
+        - >-
+          You are probably afraid of direct conflict. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
+        - >-
+          A little hint: some of the Cerberi might take bribes.
+      difficulty: easy
+      multiple: true
+      weight: 3
+      examine_visible: false
+      starting_resources: 2
+      starting_zone: hills
+      starting_location: hills-grand-ravine
+      starting_tags:
+        - Ravine Camp
+        - Brigand
+        - Prospecting
+        - Melee I
+        - Ranged I
+        - Dagger
+        - Padded Armor
+        - Gladius
+        - Padded Cap
+        - Buckler
+        - Shortbow
+        - Plebeian Hood
+        - Rough Camper
+        - Outsider
+
+  # Elsewhere
+  other:
+    tribunal-ordinator:
+      name: Tribunal Ordinator
+      intro: >-
+        Serve the God King.
+      description:
+        - >-
+          You are the Tribunal Ordinator, one of the God King's elite special forces soldiers. Your job is to organize your men into Ravenheart and represent His Majesty's supremacy.
+        - >-
+          If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
+        - >-
+          The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
+        - >-
+          You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
+      difficulty: hard
+      multiple: true
+      weight: 1
+      examine_visible: false
+      starting_resources: 8
+      starting_zone: hills
+      starting_location: hills-waterway
+      starting_tags:
+        - Melee III
+        - Ranged III
+        - Medical II
+        - Melee (Swords)
+        - ML-23
+        - Tribunal Ordinator Helmet
+        - Broadsword
+        - Dagger
+        - Heavy Infantry Armor
+        - Ordinator Insignia
+        - Nuclear Datacard
+        - Fragmentation Grenade
+        - Motorcycle
+        - Supply Kit
+        - Military Autoinjector x2
+        - Relentless
+        - Arthritis
+        - Thick Skull
+        - Strong
+        - Tactician
+        - Cruel
+        - Rough Camper
+        - Outsider
+        - Brave
+        - Literate
+        - Radio (243.000)
+      doc_elements:
+        - godking
+        - ravenhearteconomy
+        - courtstructure
+    tribune:
+      name: Tribune
+      intro: >-
+        Serve the God King.
+      description:
+        - >-
+          You are a member of the Tribune, the God King's elite special force division. Your job is to represent His Majesty's supremacy.
+        - >-
+          If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
+        - >-
+          The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
+        - >-
+          You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
+      difficulty: hard
+      multiple: true
+      weight: unlimited
+      examine_visible: false
+      starting_resources: 8
+      starting_zone: hills
+      starting_location: hills-waterway
+      starting_tags:
+        - Melee III
+        - Ranged III
+        - Medical I
+        - CTT4&3 Rifle
+        - Bore Pistol
+        - Tribunal Helmet
+        - Trench Knife
+        - Heavy Infantry Armor
+        - C4
+        - Fragmentation Grenade
+        - Motorcycle
+        - Supply Kit
+        - Military Autoinjector x2
+        - Tough
+        - Rough Camper
+        - Outsider
+        - Literate
+        - Radio (243.000)
+      doc_elements:
+        - godking
+        - ravenhearteconomy
+        - courtstructure

@@ -225,7 +225,7 @@ number in one table:
 ## 4. Authoring
 
 One nullable column, `Tag.fighting`, normalised and validated by
-`db/lib/tagShapes.js` the way `laborBonus` and `placement` already are.
+`db/lib/tagShapes.js` the way `miningBonus` and `placement` already are.
 
 ```yaml
   melee-expert:                       # Tier — Basic is rung 1
@@ -504,13 +504,13 @@ an event when somebody does.
   the way `combineArmor` and `gambitModifierTotal` already are. Cheap, and it
   cannot go stale.
 - **No `fighting` field on the GM tag form** (`/gm/dev/tags`). That form takes
-  scalars; `laborBonus` and `placement` are Json blocks and are YAML-only for
+  scalars; `miningBonus` and `placement` are Json blocks and are YAML-only for
   the same reason, and a JSON textarea in a modal would be worse than the gap.
   A GM edit through the form leaves the column untouched, since the write names
   its fields.
 - **No number, anywhere, to anybody.** The band is a word — the posture
-  `Tag.meleeArmor`'s comment sets for armour and `laborYield.js#qualityWord`
-  sets for Laboring. The breakdown names contributors in tiers so a GM can
+  `Tag.meleeArmor`'s comment sets for armour and `miningYield.js#qualityWord`
+  sets for a seam. The breakdown names contributors in tiers so a GM can
   follow the arithmetic; nothing prints a total.
 - **Beguiling cannot be held by this model, and that is correct.** It reads
   *"people struggle to raise a hand against you, having their fighting skill

@@ -21,8 +21,6 @@
 const { rollWithAdvantage } = require("./advantage");
 const { consumeInspiredIfUsed, addToStack, replaceLowerTiers } = require("./tagWrites");
 const { gambitModifierTotal, rollLine } = require("./gambitModifier");
-const { moveWindow } = require("./turnClock");
-const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
@@ -41,6 +39,7 @@ const {
 // instead, already part of `tags` below).
 // `equipped` and the hood fields are for presence.js#isHere: a forcing hood hides a teacher the column doesn't.
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
+const { movesOpen } = require("./turnGate");
 const LESSON_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -65,6 +64,8 @@ const LESSON_CHARACTER_SELECT = {
           forcedName: true,
           parentTagId: true,
           groupId: true,
+          // Read back by db/lib/gambitModifier.js for the lesson's Gambit.
+          gambitBonus: true,
         },
       },
     },
@@ -82,7 +83,7 @@ const LESSON_CATALOG_SELECT = {
   group: { select: { slug: true, requiredTagId: true } },
   // Named conflicts (Tag.conflictsWith). Without this column a lesson is the
   // way round every conflict pair in the catalog: Soft Hands cannot BUY
-  // Laboring, but could always have been taught it.
+  // Prospecting, but could always have been taught it.
   conflictsWith: { select: { id: true } },
 };
 
@@ -132,7 +133,7 @@ function teachesFree(character) {
 // or above, with the learner holding its parent tier and any gate, and with
 // nothing the learner already holds named as a conflict. Same gates as buying
 // it — a lesson can't skip a prerequisite the store won't, and it can't skip a
-// conflict either. Soft Hands has never done a day's labor, and no amount of
+// conflict either. Soft Hands has never done a day's work, and no amount of
 // being taught changes that.
 //
 // Split in two so neither side's picker has to read the OTHER sheet: Learn
@@ -199,14 +200,12 @@ function lessonThreshold(teacher, skill) {
 const GONE = "That offer's gone.";
 const LOCKED_IN = "You've already locked in a Move this turn.";
 
+// A thin shim over db/lib/turnGate.js#movesOpen, kept only because both call sites here want the turn row back as well as
+// the verdict. `blocked` is the reason to say out loud, null when the player may act — which covers the lock AND the game
+// being out of session, two things this used to have no way to tell apart.
 async function openTurnAndWindow(db) {
-  const [turn, frozen] = await Promise.all([
-    db.turn.findFirst({ where: { status: "OPEN" } }),
-    clockFrozen(db),
-  ]);
-  if (!turn) return { turn: null, locked: true };
-  const { locked } = moveWindow(turn, { clockFrozen: frozen });
-  return { turn, locked };
+  const gate = await movesOpen(db);
+  return { turn: gate.turn, locked: !gate.ok, blocked: gate.message };
 }
 
 // Can this teacher take this lesson on? Two different questions, depending on
@@ -214,7 +213,7 @@ async function openTurnAndWindow(db) {
 // acceptLesson knows not to file one.
 //
 // A Teaching holder's Move slot is never read: teaching costs them nothing and
-// they may be laboring, travelling or running a Gambit at the same time. Their
+// they may be mining, travelling or running a Gambit at the same time. Their
 // only limit is TEACHING_CAPACITY students a turn, counted off the offers
 // themselves rather than off an Action id, because there is no Action.
 //
@@ -312,9 +311,9 @@ async function createLessonOffer(
   prisma,
   { initiatorId, teacherId, learnerId, tagId },
 ) {
-  const { turn, locked } = await openTurnAndWindow(prisma);
+  const { turn, locked, blocked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open." };
-  if (locked) return { ok: false, reason: "Moves are locked for this turn." };
+  if (locked) return { ok: false, reason: blocked };
 
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, teacherId),
@@ -441,15 +440,14 @@ async function acceptLesson(prisma, offer, responder) {
   if (!fresh || fresh.status !== "PENDING")
     return { ok: false, reason: GONE, dms: [] };
 
-  const { turn, locked } = await openTurnAndWindow(prisma);
+  const { turn, locked, blocked } = await openTurnAndWindow(prisma);
   if (!turn || turn.id !== offer.turnId)
     return await cancelWith(
       prisma,
       offer,
       "That offer was for a turn that's over.",
     );
-  if (locked)
-    return await cancelWith(prisma, offer, "Moves are locked for this turn.");
+  if (locked) return await cancelWith(prisma, offer, blocked);
 
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, offer.teacherId),

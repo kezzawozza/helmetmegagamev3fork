@@ -41,8 +41,13 @@ state, so the row has to be written for the rule to work at all:
 | Ration | Counts | Written by |
 |---|---|---|
 | A medic's free 0-turn cures a day (`MEDICAL_SIMPLE_PER_TURN`, `TAGS.md` §5c / `MEDICAL.md` §3) | `request_heal_character` rows for the open turn, filtered to `!gambit && turns === 0` | `healCharacterRequestImpl` |
-| Dead Simple units a turn (`DEAD_SIMPLE_PER_TURN`) | `request_craft_tag` rows for the open turn | `grantCrafted` |
-| A single recipe's own `requirementPerTurn` | the same craft rows, filtered to one `tagId` | `grantCrafted` |
+| A single recipe's own `requirementPerTurn`, at `turnsCost: 0` (bliss, bone-mask, Flesh of Tzchernobog) | `request_craft_tag` rows for the open turn, filtered to one `tagId` | `grantCrafted` |
+
+There is no shared Dead Simple pool any more — `DEAD_SIMPLE_PER_TURN` is gone
+from `web/lib/tagRequests.js` and `web/lib/requests.js`, and that rung now
+bills the ordinary Move share (`turnsCost: 0.25`) like any other part-turn
+craft (`CRAFTING.md` §2a, `SMITHING.md` §2). `craftAllowance()` only ever
+honours a recipe's own `perTurn` now.
 
 All three read `AuditLog.turnId`, which exists for exactly this and is indexed
 with `targetCharacterId` and `actionType`. **An action that a ration counts
@@ -99,7 +104,7 @@ reason.
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
 | `TRANSFER_RESOURCES` | Moves ⬢ from you or a Room stash at your Location to a person at your Location or a Room stash there (`CARRY.md`). Nothing is ever pulled off a living person — Loot is the only way to take from someone. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
-| `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` is a decimal number of Moves: 0 is Dead Simple (no Move, rationed per turn); 0.25 / 0.5 / 0.75 are shares of this turn's Routine; 1 is the whole of it; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
+| `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` is a decimal number of Moves: 0 costs no Move at all, rationed only by a recipe's own `perTurn` if it has one; 0.25 / 0.5 / 0.75 are shares of this turn's Routine — Dead Simple is one of these now, at 0.25; 1 is the whole of it; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Destroy: drops one of their own items, no ⬢ field and nothing refunded, in a quantity if it stacks. `Tag.removable` is derived from the category — Items and Assets only (`CRAFTING.md` §5) — so a Health tag is healed rather than thrown away, and a Belief cannot be dropped at all. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
@@ -124,12 +129,12 @@ reason.
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
 | `BUTCHER_CORPSE` | Cuts a corpse up for what is in it — an organ from a monster, Human Flesh from a person. Free, and it destroys the body. Gated on `butcher` | — | Takes the yield back and returns the corpse to the party it came from |
 | `FAST_TRAVEL` | **Retired.** A mount now adds a free zone move instead (CARRY.md §2a). Old rows stay undoable | — | Sends them back and returns the ride |
-| `EXTRACT_GODFLESH` | Cuts Godflesh out of a marsh tile. Costs no Move — once per in-game day, claimed on `Character.extractDayKey`. Needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the day stays claimed |
+| `EXTRACT_GODFLESH` | The **Harvest Godflesh** button: cuts Godflesh out of a marsh tile. Costs no Move — once per turn, claimed on `Character.extractTurnKey`. Needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the turn stays claimed |
 | `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
-| `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at the Depot (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
-| `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
-| `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
+| `DEPOT_BUY` | Orders an import off the orbital station at its `depotPrice`. Standing at the Depot, plus whichever manifest the ware sits on — general shelf needs nothing, the black market needs a Silver Chip, everything else needs the Merchant's Licence (`DEPOT.md` §0e). Delivered as crates at the next train arrival, not on the spot | — | Returns the goods, refunds the ⬢ |
+| `DEPOT_SELL` | Drops a `sellable` tag in the dropbox at the Depot; it settles at its `sellablePrice`, minus the sell tax, at the next departure (`DEPOT.md` §0f) | — | Buys it back with its original expiry, takes the ⬢ |
+| `DEPOT_CREDIT` | Draws on or repays the Company's 75-obol credit line, crediting or debiting the Merchant's own account (`DEPOT.md` §0g) | — | Reverses the obols and the tab together |
 | `INTERCEPT` | Lays in wait where they stand: names who they are watching for (or "anyone", or "anyone concealed"), writes a line to hand them, and picks Safe or Ambush. Costs no Move and no ⬢. When one of them walks in, they are stopped — two minutes, or until the turn ends. **A typed name never catches a hooded face**; that is what "anyone concealed" is for (`INTERCEPT.md`) | — | Nothing to undo: the hold lapses on its own, and the holder can Release early |
 | `BUILD_STRUCTURE` | Filed by whoever's crew-turn FINISHES a build site — the one Request a structure ever files, carrying type, ground, cost, payer and every contributor (docs/systemdocs/ADJUDICATION.md §6) | — | Tears the structure down, refunds the payer, and restores any edge it flipped (conditionally — see the Discord note below); the crew's spent Moves stay spent |
 
@@ -239,7 +244,7 @@ Three notes on deliberate choices:
   here as well as made. That was 155 tags, every one of them also priced in
   `/store`, and Add Tag costs nothing but a written reason. It was therefore
   strictly cheaper than paying Tag Points, and players used it that way:
-  Butcher, Horse, Stealth, Literate, Ranged (Basic), Workshop, Game Master.
+  Butcher, Horse, Stealth, Literate, Ranged I, Workshop, Game Master.
   The help text asking them not to was the tell that the option should never
   have been on the menu. The two economies are now split at the door —
   `/store` spends points against catalog prices, Add Tag (Craft) spends turns
@@ -553,11 +558,12 @@ not zone-grain (`db/lib/presence.js` / `web/lib/peopleHere.js`): the target
 has to be standing in the same Location and not concealed. The reason field
 and the GM's review are the anti-abuse mechanism, exactly as everywhere else.
 
-**Binding someone also costs them their day's labor.** Every
+**Binding someone also costs them their day's work.** Every
 `INCAPACITATING_SLUGS` slug is read on the *afflicted* character's own side
-too: `db/lib/autoLaborPass.js#runAutoLaborPass` silently skips filing a Labor
-for anyone holding one, so a bound target loses their next turn, not just
-their ability to defend themselves (TURN-ENGINE.md §6).
+too: `db/lib/mining.js` refuses the Mine button to anyone holding one, and
+`blockerFor(..., ACT)` refuses Farm, Refine and Harvest Godflesh the same way,
+so a bound target loses their turn rather than just their ability to defend
+themselves.
 
 **And it now costs them nearly everything else.** The actor's own side used to
 be checked by four requests and forgotten by the rest, so a bound character
@@ -607,7 +613,7 @@ groups are things one person does to another — `health-wounds` and
 `web/lib/healRequests.js`, 33 rows, read by both the picker and the server
 action for the same reason `isHealable` is. **Paralyzed is deliberately not on
 it**: it is in `INCAPACITATING_SLUGS`, so inflicting it would let one player
-lock another out of their day's labor indefinitely, at will.
+lock another out of their day's work indefinitely, at will.
 
 The lethal half is also the only place besides billing someone else for a cure
 where the dialog asks twice.
@@ -640,7 +646,7 @@ owns rather than the player.
 character holding `medical-basic`; the patient must share the healer's
 Location and not be concealed; and the affliction's own `requirementSkills`
 must be satisfied —
-a Deep Wound names Medical (Skilled), so a character with only the Basic tier
+a Deep Wound names Medical II, so a character with only the Basic tier
 sees it in the menu labelled "— Gambit" and may still attempt it — it files a
 GAMBIT Move rather than curing anything, and the GM resolves the roll
 (TAGS.md §5c). A cure costing any part of a turn — including the 2 ⬢
@@ -970,7 +976,7 @@ makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
 threat spawn or a lobby seat, calling the same `db/lib` functions the DM's
 buttons call. Neither files an `Action` twice: `fileMove` is guarded by
 `@@unique([characterId, turnId])`, and the rest write no Move at all.
-`fileMove` refuses a Routine or Labor for anyone who can't `ACT`, but a
+`fileMove` refuses a Routine for anyone who can't `ACT`, but a
 **Gambit** only for `GAMBIT_BLOCKING_SLUGS` (Unconscious, Paralyzed, Seizure,
 Dying) — someone Bound, Crucified or Catatonic can still file one.
 
@@ -1026,25 +1032,23 @@ over the URL, so a filtered view stays linkable.
 
 ## The Depot's kinds
 
-All obol-denominated, all moving `Depot.accountObols` rather than anyone's own
-⬢ stack. They are audit `actionType`s now
-(`request_depot_order`, `request_depot_atm`, `request_depot_credit`,
-`request_depot_crate_open`, `request_depot_refuel`,
-`request_depot_shuttle_call` / `_send`), and the
-Depot's own visible Ledger on `/depot` is built by reading exactly that set
-back out of `AuditLog` — `DEPOT_LEDGER_KINDS` in `web/app/(app)/depot/page.js`
-is the one list, so a new depot verb has to be added there or it moves obols
-invisibly.
+All obol- or ⬢-denominated, all moving a `BankAccount` rather than a station
+float — `Depot.accountObols` is gone (`DEPOT.md` §0g). The audit `actionType`s
+are `request_depot_order`, `request_depot_drop`, `request_depot_atm`,
+`request_depot_credit`, `request_depot_account_open`,
+`request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set` and
+`train_ran` (`DEPOT.md` §1), and the Depot's own visible Ledger on `/depot`
+reads exactly that set back out of `AuditLog` — the one list a new depot verb
+has to be added to, or it moves money invisibly.
 
-**Two have no undo handler, deliberately.** `DEPOT_SHIP` and
-`DEPOT_CRATE_OPEN` are irreversible the way a sent Bird letter is: a shuttle
-that went up cannot be recalled and its cargo no longer exists to hand back,
-and an opened crate has scattered its contents into an inventory that has moved
-on. With no `REQUEST_EFFECTS` entry the rows stay visible on the desk and in
-the Depot's own Ledger — they simply cannot be undone, which is honest. A GM
-corrects one by hand.
+**`request_depot_crate_open` has no undo handler, deliberately.** It is
+irreversible the way a sent Bird letter is: an opened crate has scattered its
+contents into an inventory that has moved on. With no `REQUEST_EFFECTS` entry
+the row stays visible on the desk and in the Depot's own Ledger — it simply
+cannot be undone, which is honest. A GM corrects one by hand.
 
-The rest follow the ordinary rule: `effect` snapshots what actually moved and
-undo reads only that. `DEPOT_ORDER` restores the manifest to the snapshot taken
-before it rather than subtracting its own lines, so a second order filed since
-is not silently thrown away.
+There is no `DEPOT_SHIP` any more — there is no shuttle to call, and goods
+arrive as crates off the train on the ordinary turn-parity cycle
+(`DEPOT.md` §0c), not as a filed action. `request_depot_order` restores the
+manifest to the snapshot taken before it rather than subtracting its own
+lines, so a second order filed since is not silently thrown away.

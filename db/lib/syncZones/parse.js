@@ -243,44 +243,24 @@ function parseConnection(raw, locationByRef, problems) {
   return entry;
 }
 
-// Per-location `yield:` block -> { HUNTING: 0.5, ... }. A kind left out cannot
-// be worked there at all, different from worth zero. Validated rather than
-// trusted: a typo like `hunitng: 0.5` would silently disable hunting somewhere.
-const YIELD_KINDS = {
-  hunting: "HUNTING",
-  farming: "FARMING",
-  fishing: "FISHING",
-  prospecting: "PROSPECTING",
-};
-const YIELD_MAX = 2;
+// Per-location `mining: 0.9` -> the coefficient, or null. A location without
+// the key cannot be mined at all, which is different from being worth zero.
+const MINING_MAX = 2;
 
-function collectYields(location, problems) {
-  const block = location.yield;
-  if (block == null) return {};
-  if (typeof block !== "object" || Array.isArray(block)) {
-    problems.push(`location "${location.id}" has a yield that is not a mapping`);
-    return {};
+function collectMining(location, problems) {
+  const raw = location.mining;
+  if (raw == null) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > MINING_MAX) {
+    problems.push(`location "${location.id}" mining must be a number between 0 and ${MINING_MAX}`);
+    return null;
   }
-  const out = {};
-  for (const [key, raw] of Object.entries(block)) {
-    const kind = YIELD_KINDS[String(key).toLowerCase()];
-    if (!kind) {
-      problems.push(`location "${location.id}" yield has unknown kind "${key}"`);
-      continue;
-    }
-    const value = Number(raw);
-    if (!Number.isFinite(value) || value < 0 || value > YIELD_MAX) {
-      problems.push(`location "${location.id}" yield.${key} must be a number between 0 and ${YIELD_MAX}`);
-      continue;
-    }
-    // A zero is almost certainly a mistake — say so rather than write nothing silently.
-    if (value === 0) {
-      problems.push(`location "${location.id}" yield.${key} is 0; omit the key instead`);
-      continue;
-    }
-    out[kind] = value;
+  // A zero is almost certainly a mistake — say so rather than write nothing silently.
+  if (value === 0) {
+    problems.push(`location "${location.id}" mining is 0; omit the key instead`);
+    return null;
   }
-  return out;
+  return value;
 }
 
 // A room's `stash:` in two shapes: a plain list of slugs (one each), or a map
@@ -371,7 +351,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
       attributes: collectAttributes(location.attributes, `location "${location.id}"`, problems),
       sortOrder: index,
       zoneSlug,
-      yields: collectYields(location, problems),
+      mining: collectMining(location, problems),
       structures: parseStructures(location.structures, location.id, problems),
     });
     for (const [roomIndex, room] of entriesOf(location.rooms, "id").entries()) {

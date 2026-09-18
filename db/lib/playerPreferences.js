@@ -2,7 +2,8 @@
 // Shape is { [roleSlug]: "LOW" | "MEDIUM" | "HIGH" }; absent is Off. Setting a role to HIGH demotes whichever role held HIGH before to MEDIUM, so there is only ever one.
 
 const LEVELS = ["LOW", "MEDIUM", "HIGH"];
-const JOBLESS_ROLES = ["COMMONER", "MIGRANT", "RETURN_TO_LOBBY"];
+// Migrant is the one unlimited seat left.
+const JOBLESS_ROLES = ["MIGRANT", "RETURN_TO_LOBBY"];
 
 function setPriority(priorities, slug, level) {
   const next = { ...(priorities ?? {}) };
@@ -37,7 +38,7 @@ function normalizePriorities(raw, allowed) {
 }
 
 function normalizeJoblessRole(raw) {
-  return JOBLESS_ROLES.includes(raw) ? raw : "COMMONER";
+  return JOBLESS_ROLES.includes(raw) ? raw : "MIGRANT";
 }
 
 // True when Start would have nothing to give this player but the fallback.

@@ -2,8 +2,8 @@ const { ambientLine } = require("../../ambientLine");
 const { refreshLiveRooms } = require("../../syncZones");
 const { postMessage } = require("../../discordRest");
 
-// The Depot's hardware, speaking for itself: the generator dying and the
-// shuttle leaving on its own clock are both things the room witnesses.
+// The Depot speaking for itself: the train coming in and going out again are
+// things the room witnesses, whoever was or wasn't there to see it.
 async function runDepotLines({ prisma, p, list, step }) {
   if (p.depotLocationId && list(p.depotLines).length) {
     const depotLocation = await prisma.location
@@ -26,13 +26,13 @@ async function runDepotLines({ prisma, p, list, step }) {
     }
   }
 
-  // The Landing Pad's starter message says whether the shuttle is sitting on
-  // it (db/lib/roomLive.js), and the shuttle may have left on its own clock
-  // this turn. Hash-guarded, so a turn that did not move it edits nothing.
+  // The Railyard's starter message says whether the train is at the platform
+  // (db/lib/roomLive.js), and the parity flips on every close, so this repaints
+  // every turn. Hash-guarded, so a turn that did not move it edits nothing.
   if (p.depotLocationId) {
-    await step("shuttleRefresh", () =>
-      refreshLiveRooms(prisma, "shuttle").catch((err) =>
-        console.error("Landing pad refresh failed:", err.message),
+    await step("trainRefresh", () =>
+      refreshLiveRooms(prisma, "train").catch((err) =>
+        console.error("Railyard refresh failed:", err.message),
       ),
     );
   }

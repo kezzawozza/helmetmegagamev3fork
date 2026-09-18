@@ -5,6 +5,7 @@ import { visibleZoneIds as loadVisibleZoneIds } from "@lifeweb/db/lib/gmZoneView
 import { reasonLabel, reasonFlow, FLOW, REASONS } from "@lifeweb/db/lib/economyReasons";
 import { sankeyFromFlows, arcWebFromEdges } from "@lifeweb/db/lib/economyFlows";
 import { RESOURCES_SELECT, resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { trainHere } from "@lifeweb/db/lib/train";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -28,7 +29,6 @@ import {
   counterpartyEdges,
   goodsCatalog,
   depotBooks,
-  factionTreasuries,
 } from "@/lib/economyQuery";
 
 // /gm/economy — the GM analytics desk over EconomyEntry. See CLAUDE.md's
@@ -59,7 +59,7 @@ export default async function EconomyPage({ searchParams }) {
       <DeskHeader title="Economy" meta={<DeskTurnChip turn={openTurn} />} />
       <div className="desk-body desk-body--ops">
         <EconomyNav section={section} />
-        <main className="ops-main">
+        <main className="desk-main desk-main--ops">
           <SnapshotPage
             scope={`gm-economy:${section}`}
             userId={session.discordUserId}
@@ -261,7 +261,6 @@ async function FreshEconomy({ section, searchParams, userId }) {
             name: true,
             status: true,
             ...RESOURCES_SELECT,
-            faction: { select: { zone: { select: { name: true } } } },
             zone: { select: { name: true } },
           },
         }),
@@ -305,7 +304,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
             kind: "character",
             name: c.name,
             status: c.status,
-            zoneName: c.faction?.zone?.name || c.zone?.name || "",
+            zoneName: c.zone?.name || "",
             balance: resourcesOf(c),
             inflow: flow.inflow,
             outflow: flow.outflow,
@@ -489,18 +488,6 @@ async function FreshEconomy({ section, searchParams, userId }) {
 
       data = { ...data, series, categories, table, grandTotal };
 
-      // Faucets only: designed vs. realised for labor drops. summarize() from
-      // labordropsEv.js wants priced pool rows plus a roll-share table per
-      // zone/location/holds combination (see db/scripts/ops/audit-labor-
-      // drops.js) — that is a YAML-parse-and-simulate job, not something this
-      // page render can assemble cheaply per request. So only the realised
-      // side is shown; the designed side stays a `npm run
-      // db:audit-labor-drops` job rather than a live number here.
-      if (section === "faucets") {
-        data.laborDropRealised = totalByReason.get("LABOR_DROP") ?? 0;
-        data.laborDropNote =
-          "Expected value per pool isn't wired into this page — it needs docs/labordrops.yaml priced and rolled per zone/location, which npm run db:audit-labor-drops already does. Only the realised total is shown here.";
-      }
       break;
     }
 
@@ -514,16 +501,8 @@ async function FreshEconomy({ section, searchParams, userId }) {
     }
 
     case "depot": {
-      const [books, depotRow, flowRows] = await Promise.all([
-        depotBooks(),
-        // depotBooks() reports the account/credit/manifest side; the
-        // generator and shuttle aren't part of that DTO, so they're read
-        // straight off the row here.
-        prisma.depot.findFirst({
-          select: { generatorOn: true, generatorFuel: true, fuelMax: true, shuttleState: true },
-        }),
-        flowsByTurn({ gameId }),
-      ]);
+      const openTurn = await getOpenTurn();
+      const [books, flowRows] = await Promise.all([depotBooks(), flowsByTurn({ gameId })]);
 
       // Balance of trade from the Depot's own side: an order pays obols IN,
       // a sale pays obols OUT. DivergingBars wants both magnitudes
@@ -546,49 +525,10 @@ async function FreshEconomy({ section, searchParams, userId }) {
       data = {
         ...data,
         books,
-        generatorOn: depotRow?.generatorOn ?? false,
-        generatorFuel: depotRow?.generatorFuel ?? 0,
-        fuelMax: depotRow?.fuelMax ?? 0,
-        shuttleState: depotRow?.shuttleState ?? null,
+        // The train runs on turn parity and nothing else (db/lib/train.js).
+        trainHere: trainHere(openTurn?.number ?? 0),
         tradePoints,
       };
-      break;
-    }
-
-    case "factions": {
-      const openTurn = await getOpenTurn();
-      const treasuries = await factionTreasuries();
-      const siloIds = treasuries.map((f) => f.siloRoomId).filter(Boolean);
-
-      // Contributions in / draws out THIS TURN, for each faction's silo.
-      // Only amounts are read here, never a counterparty name, so there is
-      // nothing for redactEntry to withhold from a plain GM — a cult silo's
-      // balance and this-turn totals are already the whole of what's shown.
-      let flowById = new Map();
-      if (openTurn && siloIds.length) {
-        const legs = await prisma.$queryRaw`
-          SELECT id, SUM(inflow)::int AS inflow, SUM(outflow)::int AS outflow FROM (
-            SELECT "fromId" AS id, 0 AS inflow, SUM("amount")::int AS outflow
-              FROM "EconomyEntry"
-             WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE'
-               AND "fromKind" = 'room' AND "fromId" = ANY(${siloIds})
-             GROUP BY 1
-            UNION ALL
-            SELECT "toId" AS id, SUM("amount")::int AS inflow, 0 AS outflow
-              FROM "EconomyEntry"
-             WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE'
-               AND "toKind" = 'room' AND "toId" = ANY(${siloIds})
-             GROUP BY 1
-          ) legs GROUP BY id`;
-        flowById = new Map(legs.map((l) => [l.id, { in: Number(l.inflow) || 0, out: Number(l.outflow) || 0 }]));
-      }
-
-      const factions = treasuries.map((f) => {
-        const flow = f.siloRoomId ? flowById.get(f.siloRoomId) ?? { in: 0, out: 0 } : null;
-        return { ...f, turnIn: flow?.in ?? 0, turnOut: flow?.out ?? 0 };
-      });
-
-      data = { ...data, factions, openTurnNumber: openTurn?.number ?? null };
       break;
     }
 

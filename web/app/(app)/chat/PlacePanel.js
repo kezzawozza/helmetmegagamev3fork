@@ -9,6 +9,7 @@ import { NoticeText } from "./NoticeCards";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
+import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 import {
   loadAffordances,
   flipGate,
@@ -26,6 +27,14 @@ import {
   speakOnIntercom,
   interactWithQuest,
 } from "./actions";
+import {
+  depotCounterState,
+  depotBank,
+  depotDrop,
+  depotOpenAccount,
+  depotTurret,
+  depotTurretRead,
+} from "@/app/(app)/depot/actions";
 
 // THE PLACE's dialogs, and the one hook that owns them.
 //
@@ -149,6 +158,9 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "bell" && <BellDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
+      {dialog?.kind === "dropbox" && <DropBoxDialog onClose={close} onDone={say} />}
+      {dialog?.kind === "depotTurret" && <DepotTurretDialog onClose={close} onDone={say} />}
       {dialog?.kind === "intercom" && <IntercomDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "questInteract" && (
         <QuestInteractDialog entry={dialog.entry} onClose={close} onDone={say} />
@@ -516,6 +528,289 @@ function TurretDialog({ entry, onClose, onDone }) {
       error={error}
       onSubmit={(word) =>
         run(toggleTurret, { roomId: entry.roomId, word }, {
+          onOk: (res) => {
+            onDone(res);
+            onClose();
+          },
+        })
+      }
+    />
+  );
+}
+
+// -------------------------------------------------------------- the counter
+
+// The ATM, the drop box and the Merchant's gun are fixtures on walls at the
+// Depot (db/lib/placeAffordances.js), so they open from here and from Discord
+// rather than from /depot. Every one of them re-checks the standing, the
+// papers and the money on the server — a dialog outlives somebody walking out
+// of the room, which is the whole reason none of this is decided here.
+//
+// The state each one draws against comes from one read (depotCounterState), so
+// there is a single answer to "what is a counter" rather than three.
+function useCounter() {
+  const [state, setState] = useState(null);
+  const reload = useCallback(() => {
+    depotCounterState()
+      .then((res) => setState(res))
+      .catch(() => setState({ ok: false, error: "The counter is dead." }));
+  }, []);
+  useEffect(() => {
+    reload();
+  }, [reload]);
+  return [state, reload];
+}
+
+function AtmDialog({ onClose, onDone }) {
+  const [state, reload] = useCounter();
+  const [direction, setDirection] = useState("WITHDRAW");
+  const [amount, setAmount] = useState(1);
+  const { run, pending, error } = useActionRunner();
+
+  if (!state) {
+    return (
+      <Modal open title="The ATM" onClose={onClose}>
+        <p className="text-sm text-muted">Reading the machine…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title="The ATM" onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+
+  if (!state.account) {
+    return (
+      <Modal open title="The ATM" onClose={onClose}>
+        <p className="text-sm text-muted">Opening an account costs nothing.</p>
+        <FormError>{error}</FormError>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={pending}
+            onClick={() => run(depotOpenAccount, undefined, { onOk: () => reload() })}
+          >
+            Create an account
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  const withdrawing = direction === "WITHDRAW";
+  const max = withdrawing
+    ? state.account.backed
+      ? Math.min(state.account.balanceObols, state.vaultObols)
+      : state.account.balanceObols
+    : state.heldObols;
+
+  return (
+    <Modal open title="The ATM" onClose={onClose}>
+      <p className="text-sm text-muted">
+        {state.account.fingerprint} · {state.account.balanceObols} ¢ in the account, {state.heldObols} ¢ in your
+        pocket.
+        {state.account.backed ? ` The treasury holds ${state.vaultObols} ¢.` : " Held off-world."}
+      </p>
+      <div className="field">
+        <label className="field-label" htmlFor="chat-atm-dir">
+          Which way
+        </label>
+        <Select id="chat-atm-dir" value={direction} onChange={(e) => setDirection(e.target.value)}>
+          <option value="WITHDRAW">Take coin out</option>
+          <option value="DEPOSIT">Put coin in</option>
+        </Select>
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="chat-atm-amount">
+          How much, up to {max} ¢
+        </label>
+        <input
+          id="chat-atm-amount"
+          type="number"
+          min={1}
+          max={max}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+      </div>
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={pending || !max}
+          onClick={() =>
+            run(
+              depotBank,
+              { direction, amount: Math.max(1, Math.min(Number(amount) || 0, max)) },
+              {
+                onOk: (res) => {
+                  onDone({ line: `${res.direction === "WITHDRAW" ? "Withdrew" : "Deposited"} ${res.amount} ¢.` });
+                  onClose();
+                },
+              },
+            )
+          }
+        >
+          Do it
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function DropBoxDialog({ onClose, onDone }) {
+  const [state] = useCounter();
+  const [tagId, setTagId] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [destination, setDestination] = useState(null);
+  const { run, pending, error } = useActionRunner();
+
+  if (!state) {
+    return (
+      <Modal open title="Dropbox" onClose={onClose}>
+        <p className="text-sm text-muted">Looking in…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title="Dropbox" onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+  if (!state.sellable.length) {
+    return (
+      <Modal open title="Dropbox" onClose={onClose}>
+        <EmptyState>{DROPBOX_EMPTY}</EmptyState>
+      </Modal>
+    );
+  }
+
+  const picked = state.sellable.find((s) => s.tagId === tagId) ?? state.sellable[0];
+  const dest = destination ?? state.defaultDestination;
+
+  return (
+    <Modal open title="Dropbox" onClose={onClose}>
+      <p className="text-sm text-muted">{DROPBOX_HELP}</p>
+      <div className="field">
+        <label className="field-label" htmlFor="chat-drop-what">
+          What
+        </label>
+        <Select id="chat-drop-what" value={picked.tagId} onChange={(e) => setTagId(e.target.value)}>
+          {state.sellable.map((item) => (
+            <option key={item.tagId} value={item.tagId}>
+              {item.name} — {item.unitPrice} ¢ each, {item.quantity} held
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="chat-drop-many">
+          How many, up to {picked.quantity}
+        </label>
+        <input
+          id="chat-drop-many"
+          type="number"
+          min={1}
+          max={picked.quantity}
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="chat-drop-dest">
+          Paid into
+        </label>
+        <Select id="chat-drop-dest" value={dest} onChange={(e) => setDestination(e.target.value)}>
+          <option value="SELF">My account</option>
+          <option value="TREASURY">The Treasury</option>
+          {state.canSellToMerchant && <option value="MERCHANT">The Merchant</option>}
+        </Select>
+      </div>
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={pending}
+          onClick={() =>
+            run(
+              depotDrop,
+              {
+                tagId: picked.tagId,
+                quantity: Math.max(1, Math.min(Number(quantity) || 0, picked.quantity)),
+                destination: dest,
+              },
+              {
+                onOk: (res) => {
+                  onDone({ line: `${res.tagName} ×${res.quantity} into the box.` });
+                  onClose();
+                },
+              },
+            )
+          }
+        >
+          Drop it in
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function DepotTurretDialog({ onClose, onDone }) {
+  const [state, setState] = useState(null);
+  const { run, pending, error } = useActionRunner();
+
+  useEffect(() => {
+    let cancelled = false;
+    depotTurretRead()
+      .then((res) => {
+        if (!cancelled) setState(res);
+      })
+      .catch(() => {
+        if (!cancelled) setState({ ok: false, error: "The panel is dead." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!state) {
+    return (
+      <Modal open title="The turret" onClose={onClose}>
+        <p className="text-sm text-muted">Reading the panel…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title="The turret" onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+
+  return (
+    <WordDialog
+      title={state.armed ? "Disarm the turret" : "Arm the turret"}
+      word={state.word}
+      danger={!state.armed}
+      help={
+        state.armed
+          ? "The gun retracts and the shop is safe again."
+          : "It fires on any face not on file. Concealing yours means it fires on you too."
+      }
+      onClose={onClose}
+      pending={pending}
+      error={error}
+      onSubmit={(word) =>
+        run(depotTurret, { word }, {
           onOk: (res) => {
             onDone(res);
             onClose();

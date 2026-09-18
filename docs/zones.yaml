@@ -108,8 +108,8 @@
 #   zones); a typo is a room nobody can enter, reported by the channel doctor.
 # - live (rooms only): a key from the registry in db/lib/roomLive.js. The
 #   room's starter message gets one more line, read off live state and
-#   re-rendered whenever that state moves — the Landing Pad saying whether the
-#   shuttle is sitting on it. A Room's starter is otherwise written once and
+#   re-rendered whenever that state moves — the Railyard saying whether the
+#   train is at the platform. A Room's starter is otherwise written once and
 #   never touched, so without this a live fact could only live on Examine, one
 #   channel up from the room it is about. A key the registry does not know is a
 #   sync PROBLEM, the same as an unknown attribute.
@@ -447,7 +447,6 @@ zones:
           Squat buildings, piled into discomfort.
         # Not rich ground — a scrounge through scrap shacks and a gambling
         # den's spare change, not a dig site (Bascinet, 2026-09-10).
-        yield: { prospecting: 0.4 }
         rooms:
           underquarter-shacks:
             name: Shacks
@@ -641,7 +640,6 @@ zones:
           Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
 
           The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
-        yield: { farming: 0.2 }
         rooms:
           keep-throne-room:
             name: Throne Room
@@ -815,11 +813,11 @@ zones:
             access: [cerberus-key]
             description: >-
               Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
-          # No door, deliberately. This is the Cerberon's silo, and a public
-          # silo is the authored default (FACTIONS.md 4) — a faction that wants
-          # a door moves its silo behind one. Locking it would also hand every
-          # accepted Cerberon invite a cerberus-key through siloKeySlugs, and
-          # that key works every gate in the game.
+          # No door, deliberately. The Cerberon's goods sit in the open, where
+          # anybody standing in the hall can walk off with them — the room is
+          # the Garrison's common one, not a strongroom. A cerberus-key on it
+          # would also be a key that works every gate in the game, handed out
+          # for the sake of a bar and some tables.
           garrison-mess-hall:
             name: Mess Hall
             description: >-
@@ -879,7 +877,6 @@ zones:
               items:
                 hound: 2
                 horse: 1
-                plow: 1
       undercroft:
         name: Undercroft
         indoors: true
@@ -887,7 +884,6 @@ zones:
           Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
         # Not rich ground — old coin and a shrine's own offerings, not the
         # Vault down the hall (Bascinet, 2026-09-10).
-        yield: { prospecting: 0.4 }
         rooms:
           undercroft-sauna:
             name: Sauna
@@ -924,7 +920,11 @@ zones:
             stash:
               resources: 14
               items:
-                obol: 15
+                # The town's money. Every Treasury bank account is a claim on
+                # this pile and nothing else, so a withdrawal takes real coin
+                # out of this room and an empty Vault means nobody gets paid.
+                # See docs/systemdocs/DEPOT.md §0g.
+                obol: 350
                 painting: 1
                 nuclear-device: 1
       road:
@@ -952,7 +952,6 @@ zones:
         name: Manors
         description: >-
           Homes surrounded by high stone walls, overgrown with flowers, with a nice gateway and ornate galleries. There's a deconstructed machine gun nest on one of the semicircle balconies, no longer functional.
-        yield: { farming: 0.6 }
         rooms:
           manors-road:
             name: Road
@@ -993,11 +992,6 @@ zones:
     description: >-
       Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, and bountiful visages. The trees thin on their approach to the mountains.
     locations:
-      # Prospecting joined the Forest 2026-09-09 (LABORING.md §3a) — it isn't
-      # only mining (the Caves/Depths flavor above): a stream is panned, a
-      # ruin is scavenged, the undergrowth is foraged. Eight of the twelve
-      # locations got a row, each for something already in its own
-      # description — a stream, a wreck, a fungal floor — not blanket-added.
       forest-headwaters:
         name: Headwaters
         attributes:
@@ -1005,7 +999,6 @@ zones:
         map_node: 1
         description: >-
           The trees thin, giving way to tough grass, slippery granite, and cold streams. A purple haze hangs over the rocky, inhospitable soil, but water gathers in root-webbed pockets between boulders — before disappearing under loose stone and surfacing again farther downhill. A rattling mountain wind moves freely through the gaps in the sinewy canopy, carrying spray from the falls and the constant rattle of shifting scree. Scrabbling up the mossy rocks would be difficult.
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9, prospecting: 0.5 }
         rooms:
           headwaters-gravel-field:
             name: Gravel Field
@@ -1037,7 +1030,6 @@ zones:
         map_node: 2
         description: >-
           Granite walls rise abruptly among the trees, their faces striped with runoff and pale colonies of lichen. Blue pine grows wherever roots can find purchase, sometimes jutting sideways from cracks high above the forest floor. The ground is divided into shelves, narrow gullies, and sudden drops that make even nearby places awkward to reach. Dark fissures appear between roots and fallen stone, some ending after a few feet and others breathing cold air from somewhere deeper.
-        yield: { hunting: 0.5, farming: 0.3 }
         rooms:
           cliffs-path:
             name: Cliffside Path
@@ -1062,10 +1054,6 @@ zones:
         map_node: 3
         description: >-
           A creek runs through a ditch, tearing through the purple floor-carpet of mushrooms and decomposing material beneath scraggly trees, slipping around boulders and roots before gathering briefly in quieter pools. Ferns crowd the banks and low branches hang almost to the surface, turning the water silver-green beneath the leaves. An old trail follows the stream where the ground allows it, repeatedly vanishing beneath moss or storm-fallen timber. Farther along, the forest has grown almost completely around the remains of an old station.
-        # Best Prospecting in the Forest, tied with East River — the mushroom
-        # colonies and the old pans already sitting in the Waystation's stash
-        # (below) made this the clearest case for it.
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9, prospecting: 1.0 }
         rooms:
           creekside-split-rock:
             name: Split Rock
@@ -1105,7 +1093,6 @@ zones:
         map_node: 4
         description: >-
           The road climbs towards the Fortress in long switchbacks cut into the wooded hillside. Rough stone steps reinforce the steepest stretches while old retaining walls bulge beneath roots that have slowly forced their way through the masonry. The canopy occasionally opens without warning, revealing the Town below before closing around the road again. Weather and traffic have worn the route deeply into the mountain.
-        yield: { hunting: 0.5, farming: 0.5, fishing: 0.9 }
         rooms:
           northern-road-ascent:
             name: Ascent
@@ -1126,7 +1113,6 @@ zones:
         map_node: 5
         description: >-
           The creek widens here into a slow, black river beneath trees whose roots knot through the banks like exposed fingers. Old docks lean over the water at uneven angles, some ending abruptly where whole sections have rotted away, while fishing line and scraps of cloth sway from branches overhead. The current is too sluggish to hear.
-        yield: { hunting: 0.8, farming: 0.3, prospecting: 0.4 }
         rooms:
           riverbank-large-dock:
             name: Large Dock
@@ -1143,7 +1129,6 @@ zones:
         map_node: 6
         description: >-
           The trees gather so tightly here that daylight reaches the ground only in thin green shafts, leaving the undergrowth drowned in perpetual dusk. Thorn, fern, and hanging moss choke the spaces between trunks, while old paths wander into dead ends or circle back upon themselves without obvious reason. There are small bioluminescent flowers to guide the way. Strange little remnants appear beneath the leaves: worked stones, rotted fence posts, fragments of walls.
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9, prospecting: 0.5 }
         rooms:
           deep-forest-brambles:
             name: Brambles
@@ -1173,7 +1158,6 @@ zones:
         map_node: 7
         description: >-
           The river turns sharply through a stretch of woodland broken by storms, where dead trees lie piled against one another in pale heaps and enormous root plates rise from the mud like walls. Pools of brown, decayed sludge fill the holes they left behind, deep enough in places that their bottoms cannot be seen. Beyond the bank, an old ravine cuts into the hillside beneath leaning timber and remnants of collapsed workings.
-        yield: { hunting: 0.5, farming: 0.3, prospecting: 0.5 }
         rooms:
           riverbend-river-bank:
             name: River Bank
@@ -1184,9 +1168,6 @@ zones:
             description: >-
               A steep muddy ravine opens beneath the trees, littered with rain-filled pits and splintered timber. At its far end, rotten beams brace a collapsed mineshaft whose entrance has been sealed beneath tons of stone.
             access: [mountaineering]
-            stash:
-              items:
-                plow: 1
       forest-south:
         name: South Forest
         attributes:
@@ -1194,7 +1175,6 @@ zones:
         map_node: 8
         description: >-
           Four roads meet beneath a sparse opening in the canopy where generations of travelers have worn the earth bare. Old signs, nailed boards, and crude charms crowd the trees. Two husked, purple bodies still hang beside the junction, turning slowly whenever enough wind reaches them. What you can see of the sky is thick, purple, and grave.
-        yield: { hunting: 0.5, farming: 0.5 }
         # The two men in the description hang from this.
         structures: [crucifix]
         rooms:
@@ -1211,7 +1191,6 @@ zones:
           The forest gives way abruptly to an open waste of mud, stumps, and gray grass beneath the oppressive sky. Rotting timber, abandoned carts and rusted equipment lie scattered across the clearing. At its center sprawls an overgrown prison complex, its walls and watchtowers sinking slowly beneath vines, moss, and years of neglect.
         # An abandoned prison's worth of scrap and rusted equipment scattered
         # across the field — as good a scavenging ground as the Forest has.
-        yield: { hunting: 0.5, farming: 0.5, prospecting: 1.0 }
         rooms:
           sparse-field-lumber-field:
             name: Lumber Field
@@ -1257,7 +1236,6 @@ zones:
         map_node: 10
         description: >-
           The road narrows where the river presses against a steep, root-bound embankment, leaving scarcely enough room for carts to pass abreast. Old masonry emerges from beneath the soil here, stained black by moisture and disappearing beneath trees that have grown directly through it. Water trickles continuously from somewhere inside the bank, carrying leaves, rust, and occasional scraps of refuse toward the river. Even in daylight, the culvert beyond remains dark enough that its far end cannot be seen.
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9, prospecting: 0.4 }
         rooms:
           embankment-road:
             name: Road
@@ -1278,33 +1256,15 @@ zones:
         map_node: 36
         description: >-
           The river forces its way through a steep canyon where dead trees cling to the slopes above black water. Ruined masonry, rusted weapons, and pieces of worked metal frequently wash from upstream and lodge between the rocks.
-        # Best Prospecting in the Forest, tied with Creekside — its own
-        # description already says worked metal washes up and lodges here.
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9, prospecting: 1.0 }
         rooms:
           east-river-bridge:
             name: Bridge
             description: >-
               A weathered wooden bridge spans the canyon where the banks briefly draw close, its supports wedged between old stone foundations much older than the timber above them.
-          east-river-washup:
-            name: Rockside Washup
-            description: >-
-              Accessible by boat, there's a still pond on the side of the river where some of the town's washup has collected.
-            access: [fishing-boat]
-            stash:
-              items:
-                sewer-key: 1
-                obol: 3
-                skinned-cave-rat: 1
-                feces: 4
-                alcohol: 3
-                crate-rv-6207-m: 1
-                a-murmur-darkly-a-shot-in-the-dark: 1
       farms:
         name: Farms
         description: >-
           Smoke rises from thatch-roofed houses on the other side of the river from the town. They're slightly elevated, just above the cattails, but still vulnerable. There's a small guard tower.
-        yield: { farming: 1.0 }
         # Placeholder for the Farms rework: stands in for a real Soilery until the whole Location is redesigned.
         attributes: { soilery: true }
         rooms:
@@ -1340,13 +1300,12 @@ zones:
     description: >-
       Ancient buildings layer atop craggy, mossy rocks. You can see the rest of the barony between the branches of the leafless trees.
     locations:
-      # Prospecting joined the Black Hills 2026-09-09 (LABORING.md §3a), same
-      # as the Forest — eight of the nine locations got a row, each for
-      # something already in its own description. hills-mountain is the one
-      # left off: it already has no yield rows at all (a pass, not worked
-      # ground). hills-west (below) turned out the opposite of a skip — a
-      # real grave under its own gallows made a genuinely unique prospecting
-      # site, its own drop table and all (Bascinet's call, 2026-09-09).
+      # Every location in the Black Hills can be mined, thinly: 0.2 to 0.3,
+      # against 0.9 in the Caves and 1.1 in the Depths (MINING.md §3). This is
+      # surface rock — worth working if you are already up here, never worth
+      # the walk on its own. The spread inside that band is the ground's own:
+      # the tunnels under the Underlocks and the cut of the Grand Ravine are
+      # the best of it, the Waterway's soft banks the worst.
       #
       # Both ways in are `locked: mountaineering` in `connections:`, so the
       # pass gates itself — a Location wears no `access:` list of its own.
@@ -1359,6 +1318,7 @@ zones:
           The mountain rises so far above Ravenheart that the forests below eventually dissolve into a dark blue haze, and even the fortress seems reduced to something small enough to cup in one hand. The pass claws its way over the exposed peak by means of cut stone steps, narrow ledges, and lengths of fixed rope strung across places where there is simply no proper footing at all. Wind tears constantly across the heights, carrying ice, grit, and cloud through gaps in the rock while whole valleys appear and disappear beneath passing sheets of mist.
 
           From the summit, the western woods and the fortress can both be seen at once, divided by an immense sweep of country that finally makes the barony feel as expansive as it truly is.
+        mining: 0.3
         rooms:
           mountain-hanging-steps:
             name: Hanging Steps
@@ -1398,8 +1358,8 @@ zones:
           The path twists and turns around the terrain. You can see Ravenheart's keep perched on a hill overlooking you. Empty bottles gather in ditches by the side of the road, having stumbled down here after a dramatic toss from the fortress walls.
         # Heaping Trash, below, is already scavenged by lizards and rats for
         # "whatever missed morsels have yet to be plundered" — that's the
-        # location's own words for prospecting.
-        yield: { hunting: 1.0, prospecting: 1.0 }
+        # location's own words for digging.
+        mining: 0.3
         rooms:
           underlocks-dry-spring:
             name: Dry Spring
@@ -1427,7 +1387,7 @@ zones:
         map_node: 13
         description: >-
           As the light of the forest wanes, small white flowers fill the undergrowth. Thousands of them flourish where the forest and black hills collide.
-        yield: { hunting: 1.0, prospecting: 0.5 }
+        mining: 0.22
         rooms:
           shadowed-grove-cairn:
             name: Nameless Cairn
@@ -1455,8 +1415,8 @@ zones:
         # A unique spot rather than a milder one like Shadowed Grove or Grand
         # Ravine: the Gallows below is a real grave (bones already sit there
         # as a room's static stash), and searching it has its own table
-        # (LABORDROPS.md, laborTypeLocation.prospecting.hills-west).
-        yield: { hunting: 1.0, prospecting: 0.8 }
+        # (MINING.md §3b).
+        mining: 0.25
         rooms:
           west-hills-crumbled-post:
             name: Crumbled Post
@@ -1482,7 +1442,7 @@ zones:
           The path loses coherence as its stones give rise to gravel and stamped earth. All the trees nearby have lost their leaves and show no signs of growing anytime soon. Hollow winds kick up blackened dirt, unbound by grass or root.
         # An abandoned homestead with a locked hatch, and a basement full of
         # unlabelled tinctures, below — a real scavenging site.
-        yield: { hunting: 1.0, prospecting: 1.0 }
+        mining: 0.25
         rooms:
           north-hills-homestead:
             name: Abandoned Homestead
@@ -1522,7 +1482,7 @@ zones:
           Ravenheart's river rushes downward towards the marshlands below. Beyond here it splits into a delta sustaining the marshes. A bridge offers crossing.
         # The Black Hills' one real river — panning fits as well here as it
         # does at the Forest's own water locations.
-        yield: { hunting: 1.0, fishing: 0.8, prospecting: 1.0 }
+        mining: 0.2
         rooms:
           waterway-leopolds-bridge:
             name: "Leopold's Bridge"
@@ -1542,7 +1502,7 @@ zones:
         map_node: 28
         description: >-
           The remains of an ancient riverbed guide the passage of hapless travellers, navigating between the domineering heights that surround it. It makes for a significantly easier journey than scaling each of the many hills.
-        yield: { hunting: 1.0, prospecting: 0.6 }
+        mining: 0.28
         rooms:
           gullies-plateau:
             name: Wisened Plateau
@@ -1564,7 +1524,7 @@ zones:
         map_node: 29
         description: >-
           Following the contours of the hills that surround it, the ravine is as constricting as it is expansive. A miasmic fog of decay sinks to the bottom, waiting to be blown away by winds that will never come.
-        yield: { hunting: 1.0, prospecting: 0.5 }
+        mining: 0.3
         rooms:
           grand-ravine-echoing-halls:
             name: Echoing Halls
@@ -1622,7 +1582,7 @@ zones:
         map_node: 30
         description: >-
           At the base of the mountains, tall walls of stone crush any hopes of travelling further East. High above some greenery has managed to grow, nestled in crags of the cliff faces. The lucky descendants of plants who managed to escape the fate beholden to the rest of the Black Hills.
-        yield: { hunting: 1.0, prospecting: 0.6 }
+        mining: 0.28
         rooms:
           # The Forest's Cliffs already owns the `cliffs-` stem, and room ids
           # share one namespace, so these take the full location id instead.
@@ -1647,7 +1607,6 @@ zones:
         name: Village
         description: >-
           Half-submerged houses connected by bridges, their owners gone. Cypress forms a thick treeline all around, their bases packed with cattails. There's big fish in the water.
-        yield: { fishing: 1.0 }
         attributes:
           godflesh: true
         rooms:
@@ -1685,8 +1644,8 @@ zones:
         indoors: true
         description: >-
           A huge, wooden warehouse elevated above a shallow lake. Rickety bridges connect the various sheds, barrels, and winches. Electric lamps hang overhead, holding back the darkness. You can hear the insects and frogs every night. `GODARD FACTORY` is printed in white. Raven banners hang over the entrance.
-        # No `yield:` — refining is not a labor coefficient. `refinery` is what
-        # makes laboring legal here at all, and what it pays in.
+        # No `mining:` — refining is not a mining coefficient. `refinery` is
+        # what puts the Refine button here at all, and what it pays in.
         #
         # `wheels` keeps the wagon: this is a warehouse with a ramp down to dry
         # ground, and the Logistics Room's own description says the cart is
@@ -1747,7 +1706,6 @@ zones:
         map_node: 31
         description: >-
           The land flattens into water, reeds, and the cloudy sky. Warm shallows stretch between muddy hummocks beneath clouds of mosquitos, while low yellow fog rolls through wherever the water turns stagnant. Wind rustles through the reeds in great bands, carrying the smell of rot and distant splashing much farther than expected.
-        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
@@ -1769,7 +1727,6 @@ zones:
         map_node: 32
         description: >-
           Broad old trees gather along slow, dark channels, their limbs stretching low enough to almost brush the water. Grass grows thick on the higher banks, while lilies and floating weeds collect in the quieter bends below. The woods feel open at first glance, dappled with warm light and broad patches of green, but the ground is divided by creeks, flooded hollows, and soft banks that give way underfoot. Frogs call from the water and insects hang in the still air beneath the canopy.
-        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
@@ -1795,7 +1752,6 @@ zones:
         map_node: 33
         description: >-
           Trees knot together above narrow ridges of mud and thickets wide enough to force travelers into whatever passages remain open. The air hangs hot and wet beneath the canopy, heavy with mosquitos and the sweet-sour smell of flooded vegetation. Pale fog settles into the lowest hollows and turns trunks into indistinct shapes.
-        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
@@ -1815,13 +1771,12 @@ zones:
             access: [forester, tracking]
             stash:
               items:
-                coal: 2
+                hematite: 2
       marshes-drowned:
         name: Drowned Marshes
         map_node: 34
         description: >-
           This place is open. The drowned basin spreads beneath an open sky, its surface broken by the occasional raft of floating vegetation. In still weather, the surface becomes perfectly reflective, doubling the trees and clouds until the horizon seems uncertain. There is little shelter and less solid ground, only water stretching between scattered remnants of what once grew there.
-        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
@@ -1845,7 +1800,6 @@ zones:
         map_node: 35
         description: >-
           Wet grass and pale limestone share the ground in uneasy patches, cut through by clear streams that vanish abruptly into cracks in the earth. Shallow hollows gather rainwater between shelves of exposed stone, while larger depressions fall away into shadow beneath hanging roots and scrub.
-        yield: { hunting: 1.0, fishing: 1.0 }
         attributes:
           wilderness: true
           godflesh: true
@@ -1945,14 +1899,17 @@ zones:
               depot-storefront:
                 name: Storefront
                 description: >-
-                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the shuttle landing pad.
+                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
                 stash: [tea, sugar-candy]
-              depot-landing-pad:
-                name: Landing Pad
-                access: [depot-keycard]
-                live: shuttle
+              # PUBLIC on purpose, and eyes open: crates land here, so anybody
+              # can walk in and carry one off. That is a known hole nobody has
+              # closed yet — the alternative was a cargo room only Dockers could
+              # reach, which defeats opening the counter up in the first place.
+              depot-railyard:
+                name: Railyard
+                live: train
                 description: >-
-                  A grated steel bay. The roof automatically opens and closes.
+                  Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.
               depot-merchants-office:
                 name: Merchant's Office
                 access: [merchants-license]
@@ -1982,20 +1939,18 @@ zones:
                     # Untradeable, so it is a fixture here and weighs nothing —
                     # see the note on the tag in docs/tags.yaml.
                     packaging-equipment: 1
-          # Prospecting joined 2026-09-09 (LABORING.md §3a) as every Cave and
-          # Depths location's fourth yield — mines, tunnels and an ore vein
-          # were already the fiction down here (see the Old Mineshaft room
-          # below, and chasm-ore-vein further down), so digging started where
-          # digging already made sense. It's not mining-only everywhere,
-          # though — see the Forest's own rows, further up, for the panning
-          # and scavenging side of it.
+          # Underground is where mining actually pays: 0.9 in the Caves and
+          # 1.1 in the Depths, against 0.2–0.3 on the surface of the Black
+          # Hills (MINING.md §3). Mines, tunnels and an ore vein were already
+          # the fiction down here — see the Old Mineshaft room below, and
+          # chasm-ore-vein further down.
           caves-approach:
             name: Approach
             map_node: 14
             indoors: true
             description: >-
               A long time ago, a great foe threatened Ravenheart from the caves. The mines laid by the Baron still patiently wait for the invading army. The stench of decaying remains scattered with explosive force is surprisingly meagre. Gnawed bones are the only proper remains to be seen.
-            yield: { hunting: 0.4, prospecting: 0.5 }
+            mining: 0.9
             rooms:
               approach-hut:
                 name: Abandoned Hut
@@ -2012,7 +1967,7 @@ zones:
                 stash:
                   items:
                     black-powder: 1
-                    coal: 1
+                    hematite: 1
                     rock: 3
               approach-nekker-den:
                 name: Nekker Den
@@ -2031,7 +1986,7 @@ zones:
             indoors: true
             description: >-
               Numerous stone walkways connect side tunnel entrances over a large pit. At the centre of the chamber above the pit is a pillar of stone that serves as the point at which the walkways meet. It is impossible to say just how deep the pit is.
-            yield: { hunting: 0.4, prospecting: 0.5 }
+            mining: 0.9
             rooms:
               walkways-central-spire:
                 name: Central Spire
@@ -2062,7 +2017,7 @@ zones:
             indoors: true
             description: >-
               A winding forest of mushrooms, home to every manner of skulking thing. Any attempt to establish a proper path through has been quashed by the fungi's competition over the limited space. Navigating through, you can hear the sound of things scraping through the forest around you.
-            yield: { hunting: 0.4, prospecting: 0.5 }
+            mining: 0.9
             rooms:
               brooding-burrows:
                 name: Burrows
@@ -2102,7 +2057,7 @@ zones:
             indoors: true
             description: >-
               What remains of an old campsite, picked clean by years of travellers passing through. Everything of any value has long been scavenged, alongside many things of no value whatsoever.
-            yield: { hunting: 0.4, prospecting: 0.5 }
+            mining: 0.9
             rooms:
               abandoned-camp-main:
                 name: Main Camp
@@ -2147,7 +2102,7 @@ zones:
               noticeboard: true
             description: >-
               At the end of the cave system stands a wall of solid metal. Grime and rubble have piled up against it. The places where it remains bare, its surface is near perfectly smooth.
-            yield: { hunting: 0.6, prospecting: 0.7 }
+            mining: 1.1
             rooms:
               steel-wall-perimeter:
                 name: Barren Perimeter
@@ -2176,7 +2131,7 @@ zones:
             indoors: true
             description: >-
               A pillar of rusted steel sits in the centre of the chamber, surrounded by scattered pieces of metal and strange instruments. The stone on which the obelisk sits seems to have been stained black. You can taste metal in your mouth.
-            yield: { hunting: 1.8, prospecting: 0.7 }
+            mining: 1.1
             rooms:
               obelisk-machinery:
                 name: Strange Machinery
@@ -2193,14 +2148,13 @@ zones:
                     purse: 2
                     bastard-sword: 1
                     old-coin: 9
-                    trapping-gear: 1
           depths-last-chance:
             name: Last Chance
             map_node: 20
             indoors: true
             description: >-
               The great hollow chambers that dominate the depths to the East meet their end here. Crackling flashes of light illuminate the cavern wall as it makes a sharp turn north, leading upwards out of the depths. A tunnel has been bored into a smaller cavern system to the West, and a plaque inlaid into the wall beside it.
-            yield: { hunting: 0.6, prospecting: 0.7 }
+            mining: 1.1
             rooms:
               last-chance-halls:
                 name: Halls of Lightning
@@ -2225,7 +2179,7 @@ zones:
             indoors: true
             description: >-
               A simple choice awaits those who pass this way, the tunnel branches into two possible directions. Such a simple choice is complicated by the overwhelming smell of stagnant water and charred ash. The air itself seems thick.
-            yield: { hunting: 0.6, prospecting: 0.7 }
+            mining: 1.1
             rooms:
               fork-cobbles:
                 name: Brittle Cobbles
@@ -2245,7 +2199,7 @@ zones:
                 access: [sixth-sense, adventurer, brave]
                 stash:
                   items:
-                    coal: 12
+                    iron: 6
                     black-powder: 8
                     saltpeter: 4
           depths-grand-chamber:
@@ -2254,10 +2208,9 @@ zones:
             indoors: true
             description: >-
               A large singular open chamber held up by great pillars of stone. It must be hundreds of feet in height, and echos return minutes later from the other side.
-            # `fishing` is here rather than on the room, because a yield is a
-            # property of the Location — it is what makes the Deep Sea's
-            # "you can fish here" true for the Labor pass.
-            yield: { hunting: 0.6, fishing: 0.9, prospecting: 0.7 }
+            # The coefficient sits on the Location rather than on a room,
+            # because what the ground is worth is a property of the place.
+            mining: 1.1
             rooms:
               grand-chamber-expanse:
                 name: Expanse
@@ -2279,14 +2232,13 @@ zones:
                   resources: 9
                   items:
                     deep-morel: 1
-                    fishing-rod: 1
           depths-crystal-chambers:
             name: Crystal Chambers
             map_node: 23
             indoors: true
             description: >-
               A maze of interconnected chambers, all hosting great crystalline growths of varying colours and shapes. What light does make its way in here is reflected in every possible direction, creating strange constellations of reflections.
-            yield: { hunting: 0.6, prospecting: 0.7 }
+            mining: 1.1
             rooms:
               crystal-chambers-razor-tunnels:
                 name: Razor Tunnels
@@ -2306,17 +2258,17 @@ zones:
                 description: >-
                   A pool has formed at the centre of this room. Perfectly still, were you not in pitch darkness you would see your own tormented reflection.
                 access: [caving, vain]
-          # The Depths' best Prospecting (1.4, versus 0.7 everywhere else down
-          # here) — the same reasoning depths-obelisk gets the best Hunting:
-          # this is the one place with an actual named vein
-          # (chasm-ore-vein, below).
+          # The Depths' best seam, 1.4 against 1.1 everywhere else down here:
+          # this is the one place in the game with an actual named vein
+          # (chasm-ore-vein, below), and flattening it to the Depths' baseline
+          # would have deleted the map's only authored "dig HERE".
           depths-chasm:
             name: Chasm
             map_node: 24
             indoors: true
             description: >-
               The Earth has been split here. This steep crack is what remains. The smell of sulfur flows out of the chasm from the numerous smaller tunnels that connect to it at its base. Some of these tunnels can lead even deeper into the depths, for better or worse.
-            yield: { hunting: 0.6, prospecting: 1.4 }
+            mining: 1.4
             rooms:
               chasm-outcrop:
                 name: Outcrop
@@ -2333,7 +2285,7 @@ zones:
                 name: Ore Vein
                 description: >-
                   One of the many holes bored into in walls of the ravine reveals a trove of ore. We're rich!
-                access: [laboring-skilled, caving, prospectors-notes]
+                access: [prospecting, caving, prospectors-notes]
                 stash:
                   resources: 95
               # The Pray button lives here and nowhere else — its slug is

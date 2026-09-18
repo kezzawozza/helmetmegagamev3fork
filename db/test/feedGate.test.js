@@ -57,7 +57,7 @@ test("makeSeenSeqs refuses a nonsense bound", () => {
   assert.throws(() => makeSeenSeqs(1.5), TypeError);
 });
 
-// A zone summary wipes on the slower Dawn schedule, so its rows are older
+// A zone summary wipes on the slower once-a-day schedule, so its rows are older
 // than the turn floor — the gate asks per place, not the lower of the two.
 test("a zone summary is measured against the summary floor", () => {
   const floors = { turn: 100n, summary: 10n };
@@ -74,6 +74,6 @@ test("a room, a location and a conversation are measured against the turn floor"
 test("a summary row between the two floors survives, and a room row does not", () => {
   const floors = { turn: 100n, summary: 10n };
   const passes = (seq, placeKey) => seq > floorForPlace(floors, placeKey);
-  assert.equal(passes(50n, "zone:abc"), true, "above its own Dawn floor");
+  assert.equal(passes(50n, "zone:abc"), true, "above its own summary floor");
   assert.equal(passes(50n, "room:abc"), false, "below the turn floor it was wiped by");
 });

@@ -25,7 +25,7 @@ the student's **Gambit** — the die after its modifier (Hunger, Afraid, Panic;
 
 - **Teaching** (4 pt, a standalone `skills` tag) buys three things at once: the
   Routine back, the threshold down a pip, and a cap of `TEACHING_CAPACITY`
-  students a turn. A holder's Move slot is **never read** — they can labor,
+  students a turn. A holder's Move slot is **never read** — they can mine,
   travel or run a Gambit and still teach three people the same day.
 - An untrained teacher owes a whole Routine, so any Move already locked in
   refuses. That is also what caps them at one student: accepting files the
@@ -68,7 +68,7 @@ rule, used by the page to build the menus and by the offer and accept paths
 to re-check them:
 
 - the teacher holds the skill **or a higher tier of it** (`parentTagId` chain
-  — a Melee (Expert) can teach Melee (Basic));
+  — a Melee IV can teach Melee I);
 - the learner holds neither it nor a higher tier;
 - the learner holds its `parentTagId` when it has one, and its `requiredTagId`
   / group gate — a lesson can't skip a prerequisite the store won't.
@@ -208,7 +208,7 @@ two share the one Move.
 
 **The clock**: `Character.boundSinceTurnNumber`, stamped with `turn.number`
 by `applyBind` the moment `bound` is freshly granted (not on a re-bind of
-someone already tied up), the same claim-token shape as `extractDayKey`
+someone already tied up), the same claim-token shape as `extractTurnKey`
 (`FACTORY.md` §3) — a plain column, not a foreign key, so deleting a turn
 never cascades into a character row. Read back each attempt as
 `openTurn.number - boundSinceTurnNumber`, 0 on the same turn the bind

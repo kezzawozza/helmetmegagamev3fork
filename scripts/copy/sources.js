@@ -168,7 +168,6 @@ const DUAL_SURFACE_FILES = new Set([
   "db/lib/formatTagRequirement.js",
   "db/lib/moveEffects.js",
   "db/lib/mood.js",
-  "db/lib/production.js",
 ]);
 
 // The `»` rule is per-call-site, and NO transport strips or doubles one:
@@ -201,7 +200,7 @@ const JS_GROUPS = [
       f.startsWith("web/lib/"),
   },
   {
-    group: "web-map-faction",
+    group: "web-map-pages",
     test: (f) => f.startsWith("web/app/"),
   },
   { group: "bot-commands", test: (f) => f === "bot/src/lib/commands.js" },
@@ -212,7 +211,7 @@ const JS_GROUPS = [
   {
     group: "bot-turns",
     test: (f) =>
-      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|turnCalendar|turnBanner|moveModal|moveConfirm|autoLaborPass|hungerPass|tagExpiryPass|labor|travel/i.test(
+      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|turnCalendar|turnBanner|moveModal|moveConfirm|hungerPass|tagExpiryPass|mining|travel/i.test(
         f,
       ),
   },
@@ -230,7 +229,7 @@ const GROUP_TITLES = {
   "content-desires": "Desire names — the catalog a player picks from.",
   "web-character": "Web: the character sheet and its panels.",
   "web-creation": "Web: character creation and the gate screens.",
-  "web-map-faction": "Web: /faction, /documents, /notes, /archive chrome.",
+  "web-map-pages": "Web: /documents, /notes, /archive chrome.",
   "web-errors": "Web: refusal messages a player sees when an action is blocked.",
   "web-gm": "Web: GM-only pages under /gm.",
   "bot-commands": "Bot: slash command and option descriptions.",
@@ -253,7 +252,7 @@ const GROUP_ORDER = [
   "bot-replies",
   "bot-commands",
   "web-creation",
-  "web-map-faction",
+  "web-map-pages",
   "bot-misc",
   "web-errors",
   "web-gm",

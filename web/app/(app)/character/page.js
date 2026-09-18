@@ -41,17 +41,17 @@ import {
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
-  TAXMAN_SLUG,
 } from "@lifeweb/db/lib/constants";
-import { getMyFactionRole } from "@/lib/factionPermissions";
 import {
   hasAttribute,
   GODFLESH_ATTRIBUTE,
   SOILERY_ATTRIBUTE,
 } from "@lifeweb/db/lib/locationAttributes";
-import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
+import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { farmRefusalFor } from "@lifeweb/db/lib/soilery";
 import { breakInRefusalFor } from "@lifeweb/db/lib/arelitz";
+import { isRefinery, refineryInput } from "@lifeweb/db/lib/refinery";
+import { resolveMiningRate } from "@lifeweb/db/lib/mining";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
@@ -65,7 +65,8 @@ import {
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
+import { clockStatus, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { deployVersion } from "@/lib/deployVersion";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
@@ -110,24 +111,14 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import CharacterView from "./CharacterView";
 import Loading from "./Skeleton";
 
-// Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
-// tree it renders. Seat counts are computed here, not the client, so the
-// numbers aren't stale-rendered from a cached page.
+// Everything the creation wizard needs, as the flat role list groupRoles()
+// buckets into the picker's social groups. Seat counts are computed here, not
+// the client, so the numbers aren't stale-rendered from a cached page.
 async function loadCreationData(discordUserId) {
-  const [zones, tags, config, state, member, dynastyName, preference] = await Promise.all([
-    prisma.zone.findMany({
-      orderBy: { name: "asc" },
-      include: {
-        factions: {
-          orderBy: { sortOrder: "asc" },
-          include: {
-            roles: {
-              orderBy: { sortOrder: "asc" },
-              include: { startingLocation: { include: { zone: true } } },
-            },
-          },
-        },
-      },
+  const [roleRows, tags, config, state, member, dynastyName, preference] = await Promise.all([
+    prisma.role.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: { startingLocation: { include: { zone: true } } },
     }),
     loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
@@ -141,9 +132,6 @@ async function loadCreationData(discordUserId) {
 
   // Seated (ALIVE, plus DEAD on a seat that never reopens) plus anyone
   // else's live wizard-in-progress hold; excludes the viewer's own hold.
-  const roleRows = zones.flatMap((zone) =>
-    zone.factions.flatMap((faction) => faction.roles),
-  );
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
   const cursed = await isPlayerCursed(prisma, discordUserId);
@@ -181,20 +169,15 @@ async function loadCreationData(discordUserId) {
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
-    // Seven social buckets, not five zones — db/lib/roleGroups.js says which
-    // faction lands where.
-    groups: groupRoles(
-      zones.flatMap((zone) =>
-        zone.factions.map((f) => ({ ...f, zoneName: zone.name })),
-      ),
-    )
+    // Seven social buckets, not five zones — each role names its own in
+    // docs/roles.yaml and db/lib/roleGroups.js holds the order and the labels.
+    groups: groupRoles(roleRows)
       .map((group) => ({
         slug: group.slug,
         name: group.name,
         // Spawn-only seats are withheld outright, not greyed — see
         // characterCreation.js#isSpawnOnly.
         roles: group.roles.filter((role) => !isSpawnOnly(role)).map((role) => {
-          const { faction } = role;
           const cap = roleCapacity(role, playerCount);
           return {
             id: role.id,
@@ -204,9 +187,6 @@ async function loadCreationData(discordUserId) {
             // Null for ordinary seats; set on the four dynasty roles.
             lockedGender: role.lockedGender,
             difficulty: role.difficulty,
-            // Printed on the card itself, now that the faction is no longer
-            // a heading over it.
-            factionName: faction.name,
             startingLocationName: role.startingLocation?.name ?? null,
             startingZoneName: role.startingLocation?.zone?.name ?? null,
             startingResources: role.startingResources,
@@ -214,9 +194,8 @@ async function loadCreationData(discordUserId) {
             // Parsed, because the wizard matches these against catalog tag
             // slugs and an entry may carry a count ("obol x5").
             startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
-            grantsLeader: role.grantsLeader,
-            // Drives the "Whitelist only" hover on a greyed card. Separate
-            // from grantsLeader, which now only means faction Leader.
+            // Drives the "Whitelist only" hover on a greyed card, and the ★
+            // beside the name: a reserved seat, vouched players only.
             requiresWhitelist: role.requiresWhitelist,
             whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
             // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
@@ -257,12 +236,18 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     include: {
-      faction: true,
       zone: true,
       // The Location's own zone kind rides along so canBuildHere() can judge
       // this ground without a second round-trip (db/lib/structures.js) —
       // building is a fact about the ground, not the presence `zone`.
-      location: { include: { zone: { select: { kind: true } } } },
+      location: {
+        include: {
+          zone: { select: { kind: true, slug: true } },
+          // The Mine button's gate: the row IS the gate (db/lib/mining.js), so its
+          // absence is what hides the button.
+          mining: { select: { current: true } },
+        },
+      },
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly — `include` doesn't pull
       // unnamed relations. HEAL_SKILL_SELECT, not `name` alone: these rows
@@ -293,7 +278,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.count({ where: { status: "READY" } }),
       ]);
-      // Six fields per role, not the wizard's whole card — never tags, seat counts, or where a seat starts.
+      // Six fields per role, not the wizard's whole card — never tags or seat counts.
       const lobbyGroups = creation.groups.map((g) => ({
         slug: g.slug,
         name: g.name,
@@ -302,8 +287,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           slug: r.slug,
           name: r.name,
           intro: r.intro,
-          factionName: r.factionName,
-          grantsLeader: r.grantsLeader,
+          startingZoneName: r.startingZoneName,
           requiresWhitelist: r.requiresWhitelist,
           whitelistBlocked: r.whitelistBlocked,
         })),
@@ -315,7 +299,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           initial: {
             rolePriorities: preference?.rolePriorities ?? {},
             antagonistOptIns: creation.initialAntagonists,
-            joblessRole: preference?.joblessRole ?? "COMMONER",
+            joblessRole: preference?.joblessRole ?? "MIGRANT",
           },
           entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,
           readyCount,
@@ -423,7 +407,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       },
     }),
     findOpenTurnAction(prisma, character.id),
-    clockFrozen(prisma),
+    clockStatus(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
     // The turn card in the sheet's band paints from this, so it is read on
     // every load rather than gated on a scope.
@@ -564,51 +548,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
 
   // From is you or a room; To is anyone here or a room (actions/MoveThingsDialog.js).
   const transferPartyList = { characters: transferParties, rooms };
-  // Your faction's silo, if it has one and you're standing in its zone — a
-  // deposit-only destination pinned above rooms here (FACTIONS.md). `here`
-  // avoids listing it twice; `canOpen` decides the one-way-trip warning.
-  const siloFaction = character.factionId
-    ? await prisma.faction.findFirst({
-        where: { id: character.factionId, siloRoomId: { not: null } },
-        select: {
-          siloRoom: {
-            select: {
-              id: true,
-              name: true,
-              kind: true,
-              accessTagSlugs: true,
-              locationId: true,
-              location: { select: { name: true, zoneId: true } },
-            },
-          },
-        },
-      })
-    : null;
-  const siloRoom = siloFaction?.siloRoom ?? null;
-  const transferSilo =
-    siloRoom &&
-    character.zoneId &&
-    siloRoom.location.zoneId === character.zoneId
-      ? {
-          id: siloRoom.id,
-          name: siloRoom.name,
-          locationName: siloRoom.location.name,
-          here: siloRoom.locationId === character.locationId,
-          canOpen:
-            accessibleRooms(
-              [
-                {
-                  id: siloRoom.id,
-                  kind: siloRoom.kind,
-                  accessTagSlugs: siloRoom.accessTagSlugs,
-                },
-              ],
-              heldSlugsForRooms,
-              guestRoomIds,
-              questRoomIds,
-            ).length === 1,
-        }
-      : null;
   // Is a forge within reach? Resolved server-side so the Craft dialog can say so before a player commits.
   const hasWorkshop = await hasEquipmentInReach(
     prisma,
@@ -619,13 +558,13 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // place is wrong rather than greying, a fact about their own location.
   const canSeeExtract = hasAttribute(character.location, GODFLESH_ATTRIBUTE);
   const extractTool = canSeeExtract ? extractToolFor(character.tags) : null;
-  // Extract's cooldown is its own — once per in-game day (Character.extractDayKey, FACTORY.md §3). Greyed with the reason, not hidden.
-  const cutAlready = canSeeExtract && extractedToday(character, openTurn);
+  // Harvest Godflesh's cooldown is its own — once a turn (Character.extractTurnKey, FACTORY.md §3). Greyed with the reason, not hidden.
+  const cutAlready = canSeeExtract && extractedThisTurn(character, openTurn);
   const canExtract = Boolean(extractTool) && !cutAlready;
   const extractBlocked = !canSeeExtract
     ? null
     : cutAlready
-      ? "You already harvested Godflesh today."
+      ? "You already harvested Godflesh this turn."
       : !extractTool
         ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
         : null;
@@ -656,6 +595,40 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     ? null
     : breakInRefusalFor(character.tags, Boolean(currentAction));
   const canBreakIn = canSeeBreakIn && !breakInBlocked;
+  // Refine (FACTORY.md): the Factory floor's other verb, and the one that
+  // spends the whole day. `refineryInput` is the SAME function the server
+  // action re-checks, so an empty floor greys the button and refuses a
+  // bypassed request with the same sentence.
+  const canSeeRefine = isRefinery(character.location);
+  const refineInput = canSeeRefine
+    ? await refineryInput(prisma, { id: character.id, locationId: character.locationId })
+    : null;
+  const refineBlocked = !canSeeRefine
+    ? null
+    : !refineInput
+      ? "There's no Godflesh here to refine."
+      : currentAction
+        ? "You already have an action this turn."
+        : null;
+  const canRefine = canSeeRefine && !refineBlocked;
+  // Mine (MINING.md). The button shows to EVERYONE, always: anybody can shift
+  // rock, and Prospecting decides how much it is worth rather than whether you
+  // may try (2026-09-18). Standing where there is no seam, the Exhausted
+  // lockout and the once-a-turn Move rule are all greys.
+  //
+  // There is no zone check here on purpose. The LocationMining row IS the gate
+  // (db/lib/mining.js's header), and resolveMiningRate already says "There's
+  // nothing to mine here." for a place without one. The `zone.slug === "caves"`
+  // test that used to sit here was also wrong: it shut the Depths and the
+  // Black Hills out of a system whose coefficients they both carry.
+  const canSeeMine = true;
+  const mineRate = await resolveMiningRate(prisma, character.id);
+  const mineBlocked = !mineRate.ok
+    ? mineRate.reason
+    : currentAction
+      ? "You already have an action this turn."
+      : null;
+  const canMine = !mineBlocked;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
     character,
@@ -842,13 +815,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
   const isCerberon = heldSlugs.has(CERBERON_SLUG); // cerberonActions.js re-checks both
   const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugs.has(slug));
-  // The Tax button (docs/tags.yaml's `taxman`) — taxRequestImpl re-checks every fact.
-  const canTax = Boolean(
-    heldSlugs.has(TAXMAN_SLUG) &&
-      !character.concealed &&
-      character.factionId &&
-      (await getMyFactionRole(session.discordUserId, character.factionId)).isOfficer,
-  );
   const hideout = isThanati ? await hideoutRoom(prisma) : null;
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: rooms at this Location the leader can get into.
@@ -933,7 +899,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // as being able to read it, the entire point of an illiterate courier.
   const viewer = {
     tags: character.tags,
-    phase: openTurn?.phase ?? null,
+    daylight: isDaylight(),
     indoors: character.location?.indoors ?? true,
   };
   // Poison state (medical pass, M4): CharacterTag.poisonedCount/
@@ -1111,11 +1077,16 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     concealment,
   }).avatarPath;
 
-  // The Move cutoff for the band's "This turn" box.
+  // The Move cutoff for the band's "This turn" box. `shut` rides beside it because the window alone cannot say the game is
+  // closed — out of session `locked` is false, since freezing removes the deadline (db/lib/turnGate.js).
   const openTurnWithWindow = openTurn
     ? {
         ...openTurn,
-        moveWindow: moveWindow(openTurn, { clockFrozen: frozen }),
+        moveWindow: {
+          ...moveWindow(openTurn, { clockFrozen: frozen.frozen }),
+          shut: !frozen.inSession,
+          shutReason: frozen.inSession ? null : "The game isn't in session.",
+        },
       }
     : openTurn;
 
@@ -1140,7 +1111,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       forcedIdentity: forcedIdentity,
       concealGear: concealGear,
       transferParties: transferPartyList,
-      transferSilo: transferSilo,
       carry: carry,
       zoneMoves: zoneMoves,
       zoneMovesReason: zoneMovesReason,
@@ -1198,6 +1168,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canSeeExtract: canSeeExtract,
       canExtract: canExtract,
       extractBlocked: extractBlocked,
+      canSeeRefine: canSeeRefine,
+      canRefine: canRefine,
+      refineBlocked: refineBlocked,
+      canSeeMine: canSeeMine,
+      canMine: canMine,
+      mineBlocked: mineBlocked,
       canSeeFarm: canSeeFarm,
       canFarm: canFarm,
       farmBlocked: farmBlocked,
@@ -1220,7 +1196,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
       isCerberon: isCerberon,
-      canTax: canTax,
       canWarrant: canWarrant,
       atHideout: atHideout,
       hideoutRooms: hideoutRooms,

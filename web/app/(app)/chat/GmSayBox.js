@@ -47,7 +47,7 @@ export default function GmSayBox({ selected, onSaid }) {
 
   return (
     <div className="chat-card">
-      <p className="chat-section-title">Say something here</p>
+      <p className="group-label chat-section-title">Say something here</p>
 
       {sayable ? (
         <>

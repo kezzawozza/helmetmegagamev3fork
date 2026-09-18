@@ -9,7 +9,6 @@ import { Faucets } from "./sections/Faucets";
 import { Sinks } from "./sections/Sinks";
 import { Goods } from "./sections/Goods";
 import { Depot } from "./sections/Depot";
-import { Factions } from "./sections/Factions";
 import { NotBuilt, EmptyGame } from "./sections/shared";
 
 // The economy desk's whole client half. One switch on `section`, dispatching
@@ -39,8 +38,6 @@ export default function EconomyView(props) {
       return <Goods {...props} />;
     case "depot":
       return <Depot {...props} />;
-    case "factions":
-      return <Factions {...props} />;
     default:
       return <NotBuilt section={props.section} />;
   }

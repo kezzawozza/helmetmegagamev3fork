@@ -1,10 +1,9 @@
 // node --test over db/lib/advantage.js — Lucky's roll-twice-keep-the-better
-// die, and the labor drop die's Scavenging remap that rides beside it. Run
+// die. Run
 // with `npm test --workspace=db`. Nothing here touches Prisma.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { rollWithAdvantage, formatAdvantage } = require("../lib/advantage");
-const { scavengingMayFallBack, SCAVENGING_FALLBACK_TO } = require("../lib/laborDrops");
 
 const LUCKY = [{ tag: { slug: "lucky" } }];
 
@@ -48,35 +47,6 @@ test("Lucky lifts the average roll by roughly a point", () => {
 test("the roll line names Lucky only when it actually fired", () => {
   assert.equal(formatAdvantage({ rolls: [3], advantage: false }), null);
   assert.equal(formatAdvantage({ rolls: [6, 2], advantage: true }), "(6, 2 — Lucky)");
-});
-
-// Says only WHICH faces may fall back; whether one does depends on the pool
-// (pickLaborDropOption).
-test("Scavenging may fall back from a 4 or a 5, and never from a 1", () => {
-  const scav = new Set(["laboring-scavenging"]);
-  assert.deepEqual(
-    [1, 2, 3, 4, 5, 6].map((r) => scavengingMayFallBack(r, scav)),
-    [false, false, false, true, true, false],
-  );
-});
-
-test("nobody else falls back at all", () => {
-  for (const r of [1, 2, 3, 4, 5, 6]) {
-    assert.equal(scavengingMayFallBack(r, new Set()), false);
-    assert.equal(scavengingMayFallBack(r, new Set(["laboring-skilled"])), false);
-  }
-});
-
-test("scavengingMayFallBack takes an array as readily as a Set", () => {
-  assert.equal(scavengingMayFallBack(4, ["laboring-scavenging"]), true);
-  assert.equal(scavengingMayFallBack(4, []), false);
-});
-
-// A blanket 4/5->6 remap became a DOWNGRADE once Prospecting filled in 2, 4,
-// 5. Falling back only from an EMPTY pool can never take a payout away.
-test("the fallback face is the 6, and a 1 is never touched", () => {
-  assert.equal(SCAVENGING_FALLBACK_TO, 6);
-  assert.equal(scavengingMayFallBack(1, new Set(["laboring-scavenging"])), false);
 });
 
 // The push on's two-sided die (rollWithEdge): votes for and against, ties

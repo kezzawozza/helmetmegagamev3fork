@@ -1,18 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 // Submodule path, not the @lifeweb/db barrel — this is a client component and
 // the barrel drags PrismaClient into the browser bundle (ARCHITECTURE.md §2).
-import { resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
 import GoalsPanel from "./GoalsPanel";
-import HereList from "./HereList";
 import LedgerBand from "./LedgerBand";
 import LedgerWork from "./LedgerWork";
+import MoodPanel from "./MoodPanel";
 import RequestActionsProvider from "./RequestActionsProvider";
 import RichText from "./RichText";
 import StandingHerePanel from "./StandingHerePanel";
@@ -20,11 +19,18 @@ import TagRail from "./TagRail";
 
 // The character sheet, at /character. See docs/systemdocs/SHEET.md.
 //
-// A band of numbers across the top — the Move, the status strip and every
-// verb — over three columns: bio and what you have half-finished on the left,
-// the rig and the people around you in the middle, and the tags down a rail on
-// the right as one card per kind. On a phone the three columns are three tabs. The whole thing
-// scrolls as one ordinary page; nothing here scrolls inside itself.
+// A band across the top — the face, the blackletter name, five tiles, the turn
+// and combat boxes, and every verb in one strip — over TWO columns: what you
+// have on the left (the tag rail, the inventory, the bio), and what you are
+// wearing, how you feel and what you want on the right. Under 720px they stack.
+// The whole thing scrolls as one ordinary page; nothing here scrolls inside
+// itself.
+//
+// It was three columns behind a You / Do / Tags tab bar until phase 4 of the
+// game 3 redesign (docs/design/mockups/character/index.html is the spec). The
+// middle column existed mostly to give the bio form somewhere to be, and the
+// tabs hid two thirds of a sheet on a phone — so reading your own wound cost
+// two taps.
 //
 // The props are built once in character/page.js#FreshCharacter, which is also
 // what /chat's YOU column reads from, so the two surfaces cannot disagree
@@ -34,13 +40,6 @@ import TagRail from "./TagRail";
 // icon rack of verbs. The .ledger-* class names and the LedgerBand/LedgerWork
 // components are that rebuild's own, kept on purpose rather than churned;
 // SHEET.md §6 says why.
-
-// The three columns as tabs, below the sheet's own breakpoint (globals.css).
-const TABS = [
-  ["you", "You"],
-  ["do", "Do"],
-  ["tags", "Tags"],
-];
 
 export default function CharacterSheet({
   character,
@@ -52,7 +51,6 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferParties,
-  transferSilo,
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
@@ -79,7 +77,6 @@ export default function CharacterSheet({
   isThanati = false,
   isThanatiLeader = false,
   isCerberon = false,
-  canTax = false,
   canWarrant = false,
   atHideout = false,
   hideoutRooms = [],
@@ -162,6 +159,12 @@ export default function CharacterSheet({
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
+  canSeeRefine = false,
+  canRefine = false,
+  refineBlocked = null,
+  canSeeMine = false,
+  canMine = false,
+  mineBlocked = null,
   canSeeFarm = false,
   canFarm = false,
   farmBlocked = null,
@@ -215,7 +218,6 @@ export default function CharacterSheet({
   const motionSick = Boolean(
     character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === MOTION_SICKNESS_SLUG),
   );
-  const [tab, setTab] = useState("you");
 
   return (
     <div className="sheet-body">
@@ -236,7 +238,6 @@ export default function CharacterSheet({
         // cap at 0 and the verb quietly stops working.
         resources={resourcesOf(character)}
         transferParties={transferParties}
-        transferSilo={transferSilo}
         carry={carry}
         hasWorkshop={hasWorkshop}
         canHeal={canHeal}
@@ -283,6 +284,12 @@ export default function CharacterSheet({
         canSeeExtract={canSeeExtract}
         canExtract={canExtract}
         extractBlocked={extractBlocked}
+        canSeeRefine={canSeeRefine}
+        canRefine={canRefine}
+        refineBlocked={refineBlocked}
+        canSeeMine={canSeeMine}
+        canMine={canMine}
+        mineBlocked={mineBlocked}
         canSeeFarm={canSeeFarm}
         canFarm={canFarm}
         farmBlocked={farmBlocked}
@@ -316,7 +323,6 @@ export default function CharacterSheet({
         isThanati={isThanati}
         isThanatiLeader={isThanatiLeader}
         isCerberon={isCerberon}
-        canTax={canTax}
         canWarrant={canWarrant}
         atHideout={atHideout}
         hideoutRooms={hideoutRooms}
@@ -339,42 +345,44 @@ export default function CharacterSheet({
           hungerWarning={hungerWarning}
         />
 
-        <div className="tab-bar sheet-tabs" role="tablist">
-          {TABS.map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              className="tab-item"
-              data-active={tab === key ? "true" : undefined}
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <div className="ledger-body">
+          {/* LEFT: what you have. The tag rail leads, because it is the thing a
+              player opens the sheet to read; the two inventory cards come out of
+              it (TagRail.js draws them as their own panels), then the bio. */}
+          <div className="ledger-col">
+            <TagRail
+              // The ⬢ stack rides along: Bascinet wants it in the Items table like
+              // any other thing you carry, weight and all. The band's tile keeps
+              // the figure; TagRail keeps Destroy off the row (a one-click burn of
+              // a character's savings is a road nothing else in the game has).
+              characterTags={character.tags}
+              isSelf={isSelf}
+              selfId={character.id}
+              identity={identity}
+              tagPoints={character.tagPoints}
+              tagCatalog={tagCatalog ?? []}
+              currentTurn={openTurn?.number ?? null}
+              storeTags={storeTags}
+              storeHeldTags={storeHeldTags}
+              storeRoleSlug={storeRoleSlug}
+              nukeArmedTurn={nukeArmedTurn}
+            />
 
-        <div className="ledger-body" data-tab={tab}>
-          <div className="ledger-col" data-col="you">
             {isSelf ? (
-              <section className="panel p-4">
-                <h2 className="panel-header">Bio</h2>
-                <BioForm
-                  character={character}
-                  avatarUploadsEnabled={avatarUploadsEnabled}
-                  playPanelEnabled={playPanelEnabled}
-                  portraitMakerEnabled={portraitMakerEnabled}
-                  portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
-                  portraitSelection={portraitSelection}
-                  hasCustomAvatar={hasCustomAvatar}
-                  forcedIdentity={forcedIdentity}
-                  concealGear={concealGear}
-                />
-              </section>
+              <BioForm
+                character={character}
+                avatarUploadsEnabled={avatarUploadsEnabled}
+                playPanelEnabled={playPanelEnabled}
+                portraitMakerEnabled={portraitMakerEnabled}
+                portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
+                portraitSelection={portraitSelection}
+                hasCustomAvatar={hasCustomAvatar}
+                forcedIdentity={forcedIdentity}
+                concealGear={concealGear}
+              />
             ) : (
               character.appearance && (
-                <section className="panel p-4">
+                <section className="panel p-3">
                   <h2 className="panel-header">Appearance</h2>
                   <p className="text-sm">
                     <RichText text={character.appearance} />
@@ -383,27 +391,17 @@ export default function CharacterSheet({
               )
             )}
 
-            {/* Under the Bio rather than beside the rig. It is a clock, not a
-                verb — nothing on it presses — and the Bio was the only card in
-                this column, which left the sheet a tall middle between two
-                short sides. On a phone this moves it from the Do tab to the
-                You tab, which is the same reasoning one size down. */}
+            {/* Under the Bio. It is a clock, not a verb — nothing on it
+                presses — so it sits at the foot of the reading column rather
+                than beside the rig, which is all controls. */}
             {isSelf && <LedgerWork craftProjects={craftProjects} sitesHere={sitesHere} />}
           </div>
 
-          <div className="ledger-col" data-col="do">
-            {/* Who is standing here, with the same menu /chat's column has —
-                so Bind, Loot, Heal and the rest start from the person rather
-                than from a picker. No seed: the list is read on mount, which
-                is the click that asked. It leads this column because the
-                verbs under it are mostly things you do TO somebody. */}
-            {isSelf && (
-              <section className="panel p-4">
-                <h2 className="panel-header">Who&apos;s here</h2>
-                <HereList people={null} selfId={character.id} poll />
-              </section>
-            )}
-
+          {/* RIGHT: what you are wearing, how you feel, and what you want —
+              the three things the mockup puts in this column, in that order.
+              Who's here and what stands here follow, because they are about
+              the room rather than about you. */}
+          <div className="ledger-col">
             <EquipBoard
               characterTags={character.tags}
               isSelf={isSelf}
@@ -413,7 +411,18 @@ export default function CharacterSheet({
               // cells can hold out what a stash here is keeping. One list, one
               // reach rule: a door locked to the dialog is locked to the board.
               stash={transferParties?.rooms ?? []}
+              carry={carry}
             />
+
+            {/* The mood ladder, and only on your own sheet: the band above shows
+                somebody else's word, and where that word sits plus the figure
+                behind it is a private reading (the same posture the Combat tile
+                takes). No narrative paragraph here (Bascinet, 2026-09-18): the
+                only text for it would be Bascinet's own generic paragraph on
+                what moves a mood, not this character's own reason — that one
+                still lives on the band's Mood tile, one press away
+                ("press for why"), which is what SHEET.md documents it as. */}
+            {isSelf && <MoodPanel mood={character.mood ?? 0} />}
 
             {isSelf && (
               <GoalsPanel
@@ -429,31 +438,22 @@ export default function CharacterSheet({
               />
             )}
 
+            {/* "Who's here" no longer has its own panel on the sheet — /chat's
+                aside already carries it ("Here · N"), and drawing the same
+                list twice on two surfaces was the mockup's own reading of it
+                as redundant. HereList.js itself is untouched; /chat still
+                mounts it. */}
+
             <StandingHerePanel sites={sitesHere} />
           </div>
+        </div>
 
-          <div className="ledger-col ledger-rail" data-col="tags">
-            <TagRail
-              // Without the ⬢ stack: the band above already shows the figure,
-              // and the rail is the busier of the two surfaces to see it
-              // doubled on. It also keeps ⬢ off the row's verb strip —
-              // `items` is a destroyable category, so the rail was offering a
-              // one-click Destroy on a character's entire savings, which is a
-              // road to burning money that nothing else in the game has.
-              // Chat's Things drawer does the same (chat/thingRows.js).
-              characterTags={withoutResources(character.tags)}
-              isSelf={isSelf}
-              selfId={character.id}
-              identity={identity}
-              tagPoints={character.tagPoints}
-              tagCatalog={tagCatalog ?? []}
-              currentTurn={openTurn?.number ?? null}
-              storeTags={storeTags}
-              storeHeldTags={storeHeldTags}
-              storeRoleSlug={storeRoleSlug}
-              nukeArmedTurn={nukeArmedTurn}
-            />
-          </div>
+        {/* The mockup's own line (docs/design/mockups/character/index.html),
+            and Bascinet's own words in docs/lore.md: "Now it's the year of
+            our Lord God, 1098." The right-hand span was the mockup's own
+            "nothing here presses" placeholder — dropped, per SHEET.md. */}
+        <div className="foot">
+          <span>Ravenheart · the year of our Lord God, 1098</span>
         </div>
       </RequestActionsProvider>
     </div>

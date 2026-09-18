@@ -1,4 +1,4 @@
-import Link from "next/link";
+import DeskRail, { DeskRailGroup, DeskRailItem } from "@/app/components/DeskRail";
 
 // The economy desk's section rail — a plain server component, same posture
 // as gm/dev/OpsNav.js: no usePathname, the active one comes from ?s=.
@@ -12,25 +12,18 @@ const BUILT = [
   { key: "sinks", label: "Sinks" },
   { key: "goods", label: "Goods" },
   { key: "depot", label: "The Depot" },
-  { key: "factions", label: "Factions" },
 ];
 
 export default function EconomyNav({ section }) {
   return (
-    <nav className="ops-nav">
-      <div className="ops-nav-group">
-        <span className="ops-nav-title">Economy</span>
+    <DeskRail variant="sections" as="nav" ariaLabel="Economy sections">
+      <DeskRailGroup title="Economy" dense>
         {BUILT.map((item) => (
-          <Link
-            key={item.key}
-            href={`/gm/economy?s=${item.key}`}
-            className="ops-nav-item"
-            data-active={section === item.key ? "true" : undefined}
-          >
+          <DeskRailItem key={item.key} href={`/gm/economy?s=${item.key}`} active={section === item.key}>
             {item.label}
-          </Link>
+          </DeskRailItem>
         ))}
-      </div>
-    </nav>
+      </DeskRailGroup>
+    </DeskRail>
   );
 }

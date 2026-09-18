@@ -15,7 +15,7 @@ const hood = {
   equipped: true,
   tag: { forcedName: null, name: "Hood", concealsIdentity: true, concealSprite: "hood", forcesConceal: true, equipLayer: 1 },
 };
-const base = { status: "ALIVE", updatedAt: new Date(1700000000000), roleTitle: null, factionId: null, faction: null, concealed: true, age: 30, gender: "man" };
+const base = { status: "ALIVE", updatedAt: new Date(1700000000000), roleTitle: null, concealed: true, age: 30, gender: "man" };
 
 const PEOPLE = {
   gatehouse: [{ ...base, id: "guard", name: "Guard", concealed: false, tags: [] }],
@@ -34,7 +34,7 @@ function fakePrisma() {
   };
 }
 
-const viewer = { id: "guard", factionId: null, locationId: "gatehouse" };
+const viewer = { id: "guard", locationId: "gatehouse" };
 
 test("no across without the opt-in", async () => {
   const out = await whosHere(fakePrisma(), viewer, { sightings: new Map() });

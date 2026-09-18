@@ -57,8 +57,8 @@ times over:
 - The cron awaits `advanceTurn()` inline (`bot/src/lib/turnEngine.js`), so a
   slow pass blocks the bot process itself.
 - The shared client runs `transactionOptions: { timeout: 15000 }`
-  (`db/index.js:81`), already raised because auto-labor contends for pool slots
-  at exactly this moment.
+  (`db/index.js:81`), raised because several passes contend for pool slots at
+  exactly this moment.
 
 `TURN-ENGINE.md` states the rule outright: *nothing above this line talks to
 Discord; nothing below it touches the database.* Passes return data and never
@@ -135,7 +135,7 @@ turn for exactly that reason.
 
 | Block | Source |
 |---|---|
-| Moves | `Action` — description, `moveKind`, `diceRoll` **and** `diceModifier`, `resourceDelta`, `locationId`, `laborTier`, review status |
+| Moves | `Action` — description, `moveKind`, `diceRoll` **and** `diceModifier`, `resourceDelta`, `locationId`, review status |
 | Tags | `CharacterTag`, filtered to categories `health` and `status` |
 | Events | `AuditLog`, filtered — §4 |
 | Beats | `ArchiveEntry` of kind DEATH, CHARACTER_CREATED, DESIRE_FULFILLED, LIFEWEB, TRAVEL |
@@ -185,7 +185,7 @@ page covers turn N−1's cutoff through turn N's — not midnight to midnight. I
 has to: the page is written at the cutoff, so the three hours after it do not
 exist yet, and they belong to N+1's page, which is the first one drafted after
 they happened. That is where the GM's own adjudications, the late chat, and
-everything the midnight push fires (hunger, deaths, labor drops) get written
+everything the midnight push fires (hunger, deaths, staged effects) get written
 down. Nothing is lost; it shifts one turn.
 
 Two consequences worth knowing before reading a page:
@@ -214,11 +214,13 @@ is.
 carries one — `Action.turnId`, `ArchiveEntry.turnNumber` — and each stamp lies
 about a page drafted at the cutoff:
 
-- the **auto-labor pass** files a Move for everybody who filed none, and it does
-  that at the *push* (`db/lib/autoLaborPass.js`, a `TURN_PASS`). Those rows are
-  stamped turn N and created after N's page exists, so on the FK they would
-  appear in no page ever — and in a hundred-player game they are most of the
-  Moves there are;
+- a Move the *game* files — a travel stub, a craft receipt, a lesson — can be
+  written at the *push*. Those rows are stamped turn N and created after N's
+  page exists, so on the FK they would appear in no page ever. (This was much
+  the larger problem when an auto-labor pass filed a Move at the push for
+  everybody who had filed none; in a hundred-player game those were most of the
+  Moves there were. Nothing files itself at the close now — `TURN-ENGINE.md`
+  §6 — but the window rule is what makes the rest of them land.)
 - an `ArchiveEntry` sent after N's lock is stamped N, so N's page cannot see it
   and N+1's would never look for it.
 
@@ -247,7 +249,7 @@ default and fire only on a zone crossing, so within-zone movement is recorded
 nowhere at all.
 
 Moves are unaffected — `Action.locationId` and `zoneId` are stamped at filing
-time, deliberately, so a Labor filed on the Factory floor pays for the Factory
+time, deliberately, so a Refine filed on the Factory floor pays for the Factory
 floor even if its author walked out afterwards. It is the **roster** and the
 **audit lines** that are placed by current position.
 
@@ -270,7 +272,7 @@ Three shapes:
 
 - **Included** — adjudication outcomes, caving, heals, loots, transfers,
   crafts, consumes, intercepts fired, escorts, name changes, Lifeweb feeding,
-  desires, faction power shifts, deaths, arrivals.
+  desires, shifts in who holds sway, deaths, arrivals.
 - **Collapsed** — tag buys, adds and removes fold into one line per character.
 - **Aggregated** — `hunger_resolved` and friends appear once for the whole
   turn, in whichever zone is built first, rather than once per character.

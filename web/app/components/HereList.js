@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import nameHue from "@/app/components/nameHue";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
 import ActionButton from "@/app/components/ActionButton";
@@ -153,6 +154,11 @@ export default function HereList({
   // Null everywhere else, which keeps the row off the menu.
   addPlace = null,
   onAddMember = null,
+  // False when the caller already draws its own "Here · N" head — the
+  // chat aside's `Here` block (chat.css `.block h3`) does, so this component
+  // would otherwise say the count twice. The sheet's Actions panel has no
+  // heading of its own and keeps the default.
+  showTitle = true,
 }) {
   // Seeded from the server, replaced by the poll. ChatAside keys this
   // component on the server list, so a move remounts it instead of leaving a stale poll answer.
@@ -221,7 +227,7 @@ export default function HereList({
         if (!wrapRef.current?.contains(event.relatedTarget)) close();
       }}
     >
-      <p className="chat-section-title">Here · {total}</p>
+      {showTitle && <p className="group-label chat-section-title">Here · {total}</p>}
       {total === 0 && <EmptyState>Nobody is here.</EmptyState>}
 
       {named.map((person) => (
@@ -243,9 +249,8 @@ export default function HereList({
                 size={24}
                 online={person.online}
               />
-              <span className="chat-person-name">
+              <span className="chat-person-name" data-hue={nameHue(person.characterId)}>
                 {person.name}
-                {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
                 {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
                 {/* The avatar's glow ring is the mobile signal (portrait always
                     shows, name may not); this is desktop's second cue, beside it. */}
@@ -314,7 +319,7 @@ export default function HereList({
       {/* Across a modular gate: seen through the bars, so listed, but nothing can be done to them — no menu, no eye. */}
       {(people?.across ?? []).map((group) => (
         <div key={group.locationId}>
-          <p className="chat-section-title">
+          <p className="group-label chat-section-title">
             {group.locationName} · {group.named.length + group.concealed.length}
           </p>
           {group.named.map((person) => (
@@ -327,9 +332,8 @@ export default function HereList({
                   src={person.avatarPath ?? undefined}
                   size={24}
                 />
-                <span className="chat-person-name">
+                <span className="chat-person-name" data-hue={nameHue(person.characterId)}>
                   {person.name}
-                  {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
                 </span>
               </span>
             </div>

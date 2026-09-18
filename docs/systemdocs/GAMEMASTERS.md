@@ -20,9 +20,9 @@ two things at once:
   that role is what opens the zone's category, its `#summary` and every one of
   its Location channels. The global Gamemaster role no longer opens any of
   them. See §6.
-- **The desks.** `/gm/turns` and `/gm/players` show a row whose faction seat
-  sits in a chosen zone **or** whose character is standing in one. Their own
-  Zone dropdowns still narrow *within* that.
+- **The desks.** `/gm/turns` and `/gm/players` show a row whose character is
+  standing in a chosen zone. Their own Zone dropdowns still narrow *within*
+  that.
 
 **The Discord half is the gate; the desk half is a view.** The desks still
 fetch every row and filter in the client, so a direct link to a hidden Move
@@ -30,23 +30,12 @@ opens it. That is deliberate — an Opposed Move crosses zones by nature, and a
 GM who cannot reach a row mid-turn is a worse failure than one who scrolled too
 far. What the desk filter buys is a workable queue, not a secret.
 
-One asymmetry worth knowing: the desks filter on **either** of a character's two
-zones (§2b), while the Discord roles gate the **Location channel**. A
-Town-faction player who walks into the Marshes stays on the Town GM's queue —
-and joins the Marshes GM's — while neither GM's channel access necessarily
-follows. The queue is about whose player it is *and* where the scene is; the
-channel is only about the latter, so the two will not always agree.
-
-**Either, not one or the other**, and that is a repair rather than a design.
-`inVisibleZones` used to read `zoneName || factionZoneName`: a precedence,
-written when the Caving lens was the only thing that carried a `zoneName` at
-all. Character rows on `/gm/players` then started carrying one too, so the
-precedence silently became a standing-zone-only rule for the whole roster —
-while every Zone chip on that desk went on reading the faction seat. A GM
-holding Town lost a Town-faction player the moment he walked into the Forest,
-and the chip beside the empty space still said Town. Ten of seventy living
-characters were in that state when it was found. A union cannot hide anything
-that a precedence showed, which is why it is the safe direction to fix it in.
+Both halves now ask the same question — where is this person standing — so a
+player who crosses a gate mid-turn moves from one GM's queue to the next
+alongside their channel access. That is a simplification, not the original
+design: a character used to carry a second zone, the one their faction was
+keyed to, and the desks read either. Factions went in 10/2026 and the seat
+went with them (§2b).
 
 **No rows means every zone.** A GM who has never touched the control, or who
 unticks the lot, sees the whole game. That is the only safe default: the
@@ -103,9 +92,9 @@ row, and it counts the offenders if any exist (`CHANNELS.md` §6).
 
 **The desk gate resolves a cave level to its seat, and that is not optional.**
 `GmZoneView` can only ever hold a seat, so a GM's ticked list says
-"Underground" and never "Caves" or "Depths" — while `Character.zoneId` and
-`Faction.zoneId` both point at the *level* (`unaligned` sits in Caves, and
-anybody standing in a cave reads as one). Comparing those two lists by name
+"Underground" and never "Caves" or "Depths" — while `Character.zoneId` points
+at the *level* (anybody standing in a cave reads as one). Comparing those two
+lists by name
 therefore matched nothing, and every character in the cave system, plus every
 caving roll, was missing from `/gm/players` and `/gm/turns` for any GM who had
 ticked a zone at all. `web/lib/zones.js#inVisibleZones` folds a row's zone onto
@@ -114,32 +103,28 @@ rows — the desk half of what `zoneChannelSpec.js`'s `gmRoleIdFor` already does
 for the Discord channels (built by the mirror now, not a sync). A row still
 *displays* the level it is in.
 
-### 2b. Seat by faction, not by feet
+### 2b. Seat by feet
 
-**The zone a character's *faction* is keyed to — `Faction.zoneId` — never where
-they happen to be standing.** A Fortress character visiting Town is still a
-Fortress row. That distinction is the whole feature and the one real bug it
-invites.
+**A character has one zone: `Character.zoneId`, where they are standing.** Walk
+out of the Fortress and into Town and you move onto the Town GM's desk, the
+same crossing that swaps your Discord channel access.
 
-Two zone fields exist on a character and they mean different things:
+It was not always one. Until 10/2026 a character carried a second zone — the
+one their *faction* was keyed to — and that seat, not their feet, decided whose
+desk they sat on: a Fortress Courtier stayed a Fortress row wherever they
+wandered. Every GM page flattened both onto its rows as `factionZoneName` and
+`zoneName`, and the roster carried a column for each, **Zone** and **Standing
+in**. Factions were removed and the seat went with them. There is one column
+now, one filter key (`zone`), and `web/lib/zones.js#inVisibleZones` tests the
+one field.
 
-| Field | Meaning | Used by |
-|---|---|---|
-| `Character.faction.zoneId` | The zone seat. Which GM this person is *for*. | Every Zone column and filter; the seat default |
-| `Character.zoneId` | Where they are physically standing — a presence zone, possibly a cave level | Travel, the map, `/gm/players`' **Standing in** column and its message rail |
+**This is a real loss, and a deliberate one.** A player crossing a gate
+mid-turn changes hands mid-turn. What it buys is that the desk and the Discord
+channels can never disagree about whose scene a row belongs to, which is
+exactly the disagreement the two-zone rule kept producing.
 
-Every GM page flattens both onto its rows as plain strings,
-**`factionZoneName`** (`""` when the character has no faction at all) and
-**`zoneName`**, because these all cross a server→client boundary. The visibility
-gate reads both; **the message rail's chip shows `zoneName`**, since a rail
-sorted by conversation is asking where somebody *is*, and a chip that named the
-seat instead was the thing that made a hidden row impossible to explain. The
-roster keeps both, in its **Zone** and **Standing in** columns.
-
-All 13 factions in `docs/roles.yaml` are nested under a zone — `unaligned`
-included, which sits in Caves. So the neutral chip only ever appears for a
-character with **no faction row at all**, or for a DM from someone who never
-made a character.
+A row with **no zone at all** — a DM from somebody who never made a
+character — stays visible to every GM (§5).
 
 ---
 
@@ -169,9 +154,8 @@ nothing ever renders a chip for it.
 A few of the values deviate from the map, and the comments in
 `globals.css` say why: Fortress's terracotta measures **2.00** on dusk's
 surface and **2.12** on dawn's, so it is lifted in lightness with hue and
-saturation held; Caves' stone grey measures **2.66** on limestone, so it
-darkens there. The other nine ship the map hex untouched. Do not "fix" the
-three back.
+saturation held. The other nine ship the map hex untouched. Do not "fix" the
+two back.
 
 **These are fills only — the rule down the side of a chip, never a text
 colour.** They are gated at **3.0** against `--surface` (the large-graphic
@@ -203,25 +187,14 @@ reason `audit-contrast.js` can see it.
 | `/gm/turns` Requests | ✓ | ✓ | ✓ |
 | `/gm/turns` Caving | ✓ | ✓ | ✓ |
 | `/gm/players` | ✓ | ✓ | ✓ |
-| `/gm/dev/factions` | ✓ | — | — |
-| `/faction` (player-facing) | ✓ | — | — |
 
-Two surfaces need a note.
-
-**`/gm/players` already owned the key `zone`**, and it meant the *physical*
-zone. It now means the seat, matching every other surface; the physical one is
-still there, renamed to **Standing in** rather than dropped, because it answers
-a real and different question.
+One surface needs a note.
 
 **The player desk has no character FK** — `DirectMessage` keys on
 `discordUserId`. The zone comes through a character lookup over the
 conversation's user IDs, resolved in the *same* loop as the display name under
 one ALIVE-wins rule. Splitting them into two loops is how a dead character's
-faction ends up deciding a live player's zone.
-
-`/gm/dev/factions` shows the chip read-only: a faction's zone is owned by
-`docs/roles.yaml` and written by `db:sync-roles`, so editing it there would be
-overwritten on the next sync.
+zone ends up deciding a live player's.
 
 ---
 
@@ -239,7 +212,7 @@ knowing, all of them deliberate:
 - **A search does not lift it.** The Zone dropdown pauses under a query, on the
   argument that a filter should not hide a hit you went looking for. The zone
   *view* is not a filter, so it does not pause.
-- **A row with no faction zone stays visible to everyone.** Better seen twice
+- **A row with no zone at all stays visible to everyone.** Better seen twice
   than by nobody.
 - **Mark-all-read only clears what you can see**, or one click would silently
   handle another zone's mail.
@@ -251,7 +224,7 @@ there is; `RequestStatus` has no "unreviewed" value.
 
 **The count is over the loaded 500, not a true total** — right while the game is
 live, wrong after a long backlog. If that ever matters, replace it with
-`prisma.action.count` / `request.count` filtered on `character.faction.zoneId`.
+`prisma.action.count` / `request.count` filtered on `character.zoneId`.
 
 ---
 
@@ -398,7 +371,7 @@ ago.
 
 `AuditLog` carries no `turnId` and no `zoneId`. Both are **derived** — the turn
 by bucketing `createdAt` against `Turn.startedAt`, the zone through the target
-character's faction. Stamping them would only cover rows written from that day
+character. Stamping them would only cover rows written from that day
 onward, and the log's value is its history.
 
 Adjudicator identity moved the other way, from private to visible. Both

@@ -31,10 +31,7 @@ export const EDITABLE_FIELDS = [
   "appearance",
   "roleId",
   "roleTitle",
-  "factionId",
   "locationId",
-  "isLeader",
-  "isTreasurer",
   // Still posted and still honoured, but it is no longer a column — see the
   // `resources` branch in normalizeCoreEdits below.
   "resources",
@@ -65,7 +62,7 @@ function bool(value) {
 
 // Turns the raw posted `core` object into exactly the columns to write; async for two lookups (role dynasty-lock, living Baron's name) and, when the GM moved the ⬢ figure, the stack read behind it.
 //
-// Returns `{ data, role, leader, resources }`. `resources` is null when the GM
+// Returns `{ data, role, resources }`. `resources` is null when the GM
 // left the field alone, and `{ from, to }` when they did not — it is a stack
 // row rather than a column since 9/2026, so it cannot ride along in `data`.
 // The before-value is read here, outside the transaction, so a caller can fold
@@ -130,15 +127,6 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   }
   if ("appearance" in picked) data.appearance = trimmedOrNull(picked.appearance);
 
-  if ("factionId" in picked) {
-    const factionId = trimmedOrNull(picked.factionId);
-    if (factionId) {
-      const faction = await prisma.faction.findUnique({ where: { id: factionId } });
-      if (!faction) throw new UserError("That faction no longer exists.");
-    }
-    data.factionId = factionId;
-  }
-
   // zoneId is denormalized from locationId, so every writer writes both; the lookup below is the lock, not the GM picker.
   if ("locationId" in picked) {
     const locationId = trimmedOrNull(picked.locationId);
@@ -164,14 +152,10 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   if ("mood" in picked) data.mood = clampMood(Number(picked.mood));
   // tagPoints is allowed to go negative on purpose (CHARACTERS.md) — clamping at 0 would let a broke player take a drawback's points for free.
   if ("tagPoints" in picked) data.tagPoints = intOrNull(picked.tagPoints) ?? 0;
-  if ("isTreasurer" in picked) data.isTreasurer = bool(picked.isTreasurer);
   if ("turnPingOptIn" in picked) data.turnPingOptIn = bool(picked.turnPingOptIn);
   if ("avatarUploadBlocked" in picked) data.avatarUploadBlocked = bool(picked.avatarUploadBlocked);
 
-  // isLeader is handled separately by setLeaderInTx — writing the boolean bare is how a faction ends up with two leaders.
-  const leader = "isLeader" in picked ? bool(picked.isLeader) : null;
-
-  return { data, role, leader, resources };
+  return { data, role, resources };
 }
 
 // The ⬢ half of an Apply, run inside the caller's transaction beside the
@@ -193,21 +177,6 @@ export function diffCore(existing, data) {
     }
   }
   return diff;
-}
-
-// The clear-then-set pair out of faction/actions.js#setFactionLeader, shared so both surfaces agree on
-// "exactly one leader". Keyed on the POST-EDIT faction, so a faction change demotes the right one.
-export async function setLeaderInTx(tx, { characterId, factionId, isLeader }) {
-  if (!isLeader) {
-    await tx.character.update({ where: { id: characterId }, data: { isLeader: false } });
-    return;
-  }
-  if (!factionId) throw new UserError("Only a member of a faction can lead it.");
-  await tx.character.updateMany({
-    where: { factionId, isLeader: true, id: { not: characterId } },
-    data: { isLeader: false },
-  });
-  await tx.character.update({ where: { id: characterId }, data: { isLeader: true } });
 }
 
 // The engine lives in @lifeweb/db/lib/tagOps (db/ can't import web/); these wrappers translate its

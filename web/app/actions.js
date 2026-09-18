@@ -24,7 +24,7 @@ export async function signInLocally() {
 // signs in as the superadmin id and leaves the sheet empty, which is the
 // wrong shape for testing anything a PLAYER sees rather than a GM panel —
 // the wizard, the lobby and every /gm/* tool all still reach for a character
-// that was never there. This rolls a fresh identity and a stock Commoner to
+// that was never there. This rolls a fresh identity and a stock Migrant to
 // go with it, so the click lands on an ordinary sheet immediately.
 //
 // A new discordUserId every time, on purpose: repeatable, disposable, and
@@ -36,10 +36,10 @@ export async function startAsLocalPlayer() {
   if (!isLocalMode()) throw new Error("Local sign-in is only available under LOCAL_MODE.");
 
   const role = await prisma.role.findUnique({
-    where: { slug: "commoner" },
+    where: { slug: "migrant" },
     include: { startingLocation: { include: { zone: true } } },
   });
-  if (!role) throw new Error('No "commoner" role in the catalog — run npm run db:sync-roles first.');
+  if (!role) throw new Error('No "migrant" role in the catalog — run npm run db:sync-roles first.');
 
   const discordUserId = `local-player-${randomUUID().slice(0, 8)}`;
   const gender = GENDERS[Math.floor(Math.random() * GENDERS.length)];
@@ -55,7 +55,6 @@ export async function startAsLocalPlayer() {
       status: "ALIVE",
       roleId: role.id,
       roleTitle: role.name,
-      factionId: role.factionId,
       // The denormalization contract: locationId and location.zoneId travel
       // together (ARCHITECTURE.md §6).
       locationId: role.startingLocationId ?? null,

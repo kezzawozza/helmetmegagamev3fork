@@ -301,7 +301,7 @@ export default function PointBuy({
   const [groupFilter, setGroupFilter] = useState("");
   // "Unlocked by your tags": only tags sitting behind a prerequisite gate.
   // Everything on offer already passed unlockedTags, so gated-and-shown
-  // means gated-and-met — the role/faction-specific kit that would
+  // means gated-and-met — the role-specific kit that would
   // otherwise drown in the open catalog.
   const [requiresOnly, setRequiresOnly] = useState(false);
 

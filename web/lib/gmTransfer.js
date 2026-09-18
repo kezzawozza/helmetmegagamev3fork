@@ -36,7 +36,7 @@ export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, r
     actorCharacterId: null,
     actorName: "GM (Transfer)",
     turnNumber: openTurn?.number ?? null,
-    turnPhase: openTurn?.phase ?? null,
+    dayNumber: openTurn?.dayNumber ?? null,
     note: reason,
   };
 

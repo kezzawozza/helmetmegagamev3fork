@@ -8,7 +8,6 @@ import {
   logAudit,
   craftAllowance,
   unitsOfTagThisTurn,
-  deadSimpleUnitsThisTurn,
 } from "@/lib/requests";
 import {
   WHOLE_MOVE,
@@ -76,6 +75,7 @@ import { placementOf } from "@lifeweb/db/lib/structures";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { openBuildSiteImpl } from "./structures.js";
+import { movesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -660,17 +660,12 @@ export async function craftRequestImpl({
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 
-  // No Move of its own, but rationed per turn (SMITHING.md §2): a recipe's own `perTurn`, or the shared Dead Simple pool. Units PAST the allowance no longer refuse — for a recipe with a craft family they spill into the Move at 1/allowance each (CRAFTING.md §2a), making a fifth work knife cost something rather than be impossible. Priced twice: here for the fast fail, again inside the transaction under the row lock, since two simultaneous requests would otherwise both read the same count and pass.
+  // No Move of its own, but rationed per turn where the recipe names its own `perTurn` (CRAFTING.md §2a). Units PAST the allowance no longer refuse — for a recipe with a craft family they spill into the Move at 1/allowance each, making a fifth cost something rather than be impossible. Priced twice: here for the fast fail, again inside the transaction under the row lock, since two simultaneous requests would otherwise both read the same count and pass.
   const perTurn = tag.requirementPerTurn ?? null;
   if (turns === 0) {
     const allowance = openTurn ? craftAllowance(tag) : null;
     const priceCraft = async (db) => {
-      const already =
-        allowance == null
-          ? 0
-          : perTurn != null
-            ? await unitsOfTagThisTurn(db, character.id, openTurn.id, tag.id)
-            : await deadSimpleUnitsThisTurn(db, character.id, openTurn.id);
+      const already = allowance == null ? 0 : await unitsOfTagThisTurn(db, character.id, openTurn.id, tag.id);
       const priced = craftMoveCost(tag, {
         quantity,
         allowance,
@@ -717,9 +712,8 @@ export async function craftRequestImpl({
       if (spend.kind === "spill") {
         // The fast fail only ran resolveCraftMove when the OUTSIDE price already spilled, so a spill first seen here re-checks the Move window itself — a craft submitted after Moves lock must not write a ledger no matter how the race fell.
         if (moveCost.kind !== "spill") {
-          const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
-          if (locked)
-            throw new UserError("Moves are locked for this turn.");
+          const gate = await movesOpen(tx, { turn: openTurn });
+          if (!gate.ok) throw new UserError(gate.message);
         }
         ({ action, budget } = await spendCraftMove(tx, {
           character,

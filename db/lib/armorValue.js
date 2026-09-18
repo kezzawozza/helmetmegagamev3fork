@@ -3,7 +3,7 @@
 // as and how several worn pieces combine — the severity ladder and odds stay in db/lib/depotTurret.js.
 // Pure and Prisma-free, so both faces and the sync can use it.
 
-// Words, never numbers, the same posture db/lib/laborYield.js#qualityWord takes for Laboring — kit
+// Words, never numbers, the same posture db/lib/miningYield.js#qualityWord takes for mining — kit
 // choice stays a judgement, not a spreadsheet. Six steps over 0..1; "None" covers absent as well as zero.
 const ARMOR_WORDS = [
   { below: 0.001, word: "None" },

@@ -8,10 +8,8 @@ import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locat
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { resolveLaborRate, REFINERY_NOTE } from "@lifeweb/db/lib/laborAccess";
-import { qualityWord } from "@lifeweb/db/lib/laborYield";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
+import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
+import { clockStatus } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { resolveDmActions } from "@/lib/dmActions";
@@ -147,7 +145,6 @@ async function actor(select) {
       name: true,
       zoneId: true,
       locationId: true,
-      factionId: true,
       discordUserId: true,
       // Not mirrored to Discord — nothing here may touch Discord for them (docs/systemdocs/CHAT.md §6).
       discordMirrored: true,
@@ -219,7 +216,6 @@ const PHOTO_ACTION = "photo_taken";
 export async function photographRow(seq) {
   const me = await actor({
     id: true,
-    factionId: true,
     locationId: true,
     discordUserId: true,
     tags: { select: { quantity: true, tag: { select: { slug: true } } } },
@@ -487,20 +483,14 @@ export async function loadTravel() {
       // Which way the push on's die leans for this character, said before
       // they commit (MAP.md §3). Null when it doesn't.
       const exertNote = exertEdgeSentence(exertEdgeFor(character.tags ?? []));
-      const exertOpts = { crossing: null, left: 0, acted };
-      // THIS destination's own count, unlike the ambient one above — a boat's
-      // bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
-      // Forest<->Hills or Hills<->Marshes has to show one more than a
-      // crossing the water does nothing for, even though both are "a zone
-      // crossing" equally as far as `crossesZone` is concerned.
-      const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: row.location.zone?.slug ?? null };
-      const freeLeft = freeMovesLeft(character, config, openTurn, party.length, crossing);
+      const exertOpts = { left: 0, acted };
+      const freeLeft = freeMovesLeft(character, config, openTurn, party.length);
       // The server's own refusal of a push on here, asked ahead of time
       // (MAP.md §3); null is yes. Shown once the Move is spent and this is
       // the only way across, so a player knows why the way is shut till
       // next turn.
       const exertWhy = row.crossesZone
-        ? exertRefusal(character, config, openTurn, { ...exertOpts, crossing, left: freeLeft })
+        ? exertRefusal(character, config, openTurn, { ...exertOpts, left: freeLeft })
         : null;
       return {
         id: row.location.id,
@@ -852,7 +842,7 @@ export async function readNotice(postId) {
   const post = ctx.posts.find((p) => p.id === postId);
   if (!post) return { ok: false, error: "It's gone." };
 
-  const where = { phase: ctx.openTurn?.phase ?? null, indoors: ctx.location.indoors ?? true };
+  const where = { daylight: isDaylight(), indoors: ctx.location.indoors ?? true };
   // The same predicate the tag chip uses, and the same sentence — a blind
   // reader and an illiterate one get identical refusals, so neither the
   // reader nor anyone watching learns which it was.
@@ -1684,18 +1674,12 @@ export async function submitMove({ moveKind, description } = {}) {
     where: { id: result.action.id },
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
-  const { roll } = await confirmMove(prisma, loaded, me.discordUserId, { laborRate: result.laborRate });
+  const { roll } = await confirmMove(prisma, loaded, me.discordUserId);
 
   // The bot answers in Discord markdown; this panel prints plain text, so the
   // same facts are said in words. The Gambit roll itself stays hidden until
   // the turn-end reveal, exactly as it does in Discord.
   const parts = [roll.gambit ? "Your move was declared." : "Done."];
-  if (roll.resourceValue != null) {
-    parts.push(`You labored, producing ${roll.resourceValue} ⬢.`);
-    if (roll.bonusNote) parts.push(roll.bonusNote);
-  }
-  // A labor drop, the Tired a long day leaves, a refining shift's Squeeze. Said here
-  // because a Labor pays at the press now and never reaches the turn-end DM.
   if (roll.applied) parts.push(`Also: ${roll.applied}.`);
   return { ok: true, line: parts.join(" ") };
 }
@@ -1711,12 +1695,12 @@ export async function myMove() {
 
   const openTurn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
-    select: { id: true, number: true, phase: true, startedAt: true },
+    select: { id: true, number: true, dayNumber: true, turnLengthHours: true, endsAt: true, startedAt: true },
   });
   if (!openTurn) return { ok: true, turn: null, move: null, characterId: me.character.id };
 
-  const [frozen, action] = await Promise.all([
-    clockFrozen(prisma),
+  const [clock, action] = await Promise.all([
+    clockStatus(prisma),
     prisma.action.findFirst({
       where: { characterId: me.character.id, turnId: openTurn.id },
       select: {
@@ -1735,19 +1719,23 @@ export async function myMove() {
       },
     }),
   ]);
-  const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: frozen });
-  const { editable } = moveIsEditable(action, openTurn, { clockFrozen: frozen });
+  const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: clock.frozen });
+  const { editable } = moveIsEditable(action, openTurn, { clockFrozen: clock.frozen, inSession: clock.inSession });
 
   return {
     ok: true,
     turn: {
       number: openTurn.number,
-      phase: openTurn.phase,
+      dayNumber: openTurn.dayNumber,
       // ISO — a Date doesn't survive to a client component. It's the CUTOFF,
-      // not the turn's end: Moves stop three hours early (db/lib/turnClock.js).
+      // not the turn's end: Moves stop an adjudication window early (db/lib/turnClock.js).
       closesAt: hasLock && cutoffAt ? cutoffAt.toISOString() : null,
+      // `locked` is the cutoff. `shut` is the game being closed for any reason, which `locked` cannot say: a frozen clock
+      // reports locked: false, because freezing removes the deadline rather than shutting the game (db/lib/turnGate.js).
       locked,
       hasLock,
+      shut: !clock.inSession,
+      shutReason: clock.inSession ? null : "The game isn't in session.",
     },
     move: action
       ? { id: action.id, kind: action.moveKind, description: action.description, editable }
@@ -1794,65 +1782,6 @@ export async function withdrawMyMove({ actionId } = {}) {
 
   return { ok: true, line: "Your move was canceled." };
 }
-
-// What the Move dialog shows before a Labor is committed — resolveLaborRate
-// asked early, so a player doesn't learn they can't labor here only after filing.
-// WORDS, never numbers. `qualityWord` is the same function Examine prints
-// (db/lib/examineLocation.js) — the min/max is dropped, since Examine is the
-// only surface allowed to show a coefficient at all (docs/systemdocs/LABORING.md).
-const LABOR_TIER_LABELS = {
-  basic: "Laboring",
-  skilled: "Skilled Laboring",
-  hunting: "Hunting",
-  farming: "Farming",
-  fishing: "Fishing",
-  prospecting: "Prospecting",
-  refining: "Refining",
-  // No skill that pays here — the day still files, still earns nothing.
-  unskilled: "—",
-};
-
-// The same fixed order the bot's Examine uses.
-const LABOR_CONTEXT_KINDS = [
-  { kind: "HUNTING", label: "Hunting" },
-  { kind: "FARMING", label: "Farming" },
-  { kind: "FISHING", label: "Fishing" },
-  { kind: "PROSPECTING", label: "Prospecting" },
-];
-
-export async function moveContext() {
-  const me = await actor({ id: true, locationId: true });
-  if (me.error) return { ok: false, error: me.error };
-
-  const [location, rate] = await Promise.all([
-    me.character.locationId
-      ? prisma.location.findUnique({
-          where: { id: me.character.locationId },
-          select: { name: true, yields: { select: { kind: true, current: true } } },
-        })
-      : null,
-    resolveLaborRate(prisma, me.character.id),
-  ]);
-
-  const byKind = new Map((location?.yields ?? []).map((row) => [row.kind, row.current]));
-
-  return {
-    ok: true,
-    locationName: location?.name ?? null,
-    yields: LABOR_CONTEXT_KINDS.map(({ kind, label }) => ({
-      label,
-      word: qualityWord(byKind.get(kind) ?? null),
-    })),
-    // "you would work Fishing"; absent when the rate refuses.
-    tier: rate.ok ? (LABOR_TIER_LABELS[rate.tier] ?? null) : null,
-    // Named, not summed.
-    tools: rate.ok ? (rate.tools ?? []).map((tool) => tool.name).filter(Boolean) : [],
-    refusal: rate.ok ? null : (rate.reason ?? null),
-    // The Godard Factory floor, where a day pays in cubes (db/lib/refinery.js, FACTORY.md). Null elsewhere; the dialog branches on it.
-    refining: rate.ok && rate.refinery ? REFINERY_NOTE : null,
-  };
-}
-
 
 // The Bascinet conversation (CHAT.md §2b): the SAME rows the GM desk reads,
 // through the SAME noise filter (web/lib/dmThread.js). Row shape strips the
@@ -2385,7 +2314,7 @@ export async function lookAt(personRef) {
   const ref = String(personRef ?? "").trim();
   if (!ref) return { ok: false, error: "Look at who?" };
 
-  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
+  const me = await actor({ id: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
   // One sightings Map for both halves: resolveHoodToken decides who counts as hooded from the same answer the readout uses.
@@ -2456,7 +2385,7 @@ async function privateRoomHere(character, placeKey) {
 
 // Who is in the open place, and who standing here could be let in — one call, so the picker never shows a stale list.
 export async function placeMembers(placeKey) {
-  const me = await actor({ id: true, factionId: true, locationId: true });
+  const me = await actor({ id: true, locationId: true });
   if (me.error) return { ok: false, error: me.error };
   const parsed = parsePlaceKey(placeKey);
   // Not an error: a Location, the zone summary and a public room simply have

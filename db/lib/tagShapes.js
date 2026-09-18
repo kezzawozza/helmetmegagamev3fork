@@ -233,10 +233,10 @@ function joinWithOr(names) {
   return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
-// requirement.turnsCost carries the WORK one unit takes, as a decimal number of Moves: 0 is Dead Simple, a share below 1 is part of one Routine, 1 is the whole of it, 2+ is a multi-turn project. Quantity is limited by that arithmetic, never by a separate cap.
+// requirement.turnsCost carries the WORK one unit takes, as a decimal number of Moves: 0 is free and — since the shared Dead Simple pool is gone (web/lib/tagRequests.js says why) — unrationed unless `perTurn` says otherwise, which is exactly why almost nothing is 0-turn any more. A share below 1 is part of one Routine, 1 is the whole of it, 2+ is a multi-turn project. Quantity is limited by that arithmetic, never by a separate cap.
 // It was a `1/N` fraction until 9/2026, stored as requirementTurns: 1 with N in requirementPerTurn as a denominator — which made that column mean two things at once and let a wound's severity be read off its cure price. Both are untangled: work is the number below, and requirementPerTurn is a ration and nothing else.
 // The legal set is closed to values the Move budget can hold EXACTLY (web/lib/craftBudget.js — "nothing rounds"): quarters plus Cooking's finer shares (0.05/0.1/0.125/0.2), every one an exact rational at a denominator craftBudget.js's arithmetic can represent without drift. 0.33 is refused for that reason, not to be awkward — it was never about quarters specifically, only about exactness, and Cooking's tiered recipes (COOKING.md) needed finer shares than a quarter admits.
-// `perTurn:` is ONLY legal on a 0-turn recipe, where it is a RATION (a hard daily cap below the Dead Simple pool's 4); on a recipe that costs a Move it is refused.
+// `perTurn:` is ONLY legal on a 0-turn recipe, where it is a RATION — a hard daily cap on a recipe that costs no Move at all; on a recipe that costs a Move it is refused.
 const SUB_MOVE_COSTS = new Set([0.05, 0.1, 0.125, 0.2, 0.25, 0.5, 0.75]);
 function normalizeTurnsCost(requirement, { slug, healable = false }, label = "docs/tags.yaml") {
   const raw = requirement?.turnsCost;
@@ -291,7 +291,7 @@ function normalizeTurnsCost(requirement, { slug, healable = false }, label = "do
     }
     if ((turns ?? 1) !== 0) {
       throw new Error(
-        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a daily ration on a Dead Simple recipe, not a way to write work. Work is turnsCost: put the cost of one unit there (0.25 for four a Routine) and drop perTurn`,
+        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a daily ration on a recipe that costs no Move at all, not a way to write work. Work is turnsCost: put the cost of one unit there (0.25 for four a Routine) and drop perTurn`,
       );
     }
   }
@@ -439,48 +439,42 @@ function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, 
 }
 
 
-// The `laborBonus:` block — what a tool adds to one kind of Laboring (docs/systemdocs/LABORING.md). Normalised here since a typo in `kind` would silently make a tool worthless.
-// { kind, amount, equipped, requiresTag } or null. `equipped` defaults TRUE.
-const LABOR_BONUS_KINDS = new Set(["hunting", "farming", "fishing", "prospecting"]);
-
-function normalizeLaborBonus(entry, label = "docs/tags.yaml") {
+// The `miningBonus:` block — what a tool adds to a day's mining (docs/systemdocs/MINING.md).
+// { amount, equipped, requiresTag } or null. `equipped` defaults TRUE.
+function normalizeMiningBonus(entry, label = "docs/tags.yaml") {
   if (entry == null) return null;
   if (typeof entry !== "object" || Array.isArray(entry)) {
-    throw new Error(`${label}: laborBonus must be a mapping`);
-  }
-  const kind = String(entry.kind ?? "").toLowerCase();
-  if (!LABOR_BONUS_KINDS.has(kind)) {
-    throw new Error(`${label}: laborBonus.kind must be one of ${[...LABOR_BONUS_KINDS].join(", ")}`);
+    throw new Error(`${label}: miningBonus must be a mapping`);
   }
   const amount = Number(entry.amount);
   if (!Number.isInteger(amount) || amount === 0) {
-    throw new Error(`${label}: laborBonus.amount must be a non-zero integer`);
+    throw new Error(`${label}: miningBonus.amount must be a non-zero integer`);
   }
-  // A string names one tag; an array names several, any ONE of which satisfies the tool (the Plow: a Horse or an Arelitz).
+  // A string names one tag; an array names several, any ONE of which satisfies the tool.
   const requiresTag =
     entry.requiresTag == null
       ? null
       : Array.isArray(entry.requiresTag)
         ? entry.requiresTag.map(String)
         : String(entry.requiresTag);
-  return { kind, amount, equipped: entry.equipped !== false, requiresTag };
+  return { amount, equipped: entry.equipped !== false, requiresTag };
 }
 
 // Catches a bonus that only pays while equipped on an unequippable tag, and a requiresTag naming an unknown tag.
-function validateLaborBonus(normalized, { selfSlug, tagSlugs, equippable, label = "docs/tags.yaml" }) {
+function validateMiningBonus(normalized, { selfSlug, tagSlugs, equippable, label = "docs/tags.yaml" }) {
   if (!normalized) return;
   if (normalized.equipped && !equippable) {
     throw new Error(
-      `${label}: "${selfSlug}" has a laborBonus that requires being equipped, but the tag is not equippable`,
+      `${label}: "${selfSlug}" has a miningBonus that requires being equipped, but the tag is not equippable`,
     );
   }
   const required = normalized.requiresTag == null ? [] : Array.isArray(normalized.requiresTag) ? normalized.requiresTag : [normalized.requiresTag];
   if (required.length === 0 && Array.isArray(normalized.requiresTag)) {
-    throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag is an empty list`);
+    throw new Error(`${label}: "${selfSlug}" miningBonus.requiresTag is an empty list`);
   }
   for (const slug of required) {
     if (!tagSlugs.has(slug)) {
-      throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag names unknown tag "${slug}"`);
+      throw new Error(`${label}: "${selfSlug}" miningBonus.requiresTag names unknown tag "${slug}"`);
     }
   }
 }
@@ -535,7 +529,7 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     if (!Number.isInteger(quantity) || quantity < 1) {
       throw new Error(`${label}: placement.yields.quantity must be a positive integer`);
     }
-    // Who has to be MINDING it: a skill slug, checked against the tier ladder (db/lib/medicalVision.js#satisfiedSkillIds), so a Brewing (Skilled) brewer satisfies `brewing-basic`. Absent means it runs itself.
+    // Who has to be MINDING it: a skill slug, checked against the tier ladder (db/lib/medicalVision.js#satisfiedSkillIds), so a Brewing II brewer satisfies `brewing-basic`. Absent means it runs itself.
     const skill = raw.yields.skill == null ? null : String(raw.yields.skill).trim();
     if (raw.yields.skill != null && !skill) {
       throw new Error(`${label}: placement.yields.skill must be a tag slug`);
@@ -566,28 +560,24 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     if (!needs) throw new Error(`${label}: placement.music.needs must be a tag slug`);
     music = { mood, needs };
   }
-  let laborBonus = null;
-  if (raw.laborBonus != null) {
-    if (typeof raw.laborBonus !== "object" || Array.isArray(raw.laborBonus)) {
-      throw new Error(`${label}: placement.laborBonus must be a mapping`);
+  let miningBonus = null;
+  if (raw.miningBonus != null) {
+    if (typeof raw.miningBonus !== "object" || Array.isArray(raw.miningBonus)) {
+      throw new Error(`${label}: placement.miningBonus must be a mapping`);
     }
-    const kind = String(raw.laborBonus.kind ?? "").toLowerCase();
-    if (!LABOR_BONUS_KINDS.has(kind)) {
-      throw new Error(`${label}: placement.laborBonus.kind must be one of ${[...LABOR_BONUS_KINDS].join(", ")}`);
-    }
-    const amount = Number(raw.laborBonus.amount);
-    // Positive only: a malus would apply to EVERYONE laboring the ground, and can drag the paid range's floor below zero, where it pays nothing.
+    const amount = Number(raw.miningBonus.amount);
+    // Positive only: a malus would apply to EVERYONE mining the ground, and can drag the paid range's floor below zero, where it pays nothing.
     if (!Number.isInteger(amount) || amount < 1) {
-      throw new Error(`${label}: placement.laborBonus.amount must be a positive integer`);
+      throw new Error(`${label}: placement.miningBonus.amount must be a positive integer`);
     }
-    laborBonus = { kind, amount };
+    miningBonus = { amount };
   }
   return {
     unique: raw.unique !== false,
     fieldwork: raw.fieldwork === true,
     examine: raw.examine ?? null,
     defenseNote: raw.defenseNote ?? null,
-    laborBonus,
+    miningBonus,
     locations: raw.locations ?? [],
     yields,
     birdSendsPerDay,
@@ -700,6 +690,17 @@ function normalizeInlayValue(value, { slug, label = "docs/tags.yaml" } = {}) {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(
       `${label}: tag "${slug}" inlayValue must be a positive whole number`,
+    );
+  }
+  return value;
+}
+
+// `gambitBonus` — TRINKETS.md: what a Trinket forged with this ingredient adds to its holder's Gambit die (see schema comment on Tag.gambitBonus). Same shape as inlayValue: a positive whole number, or absent.
+function normalizeGambitBonus(value, { slug, label = "docs/tags.yaml" } = {}) {
+  if (value == null) return null;
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(
+      `${label}: tag "${slug}" gambitBonus must be a positive whole number`,
     );
   }
   return value;
@@ -857,9 +858,9 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
   if (tag.carryBonus != null) {
     throw new Error(`${label}: tag "${slug}" declares placement but carries a carryBonus — a structure is never on anyone's person`);
   }
-  if (tag.laborBonus != null) {
+  if (tag.miningBonus != null) {
     throw new Error(
-      `${label}: tag "${slug}" declares placement but a top-level laborBonus — a structure is never held, so that would be dead config; use placement.laborBonus`,
+      `${label}: tag "${slug}" declares placement but a top-level miningBonus — a structure is never held, so that would be dead config; use placement.miningBonus`,
     );
   }
   for (const provided of placement.provides) {
@@ -1064,11 +1065,10 @@ function validateFighting(normalized, { selfSlug, tagSlugs, equippable, label = 
 
 module.exports = {
   DEAD_TOKEN,
-  LABOR_BONUS_KINDS,
   normalizeFighting,
   validateFighting,
-  normalizeLaborBonus,
-  validateLaborBonus,
+  normalizeMiningBonus,
+  validateMiningBonus,
   normalizeExpiresInto,
   validateExpiresInto,
   normalizeRemovesInto,
@@ -1096,6 +1096,7 @@ module.exports = {
   INGREDIENT_SLOTS_MAX,
   normalizeCooked,
   normalizeInlayValue,
+  normalizeGambitBonus,
   validateCooked,
   normalizeIngredientSlots,
   validateIngredientSlots,

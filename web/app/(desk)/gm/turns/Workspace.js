@@ -16,10 +16,12 @@ import InspectorColumn from "@/app/components/InspectorColumn";
 import useInspectorOverlay, { InspectorToggle } from "@/app/components/useInspectorOverlay";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import StagingTray from "./StagingTray";
+import DecreeButton from "./DecreeButton";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import usePins from "@/app/components/usePins";
@@ -172,7 +174,6 @@ export default function Workspace({
   presenceZones,
   stagingLocations,
   stagingRooms,
-  factions,
   moves: moveRows,
   cavingRolls: cavingRollRows,
   otherRows,
@@ -661,6 +662,7 @@ export default function Workspace({
                 takes colour. */}
             <DeskTurnChip turn={openTurn} />
             <LockChip />
+            <BascinetClock />
             <DeskStreamChip />
             <span className="text-xs text-muted">
               <span title="Moves marked solved, of the Moves filed this turn">
@@ -679,6 +681,11 @@ export default function Workspace({
           <>
             <DeskStaleChip />
             <InspectorToggle />
+            {/* The one verb on this desk that belongs to no row: a decree is
+                aimed at zones, not at a Move, so the header is its only home
+                (DecreeButton.js). It SENDS rather than stages — see
+                ADJUDICATION.md §3a. */}
+            <DecreeButton zones={presenceZones} />
             {/* No "Preview push" here. There is one of that button and it
                 lives on the push tray, beside the rows it previews — two of
                 them in two places was the desk's own example of the same
@@ -851,7 +858,6 @@ export default function Workspace({
         presenceZones={presenceZones}
         stagingLocations={stagingLocations}
         stagingRooms={stagingRooms}
-        factions={factions}
         tagCatalog={tagCatalog}
         onInspect={inspect}
         onOpenPreview={() => setPreviewOpen(true)}

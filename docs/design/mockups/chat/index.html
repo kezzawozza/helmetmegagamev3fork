@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chat mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+
+  /* ground + chrome */
+  --ground:      #0d0b08;
+  --ground-deep: #080706;
+  --panel:       #12100c;
+  --well:        #0a0907;
+  --rule:        #2a2419;
+  --rule-hi:     #4a412f;
+  --rivet:       #6b5c40;
+
+  /* text */
+  --bone:        #a8a49a;   /* body */
+  --bone-hi:     #cfc9bb;   /* emphasis */
+  --dim:         #8a8478;   /* world subtext */
+  --dimmer:      #6e685e;   /* timestamps, counts */
+  --salmon:      #efb28a;   /* speech */
+  --blood:       #fd5b5b;   /* combat / danger */
+  --alert:       #d82020;
+  --decree:      #9a5a5a;   /* blackletter */
+  --link:        #ac3b49;
+  --whisper:     #9390be;
+
+  /* character names, muted Lifeweb palette */
+  --n-blue:  #7fa4c8;
+  --n-green: #8fae7c;
+  --n-gold:  #c9a85c;
+  --n-mauve: #b493b0;
+  --n-rust:  #c08a6a;
+  --n-pale:  #9fa8a0;
+
+  --sans: Verdana, Tahoma, Geneva, "DejaVu Sans", "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif;
+  --black: "UnifrakturMaguntia", "Times New Roman", serif;
+  --serif: "Times New Roman", Times, serif;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--ground-deep);
+  color:var(--bone);
+  font:12px/1.3 var(--sans);
+  overflow:hidden;
+}
+img{max-width:100%}
+
+/* ---------- shell ---------- */
+.app{
+  height:100%;
+  display:grid;
+  grid-template-columns:186px 8px minmax(0,1fr) 8px 252px;
+  background:
+    url("tex/chatshadow.png") 0 0 repeat-x,
+    url("tex/chatbg.png");
+  background-color:var(--ground);
+}
+.col{min-width:0;min-height:0;display:flex;flex-direction:column}
+
+/* metal rails between the columns */
+  .railplaceholder{}
+.rail{
+  background:url("tex/bg.png") repeat-y;
+  background-size:6px auto;
+  image-rendering:pixelated;
+  border-left:1px solid #000;
+  border-right:1px solid var(--rule);
+  width:8px;
+  height:100%;
+}
+
+/* ---------- bars ---------- */
+.bar{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 8px;
+  min-height:26px;
+  background:url("tex/bg2.png") repeat-x;
+  background-size:auto 100%;
+  image-rendering:pixelated;
+  border-bottom:1px solid #000;
+  border-top:1px solid var(--rule);
+  color:var(--bone-hi);
+  font-weight:bold;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  font-size:10px;
+  text-shadow:0 1px 0 #000;
+}
+.bar .spacer{flex:1}
+.bar .sub{
+  font-weight:normal;text-transform:none;letter-spacing:0;
+  color:var(--dimmer);font-size:11px;
+}
+
+/* ---------- places column ---------- */
+.places{
+  overflow-y:auto;
+  padding:4px 0 10px;
+  border-right:1px solid #000;
+  background:rgba(0,0,0,.30);
+}
+.zone-div{
+  margin:10px 6px 3px;
+  padding:2px 4px 3px;
+  border-bottom:1px solid var(--rule);
+  color:var(--n-gold);
+  font-size:10px;font-weight:bold;letter-spacing:.1em;text-transform:uppercase;
+  text-shadow:0 1px 0 #000;
+}
+.sect{
+  margin:7px 8px 2px;
+  color:var(--dimmer);
+  font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+}
+.place{
+  display:flex;align-items:center;gap:6px;
+  width:100%;
+  padding:3px 8px 3px 14px;
+  border:0;border-left:3px solid transparent;
+  background:transparent;color:var(--bone);
+  font:12px/1.3 var(--sans);
+  text-align:left;cursor:pointer;
+}
+.place:hover{background:rgba(255,255,255,.04);color:var(--bone-hi)}
+.place[data-active]{
+  background:linear-gradient(180deg,#1c1710,#141009);
+  border-left-color:var(--rivet);
+  color:#e3dcca;font-weight:bold;
+  box-shadow:inset 0 1px 0 #2e2718, inset 0 -1px 0 #000;
+}
+.place[data-vantage]{color:var(--dimmer);font-style:italic}
+.place .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unread{
+  min-width:16px;padding:0 3px;
+  border:1px solid #000;
+  background:#5a1c1c;color:#f0d6d6;
+  font-size:10px;font-weight:bold;text-align:center;
+  text-shadow:0 1px 0 #000;
+}
+.place .mail{color:var(--dimmer)}
+
+/* ---------- feed ---------- */
+.feed-wrap{flex:1 1 0;min-height:0;display:flex;flex-direction:column;padding:0}
+.crumb{color:var(--dimmer);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.feed{
+  flex:1 1 0;min-height:0;
+  overflow-y:scroll;
+  padding:8px 10px 12px;
+  background:
+    url("tex/chatshadow.png") 0 0 repeat-x,
+    url("tex/chatbg.png");
+  background-color:var(--ground);
+  border-top:1px solid #000;
+  border-bottom:1px solid #000;
+  box-shadow:inset 1px 0 0 #000, inset -1px 0 0 #000;
+  scrollbar-color:#3a3226 #171717; scrollbar-width:thin; /* flat scrollbar everywhere; the sprite one was cut */
+}
+
+.row{margin:0 0 3px}
+.who{font-weight:bold;text-shadow:0 1px 0 #000}
+.said{color:var(--salmon)}
+.emote{color:var(--bone);font-style:italic}
+.sub{color:var(--dim);font-size:11px}
+.combat{color:var(--blood)}
+.combat b{color:var(--blood)}
+.whisper{color:var(--whisper);font-style:italic}
+.ooc{color:var(--whisper);border-left:2px solid var(--rule-hi);padding-left:6px}
+.time{color:#5c564d;font-size:10px}
+.shout{font-size:14px;font-weight:bold;color:var(--bone-hi)}
+
+.c-blue{color:var(--n-blue)} .c-green{color:var(--n-green)}
+.c-gold{color:var(--n-gold)} .c-mauve{color:var(--n-mauve)}
+.c-rust{color:var(--n-rust)} .c-pale{color:var(--n-pale)}
+
+.daybreak{
+  display:flex;align-items:center;gap:8px;
+  margin:12px 0 8px;color:var(--dimmer);
+  font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+}
+.daybreak::before,.daybreak::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+.decree{
+  margin:14px 0 12px;
+  padding:8px 10px 10px;
+  border:1px solid var(--rule);
+  border-top:2px solid var(--rule-hi);
+  background:rgba(0,0,0,.45);
+  box-shadow:inset 0 0 22px rgba(0,0,0,.8);
+}
+.decree h2{
+  margin:0 0 4px;
+  font-family:var(--black);
+  font-weight:normal;
+  font-size:26px;line-height:1.05;
+  color:var(--decree);
+  text-shadow:0 2px 3px #000;
+}
+.decree .by{color:var(--dimmer);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px}
+.decree p{margin:0;font-family:var(--serif);font-size:14px;line-height:1.35;color:#b8aa9a}
+.decree p + p{margin-top:6px}
+
+/* ---------- composer ---------- */
+.composer{
+  padding:6px;
+  background:url("tex/bg.png") repeat;
+  background-size:auto 48px;
+  image-rendering:pixelated;
+  border-top:1px solid var(--rule-hi);
+}
+.say-row{display:flex;gap:6px;align-items:stretch}
+.mode{
+  background:#0b0a08;color:var(--bone);
+  border:1px solid #000;box-shadow:inset 1px 1px 0 #000, 0 0 0 1px var(--rule);
+  font:12px/1 var(--sans);padding:4px 5px;
+}
+.say{
+  flex:1;min-width:0;
+  background:#000;
+  color:var(--salmon);
+  border:1px solid #000;
+  box-shadow:inset 1px 1px 2px #000, 0 0 0 1px var(--rule);
+  font:12px/1.3 var(--sans);
+  padding:5px 6px;
+  resize:none;
+}
+.say::placeholder{color:#6b5a4c}
+.btn{
+  background:#1a1611;color:var(--bone-hi);
+  border:2px outset var(--rule-hi);
+  font:bold 11px/1 var(--sans);
+  padding:4px 10px;cursor:pointer;
+  text-shadow:0 1px 0 #000;
+}
+.btn:hover{background:#221c15}
+.btn:active{border-style:inset;background:#100d0a}
+.btn:focus-visible,.place:focus-visible,.say:focus-visible{outline:1px dotted var(--rivet);outline-offset:1px}
+.hint{margin:4px 2px 0;color:var(--dimmer);font-size:10px}
+
+/* ---------- aside ---------- */
+.aside{
+  overflow-y:auto;
+  border-left:1px solid #000;
+  background:rgba(0,0,0,.30);
+  padding-bottom:12px;
+}
+.you-frame{
+  margin:6px;
+  padding:26px 20px 22px;
+  background:url("tex/stats-LFWB.png") no-repeat center;
+  background-size:100% 100%;
+  image-rendering:pixelated;
+  border:1px solid #000;
+}
+.you-well{
+  background:rgba(4,4,3,.82);
+  border:1px solid #000;
+  box-shadow:inset 0 0 12px #000;
+  padding:7px 8px;
+}
+.you-name{
+  margin:0;font-family:var(--serif);font-size:16px;font-weight:bold;
+  color:#d8cfbb;text-shadow:0 1px 0 #000;letter-spacing:.01em;
+}
+.you-role{margin:0 0 5px;color:var(--dimmer);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.kv{display:flex;justify-content:space-between;gap:8px;padding:1px 0}
+.kv dt{color:var(--dimmer)}
+.kv dd{margin:0;color:var(--bone-hi);font-variant-numeric:tabular-nums}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.tag{
+  border:1px solid var(--rule);background:#15120d;
+  padding:1px 5px;font-size:10px;color:var(--bone);
+}
+.tag[data-bad]{border-color:#5a2020;color:#e79a9a;background:#1a0e0e}
+.meter{height:7px;border:1px solid #000;background:#0a0908;box-shadow:inset 0 0 4px #000;margin-top:6px}
+.meter i{display:block;height:100%;background:linear-gradient(180deg,#7a6a3e,#4a3f22)}
+
+.block{margin:8px 6px;border:1px solid var(--rule);background:rgba(0,0,0,.42)}
+.block h3{
+  margin:0;padding:4px 7px;
+  background:url("tex/bg2.png") repeat-x;background-size:auto 100%;
+  image-rendering:pixelated;
+  border-bottom:1px solid #000;
+  color:var(--bone-hi);font-size:10px;font-weight:bold;
+  letter-spacing:.09em;text-transform:uppercase;text-shadow:0 1px 0 #000;
+}
+.block .body{padding:7px}
+.turn-line{margin:0 0 6px;color:var(--bone)}
+.warn{color:var(--blood);font-weight:bold}
+.quote{color:var(--dim);margin:0 0 6px}
+.quote .mark{color:var(--dimmer)}
+.people{display:flex;flex-wrap:wrap;gap:3px}
+.person{
+  border:1px solid var(--rule);background:#15120d;
+  padding:1px 5px;font-size:11px;
+}
+.mono{font-variant-numeric:tabular-nums}
+
+/* ---------- phone ---------- */
+@media (max-width:719px){
+  .app{grid-template-columns:1fr}
+  .places,.aside,.rail{display:none}
+  .feed{padding:8px 12px 12px}
+  .composer{padding:6px 12px calc(6px + env(safe-area-inset-bottom,0px))}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- PLACES -->
+  <div class="col places">
+    <div class="bar">Places</div>
+
+    <p class="sect">Mail</p>
+    <button class="place"><span class="mail">✉</span><span class="nm">Bascinet</span><span class="unread">2</span></button>
+    <button class="place"><span class="nm">Deadchat</span></button>
+
+    <p class="zone-div">Ravenheart</p>
+    <p class="sect">Summary</p>
+    <button class="place"><span class="nm">#summary</span></button>
+    <p class="sect">Here</p>
+    <button class="place" data-active><span class="nm">The Bleeding Yard</span></button>
+    <p class="sect">Locations</p>
+    <button class="place"><span class="nm">The Drowned Crow</span><span class="unread">7</span></button>
+    <button class="place"><span class="nm">Tithe Hall</span></button>
+    <button class="place"><span class="nm">Godard Factory Floor</span></button>
+    <button class="place"><span class="nm">Cistern Stair</span></button>
+    <p class="sect">Rooms</p>
+    <button class="place"><span class="nm">Back of the Crow</span></button>
+    <p class="sect">Elsewhere</p>
+    <button class="place" data-vantage><span class="nm">Rivet Street</span></button>
+  </div>
+
+  <div class="rail" aria-hidden="true"></div>
+
+  <!-- FEED -->
+  <div class="col feed-wrap">
+    <div class="bar">
+      The Bleeding Yard
+      <span class="crumb">Ravenheart · Location</span>
+      <span class="spacer"></span>
+      <span class="sub">9 here</span>
+    </div>
+
+    <div class="feed" tabindex="0">
+      <p class="row sub">The gate grinds open at the top of the Yard. Somebody has been bleeding on the cobbles again — it has not been washed off.</p>
+
+      <div class="daybreak">Turn 12 · Morning</div>
+
+      <div class="decree">
+        <h2>Ravenheart Fortress</h2>
+        <p class="by">Decree of the Tithe Hall · read aloud at the gate</p>
+        <p>The Tower sputtered twice in the night. Until the Lifeweb is fed again, every household of the Yard owes a second tithe of blood before the bell.</p>
+        <p>Those who will not give it will be taken to give it. The Warden keeps the list.</p>
+      </div>
+
+      <p class="row sub">The intercom crackles somewhere above the rooftiles, then goes quiet.</p>
+
+      <p class="row"><span class="who c-gold">Marrow Vance</span>: <span class="said">Second tithe. They say that like it costs them something.</span></p>
+      <p class="row"><span class="who c-blue">Sister Ilda Roke</span>: <span class="said">It costs them the same as us. Keep your voice down, Marrow.</span></p>
+      <p class="row emote"><span class="who c-gold">Marrow Vance</span> spits into the gutter and rubs the mark on the back of her hand.</p>
+      <p class="row"><span class="who c-green">Tobin Quell</span>: <span class="said">I gave on the fourth day. My arm has not closed yet. Look at it.</span></p>
+      <p class="row sub">Tobin pushes his sleeve back. The puncture is black at the edges and smells faintly of wet iron.</p>
+      <p class="row"><span class="who c-blue">Sister Ilda Roke</span>: <span class="said">That is not the tithe going bad. That is the needle. Come to the Hall and I will cut it clean — 2 ⬢ for the poultice, no more.</span></p>
+      <p class="row"><span class="who c-green">Tobin Quell</span>: <span class="said">I have 3 ⬢ and a debt to the Merchant. Take the 2.</span></p>
+
+      <p class="row sub">Somebody moves four crates of salt fish from the Yard stash toward the Cistern Stair. Nobody stops them.</p>
+
+      <p class="row"><span class="who c-rust">Halbrecht Oss</span>: <span class="said">Those are mine, before anyone asks. Bought and paid — 40 ¢ at the Depot, and I have the chit.</span></p>
+      <p class="row"><span class="who c-mauve">Wren Sallow</span>: <span class="said">Nobody asked, Halbrecht. That is the fourth time you have told us.</span></p>
+      <p class="row emote"><span class="who c-rust">Halbrecht Oss</span> looks at the chit anyway, as though it might have changed.</p>
+
+      <p class="row sub">A dog starts up under the Crow's steps and will not stop.</p>
+
+      <p class="row whisper"><span class="who">Wren Sallow</span> whispers to you: the Warden's list has your name on it twice — go out by the Stair, not the gate.</p>
+
+      <p class="row"><span class="who c-pale">Warden Crake</span>: <span class="said">Yard. Stand where you are. I am reading names.</span></p>
+      <p class="row sub">Three of the Warden's men come in behind him and take the mouth of the gate.</p>
+      <p class="row emote"><span class="who c-gold">Marrow Vance</span> does not stand where she is.</p>
+      <p class="row combat"><b>Marrow Vance</b> swings a rivet hammer at <b>Warden Crake</b> — it lands on his shoulder plate with a flat, ugly crack.</p>
+      <p class="row combat">Warden Crake staggers, and the men at the gate draw.</p>
+      <p class="row sub">The Yard empties toward the Cistern Stair. Somebody is screaming about the bell.</p>
+
+      <p class="row"><span class="who c-blue">Sister Ilda Roke</span>: <span class="said">Down. Get down, all of you — Tobin, the wall!</span></p>
+      <p class="row"><span class="who c-green">Tobin Quell</span>: <span class="said">I cannot run on this arm.</span></p>
+      <p class="row emote"><span class="who c-blue">Sister Ilda Roke</span> takes him under the good arm and hauls him behind the cistern housing.</p>
+      <p class="row shout">MARROW! LEAVE IT!</p>
+      <p class="row sub">The gate grinds shut. Whoever is still in the Yard is still in the Yard.</p>
+      <p class="row ooc">[OOC]: heading out for a bit — file my Move for me if the window closes, I said Gambit.</p>
+      <p class="row sub"><span class="time">14:02</span> · Brann Otley arrives from Rivet Street, wet to the knee.</p>
+    </div>
+
+    <div class="composer">
+      <div class="say-row">
+        <label for="mode" class="mono" style="position:absolute;left:-9999px">Mode</label>
+        <select class="mode" id="mode">
+          <option>Say</option>
+          <option>Emote</option>
+          <option>Whisper</option>
+          <option>Shout</option>
+          <option>OOC</option>
+        </select>
+        <textarea class="say" id="say" rows="2" placeholder="Say something in the Bleeding Yard…">They are reading names at the gate. Go out by the Stair.</textarea>
+        <button class="btn" type="button">Send</button>
+      </div>
+      <p class="hint">Enter sends · Shift+Enter is a new line · 5 minutes to edit</p>
+    </div>
+  </div>
+
+  <div class="rail" aria-hidden="true"></div>
+
+  <!-- ASIDE -->
+  <div class="col aside">
+    <div class="bar">You</div>
+
+    <div class="you-frame">
+      <div class="you-well">
+        <p class="you-name">Solomon Baker</p>
+        <p class="you-role">Tithesman · Ravenheart</p>
+        <dl style="margin:0">
+          <div class="kv"><dt>Mood</dt><dd>Rattled</dd></div>
+          <div class="kv"><dt>Resources</dt><dd class="mono">12 ⬢</dd></div>
+          <div class="kv"><dt>Purse</dt><dd class="mono">31 ¢</dd></div>
+          <div class="kv"><dt>Carrying</dt><dd class="mono">84/150 lb</dd></div>
+        </dl>
+        <div class="meter" role="img" aria-label="84 of 150 pounds carried"><i style="width:56%"></i></div>
+        <div class="tags">
+          <span class="tag">Strong</span>
+          <span class="tag">Literate</span>
+          <span class="tag">Smithing II</span>
+          <span class="tag" data-bad>Bleeding</span>
+          <span class="tag" data-bad>Overburdened soon</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>Turn</h3>
+      <div class="body">
+        <p class="turn-line">Turn 12 · Morning — Moves close <span class="warn">in 41 minutes</span></p>
+        <p class="quote"><span class="mark">»</span> <b>Gambit</b> — slip out by the Cistern Stair before the Warden reaches my name, and take Tobin with me.</p>
+        <button class="btn" type="button">Change…</button>
+        <button class="btn" type="button">History</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>Here · 9</h3>
+      <div class="body">
+        <div class="people">
+          <span class="person c-gold">Marrow Vance</span>
+          <span class="person c-blue">Sister Ilda Roke</span>
+          <span class="person c-green">Tobin Quell</span>
+          <span class="person c-rust">Halbrecht Oss</span>
+          <span class="person c-mauve">Wren Sallow</span>
+          <span class="person c-pale">Warden Crake</span>
+          <span class="person">Brann Otley</span>
+          <span class="person">Josey Ferrow</span>
+          <span class="person">You</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>Waiting on you · 1</h3>
+      <div class="body">
+        <p class="quote">Sister Ilda Roke offers to teach you Field Medicine.</p>
+        <button class="btn" type="button">Accept</button>
+        <button class="btn" type="button">Decline</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

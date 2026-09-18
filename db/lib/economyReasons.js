@@ -13,8 +13,11 @@ const FLOW = { FAUCET: "FAUCET", SINK: "SINK", TRANSFER: "TRANSFER", INTERNAL: "
 // reason -> { flow, label }. Label is prose a GM reads, never the word "Resources" beside a ⬢ glyph.
 const REASONS = {
   // --- faucets ---
-  LABOR: { flow: FLOW.FAUCET, label: "Labor" },
-  LABOR_DROP: { flow: FLOW.FAUCET, label: "Labor drop" },
+  MINING: { flow: FLOW.FAUCET, label: "Mining" },
+  // Nothing writes this any more — the old mining drop die could pay in ⬢, the prospecting table
+  // that replaced it on 2026-09-18 only ever grants a tag. Kept so historic rows still have a label,
+  // the same posture as UNATTRIBUTED.
+  MINING_DROP: { flow: FLOW.FAUCET, label: "Mining drop" },
   CRATE: { flow: FLOW.FAUCET, label: "Crate opened" },
   CONSUME: { flow: FLOW.FAUCET, label: "Purse consumed" },
   RITE_GRANT: { flow: FLOW.FAUCET, label: "Rite" },
@@ -56,9 +59,20 @@ const REASONS = {
   STASH: { flow: FLOW.TRANSFER, label: "Stash" },
   DEPOT_ORDER: { flow: FLOW.TRANSFER, label: "Depot order" },
   DEPOT_SALE: { flow: FLOW.TRANSFER, label: "Depot sale" },
+  TRAIN_DELIVERY: { flow: FLOW.TRANSFER, label: "Train delivery" },
+  // The Meister's cut of a settled sale, coin into the Keep's Vault. Beside TAX
+  // rather than a sink: the money does not stop existing, it changes hands.
+  SELL_TAX: { flow: FLOW.TRANSFER, label: "Sell tax" },
+  // Kept, unwritten: the generator is gone, but a reason is a plain string and
+  // deleting one blanks the old rows that name it on /gm/economy.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },
 
   // --- internal (a form change, not a movement) ---
+  BANK_OPEN: { flow: FLOW.INTERNAL, label: "Account opened" },
+  BANK_DEPOSIT: { flow: FLOW.INTERNAL, label: "Deposit" },
+  BANK_WITHDRAWAL: { flow: FLOW.INTERNAL, label: "Withdrawal" },
+  // Kept, unwritten: BANK_DEPOSIT/BANK_WITHDRAWAL replaced it, and the old rows
+  // still name it.
   DEPOT_ATM: { flow: FLOW.INTERNAL, label: "ATM" },
   DEPOT_CREDIT: { flow: FLOW.INTERNAL, label: "Credit line" },
 

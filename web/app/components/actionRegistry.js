@@ -49,6 +49,8 @@ import {
   DocumentsIcon,
   SpeakerIcon,
   ExtractIcon,
+  MineIcon,
+  RefineIcon,
   CrateIcon,
   QuillIcon,
   SealIcon,
@@ -60,7 +62,6 @@ import {
   SearchPersonIcon,
   StealIcon,
   PickpocketIcon,
-  ResourcesIcon,
   BrandIcon,
   BreakRestraintsIcon,
   FarmIcon,
@@ -91,7 +92,7 @@ export const ACTION_HELP = {
     "Offer to teach a skill you have. It takes your whole turn unless you hold Teaching.",
   confess:
     "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
-  move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
+  move: "Forcibly move an incapacitated or Bound person.",
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
   kiss: "Ask somebody for a kiss.",
   search: "Request to search a person's inventory.",
@@ -125,7 +126,11 @@ export const ACTION_HELP = {
   disarm:
     "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like.",
   extract:
-    "Cut Godflesh out of the marsh. Once a day, and it costs you no turn. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
+    "Harvest Godflesh, up to once a turn. It costs you no Move. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
+  refine:
+    "Spend your turn refining Godflesh into Squeeze. There must be some on the floor nearby or in your inventory.",
+  mine:
+    "Spend your turn mining in the caves, yielding resources and a small chance of ore.",
   farm: "Sow the fields with seed you're licensed to plant. It takes your whole Move, and the harvest comes in when the turn closes.",
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
@@ -186,11 +191,6 @@ export const ACTION_SECTIONS = [
       // time the page loaded — the metagaming rule at the top of this file.
       // The dialog's own empty state is the answer.
       { mode: "steal", icon: StealIcon, label: "Steal" },
-      // HIDDEN rather than greyed, the poison/disguise reasoning: holding the
-      // Taxman tag and being a faction officer are both facts about your own
-      // sheet, and a permanently dead Tax icon on everybody else's grid would
-      // teach nothing except that the button exists.
-      { mode: "tax", icon: ResourcesIcon, label: "Tax", show: "canTax" },
       // HIDDEN rather than greyed, the same reasoning Crucify and the Factory
       // verbs give: whether YOU are carrying a disguise kit is a fact about
       // your own sheet, and a dead Disguise icon on everybody else's would
@@ -229,22 +229,48 @@ export const ACTION_SECTIONS = [
         gate: "canConfess",
         gateReason: "You have nothing to confess.",
       },
-      // The two Godard Factory verbs. Both HIDE rather than grey when the
-      // place is wrong, which is a different thing from the rule at the top of
+      // The four day-verbs, and all of them HIDE rather than grey when the
+      // place is wrong. That is a different thing from the rule at the top of
       // this file: that rule forbids leaking who is standing near you, and
-      // where YOU are standing is not somebody else's fact. An Extract button
+      // where YOU are standing is not somebody else's fact. A Mine button
       // greyed out in the Fortress would just be furniture.
+      //
+      // Only Harvest Godflesh is free. Refine, Mine and Farm each spend the
+      // whole Move.
       {
         mode: "extract",
         icon: ExtractIcon,
-        label: "Extract",
+        label: "Harvest Godflesh",
         show: "canSeeExtract",
         gate: "canExtract",
         gateReason: "You have nothing to cut with.",
         instant: true,
       },
+      {
+        mode: "refine",
+        icon: RefineIcon,
+        label: "Refine",
+        show: "canSeeRefine",
+        gate: "canRefine",
+        gateReason: "There's no Godflesh here to refine.",
+        instant: true,
+      },
+      // Shows for EVERYONE, wherever they stand — anybody can shift rock, and
+      // Prospecting decides what the day is worth rather than whether you may
+      // press this (MINING.md). The "wrong ground" and "seam dried up" cases
+      // are both greys, carried dynamically through pools.gateReason.mine
+      // (db/lib/mining.js).
+      {
+        mode: "mine",
+        icon: MineIcon,
+        label: "Mine",
+        show: "canSeeMine",
+        gate: "canMine",
+        gateReason: "You're worn out.",
+        instant: true,
+      },
       // The Farms placeholder (db/lib/soilery.js). Same HIDE-when-wrong-ground
-      // posture as Extract just above, but a dialog rather than an instant
+      // posture as the three just above, but a dialog rather than an instant
       // verb — sowing is a whole plan of crops, not a single click. `canFarm`
       // folds in the skill, the Exhausted/Tired lockout and the once-a-turn
       // Move check (db/lib/soilery.js#farmRefusalFor); farmBlocked's own
@@ -271,7 +297,7 @@ export const ACTION_SECTIONS = [
         gate: "canBreakIn",
         gateReason: "You don't know how to break in an arelitz.",
       },
-      // HIDDEN, never greyed, the same rule Extract just above follows: being
+      // HIDDEN, never greyed, the same rule the ones just above follow: being
       // Bound is a fact about YOUR OWN sheet, and a dead row on every other
       // sheet would only teach a bystander that struggling free is possible.
       {

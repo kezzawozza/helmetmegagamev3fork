@@ -258,7 +258,7 @@ stands."*
 |---|---|
 | ❌ | Soft-deletes the row; `bot/src/lib/feedOutbox.js` removes the Discord message. Owner, or a GM (who is not held to the window). |
 | ✏️ | Edit, via a DM button and a modal — see below. The modal writes the **row**, through `editSpeech`, and the outbox carries the change to Discord. Owner only. |
-| 🔍 | Inspect embed, as of that line — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
+| 🔍 | Inspect embed, as of that line — see §5. Same readout as **Look at** on `/character` (§4a). |
 | 📸 / 📷 | The same readout, as of that line, frozen onto a **Photo** tag in the reactor's hands. Needs an Instant Camera, which is not spent. `COMMANDS.md` §6. |
 | ⭐ | Saves a personal `Note` — see §7. |
 | 🌫️ | GM-only fog. |
@@ -271,8 +271,17 @@ DMs no longer carry any reaction-driven flow; the bot does not request the
 `db/lib/examine.js` is the one readout behind both, and neither surface
 builds its own. The bot maps it to an `EmbedBuilder`, the web app to JSX
 (`web/app/components/ExamineDialog.js`), but every rule that decides *what is
-in it* — the doctor's eye, the concealed read, Role, ⬢ — is
-decided once, in that file. Add a field to one and both get it.
+in it* — the doctor's eye, the concealed read, the Role — is
+decided once, in that file. Add a field to one and both get it. (The ⬢ figure
+is the one thing that used to be in it and is not: it rode on sharing a faction,
+and with factions gone only a GM reads it.)
+
+**The Role is in it again, for most seats.** `Role.examineVisible` decides —
+true for nearly everybody, false for the two Brigands and the two Tribunal
+seats, who read as having no seat at all (`CHARACTERS.md` §2). A hood carries no
+Role for the same reason it carries no name. A photograph carries it: the same
+readout builds `db/lib/photo.js#photoCaption`, so the prose frozen onto the
+Photo tag says what the modal says.
 
 **They no longer differ in who they can be pointed at.** They used to: 🔍
 hung off an archived row and so only ever reached somebody who had **spoken**,
@@ -291,7 +300,7 @@ the page can offer the look without ever being told who is under the hood, and
 the hood token in `db/lib/whosHere.js` is no longer what a look is keyed on.
 
 **And it answers for the whole of that moment, not just the identity.** The
-name, the face, the appearance, the gear, the wounds, the Role and the ⬢ all
+name, the face, the appearance, the gear, the wounds and the Role all
 come off `ArchiveEntry.presentedState`, frozen at send time beside the alias
 and the face (`db/lib/examineSnapshot.js`). One rule decides every question
 about what is frozen and what is not:
@@ -483,7 +492,7 @@ The alias comes from `db/lib/concealedIdentity.js` (pure, in the barrel beside
 was always "Person" however they present, and so was a Censor. Gender is a
 real column now (`CHARACTERS.md` §1c), so the alias simply says it: an untitled
 woman conceals as "a young woman". Concealing hides the name, the face and the
-faction — it was never meant to hide how someone presents, which is what the
+seat — it was never meant to hide how someone presents, which is what the
 line above has always claimed it carries.
 
 The alias is frozen into `ArchiveEntry.concealedAlias` at send time, so a later
@@ -578,9 +587,10 @@ free and silent is what the Demoness tag is paying its extra point for.
 
 The archive records **both halves** — `ArchiveEntry.concealedAlias` alongside
 the real `characterId`/`characterName` — so `/archive` renders
-`Young Man (Sir Alder)`. That is the one surface where concealment is undone,
-which is why `archiveVisible` is meant to stay shut until the game ends
-(`ARCHIVE.md`).
+`Young Man (Sir Alder)`. That is one more surface where concealment is
+undone, and it is fine that it is: `/archive` is GM-only, always
+(`ARCHIVE.md`), and a GM could already see through `/conceal` everywhere
+else.
 
 ### Forced identity (`Tag.forcedName`)
 
@@ -692,6 +702,12 @@ read the *character*, live, and the character had moved on. Now the row carries
 what the room could see of him (`ArchiveEntry.presentedState`, §4a) and the
 look reads that instead. Gear picked up after the fact no longer appears on a
 line said before it, the same way a mask does not.
+
+The Role rides in the payload's `rt` alongside all that, and is **written only
+when the seat is one a look may read** — an opaque seat's title is not in the
+row at all, so it cannot come out of a database read or an exported archive
+packet either. A line said before the key existed carries none, and is never
+backfilled: rewriting a frozen line is the thing the freeze exists to prevent.
 
 Mentions follow the same rule, and used to break it in miniature: a `{char:…}`
 kept the name the row froze, but the little portrait beside it was drawn from a

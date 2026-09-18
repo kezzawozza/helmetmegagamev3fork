@@ -10,6 +10,7 @@ import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import DeskHeader from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import OracleDesk from "./OracleDesk";
 
 const FRONT_PAGE = "__front__";
@@ -34,7 +35,7 @@ export default async function OraclePage({ searchParams }) {
     select: {
       id: true,
       number: true,
-      phase: true,
+      dayNumber: true,
       _count: { select: { oraclePages: true } },
     },
   });
@@ -42,7 +43,10 @@ export default async function OraclePage({ searchParams }) {
   if (turns.length === 0) {
     return (
       <div className="desk-shell">
-        <DeskHeader title="Oracle" meta={<LockChip />} />
+        <DeskHeader title="Oracle" meta={<>
+          <LockChip />
+          <BascinetClock />
+        </>} />
         <div className="desk-body">
           <div className="desk-empty">
             <p>No turn has begun yet.</p>
@@ -87,7 +91,6 @@ export default async function OraclePage({ searchParams }) {
         discordUserId: true,
         zoneId: true,
         role: { select: { name: true } },
-        faction: { select: { name: true } },
         // seatZoneId too — lands a cave-LEVEL character on the cave GROUP's row (db/lib/seatZone.js), else the badge never counts them.
         zone: { select: { name: true, seatZoneId: true } },
       },
@@ -151,15 +154,14 @@ export default async function OraclePage({ searchParams }) {
     name: character.name,
     discordUserId: character.discordUserId,
     roleTitle: character.role?.name ?? null,
-    factionName: character.faction?.name ?? null,
     zoneName: character.zone?.name ?? null,
   }));
 
   return (
     <GmZoneViewProvider initialZoneNames={visibleZones?.map((zone) => zone.name) ?? null}>
       <OracleDesk
-        turn={{ number: turn.number, phase: turn.phase }}
-        turns={turns.map((t) => ({ number: t.number, phase: t.phase }))}
+        turn={{ number: turn.number, dayNumber: turn.dayNumber }}
+        turns={turns.map((t) => ({ number: t.number, dayNumber: t.dayNumber }))}
         pages={pages}
         threads={threads}
         zones={zones}

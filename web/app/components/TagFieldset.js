@@ -352,7 +352,7 @@ export default function TagFieldset({
             </label>
 
             {/* Numbers here, words everywhere a player looks — the same split
-                Laboring yields take. 0 turns nothing aside, 1 turns everything;
+                mining yields take. 0 turns nothing aside, 1 turns everything;
                 a helmet is around 0.5 against a blade and 0.35 against a
                 bullet. Nothing forged in Ravenheart should go far above 0.3
                 ballistic. */}

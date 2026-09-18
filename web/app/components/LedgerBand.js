@@ -8,26 +8,32 @@ import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
+import { obolsOf } from "@/lib/purse";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
 import CombatTile from "./CombatReadout";
 import DetailTile from "./DetailTile";
-import FactionLink from "./FactionLink";
+import { MOOD_DETAIL } from "./MoodPanel";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
 
-// What the Mood box says when you open it. Bascinet's words, verbatim.
-const MOOD_DETAIL =
-  "Certain things, like spending time in the wilderness without the Rough Camper trait or receiving wounds harm " +
-  "your mood. Other things, like listening to music, fulfilling desires, or eating meals boost your mood. Your " +
-  "Mood impacts your Gambit rolls.";
+// A signed figure with a real U+2212 minus, matching
+// db/lib/gambitModifier.js#formatGambitModifiers and the bot's roll line.
+function signed(n) {
+  return `${n > 0 ? "+" : n < 0 ? "−" : "±"}${Math.abs(n)}`;
+}
 
-// The band across the top of the sheet — who this is and where they stand,
-// the five things a player checks first, the turn card and status strip, and
-// under them what the turn will change and every verb in one strip.
+// The band across the top of the sheet — the face, the name in blackletter,
+// where they stand, the status chips, the five things a player checks first,
+// then This turn / Combat / Turn effects, then every verb in one strip.
 // The numbers are read-only on purpose. The strip is where things happen.
+//
+// Each of the five tiles carries a quiet second line as of phase 4 (the `sub`
+// prop): the coin beside the ⬢, the mood's own figure, which modifier is on the
+// Gambit. That is the mockup's shape, and it means the numbers say what they
+// mean without having to be pressed.
 export default function LedgerBand({
   character,
   avatarSrc,
@@ -60,6 +66,17 @@ export default function LedgerBand({
   // is no cap beside it any more — a ⬢ weighs a pound and pushes against the
   // Carrying tile's cap instead (docs/systemdocs/CARRY.md §1).
   const heldResources = resourcesOf(character);
+  // Physical coin, on the ⬢ tile's own sub-line. One obol is one ⬢ (DEPOT.md
+  // §0) — parity, not identity — so it is counted and printed in ¢ beside the
+  // ⬢ rather than added into them. Off the held rows, like the ⬢ above.
+  // web/lib/purse.js is the one copy — the chat aside's you-frame counts the
+  // same way.
+  const obols = obolsOf(character);
+  // The mockup's Resources tile also shows a cap. There is none: the old
+  // GameConfig.carryResourceCap was retired when a ⬢ started weighing a pound
+  // and pushing against the Carrying tile's cap instead (CARRY.md §1). So the
+  // sub-line says the coin and nothing else.
+  const resourceSub = obols > 0 ? `${obols} ¢ on you` : "no coin on you";
 
   const gambitParts = gambitModifiers(character.tags, { mood: character.mood });
   // Summed from the parts: two calls to the same module is two chances for the number and its explanation to disagree.
@@ -67,6 +84,13 @@ export default function LedgerBand({
   const gambitDetail = gambitParts.length
     ? formatGambitModifiers(gambitParts)
     : "Nothing is weighing on your roll.";
+  const heaviest = gambitParts.reduce(
+    (worst, m) => (worst && Math.abs(worst.value) >= Math.abs(m.value) ? worst : m),
+    null,
+  );
+  const gambitTop = heaviest
+    ? `${heaviest.label} ${signed(heaviest.value)}${gambitParts.length > 1 ? ` · +${gambitParts.length - 1} more` : ""}`
+    : "nothing weighing on it";
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
@@ -80,7 +104,7 @@ export default function LedgerBand({
     <section className="sheet-band panel">
       <div className="ledger-band">
         <div className="ledger-identity">
-          <div className="ledger-face">
+          <div className="ledger-face face">
             {avatarSrc ? (
               // `avatarSrc` is already whatever presentedIdentity resolved for the person looking; the zoom never rebuilds a URL.
               <AvatarZoom src={avatarSrc} name={character.name}>
@@ -88,22 +112,21 @@ export default function LedgerBand({
                 <img src={avatarSrc} alt={character.name} />
               </AvatarZoom>
             ) : (
-              <div className="ledger-face-blank" aria-hidden="true" />
+              <div className="ledger-face-blank">no portrait</div>
             )}
           </div>
-          {/* The only place on the page that names the person. */}
-          <div className="ledger-who">
-            <h2 className="ledger-name">{character.name}</h2>
-            <p className="m-0 text-sm text-muted">
-              {character.roleTitle ?? "No role"} ·{" "}
-              <FactionLink
-                factionId={character.faction?.id ?? null}
-                name={character.faction?.name ?? "No faction"}
-                className="ledger-faction"
-              />
-            </p>
-            <p className="m-0 text-sm text-muted">
-              {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
+          {/* The only place on the page that names the person. `ledger-who` is
+              shared with the GM's Dev Character Panel (DevBand.js) — untouched
+              — `identity-text` is the mockup's own name, added alongside it. */}
+          <div className="ledger-who identity-text">
+            <h2 className="ledger-name char-name">{character.name}</h2>
+            <p className="m-0 text-sm text-muted identity-line">{character.roleTitle ?? "No role"}</p>
+            {/* "Standing in Town — Tallow Row", the mockup's line: the zone and
+                the Location emphasised inside a sentence rather than sitting as
+                two bare nouns with a dot between them. */}
+            <p className="m-0 text-sm text-muted identity-line">
+              Standing in <strong>{character.zone?.name ?? "Unassigned"}</strong> —{" "}
+              <strong>{character.location?.name ?? "Nowhere"}</strong>
             </p>
             <div className="mt-2">
               {/* No ⬢ and no pounds here: the tiles to the right already carry both. What's left is what is actually worn. */}
@@ -136,11 +159,15 @@ export default function LedgerBand({
             label="Free moves"
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
+            // The mockup's "Gambit not yet filed" under this number: the same
+            // fact the turn card below states, said where a player counting
+            // their moves is already looking.
+            sub={isSelf ? (moveState?.move ? "Gambit filed" : "Gambit not yet filed") : null}
             detail={zoneMovesReason || null}
             open={tileOpen === "moves"}
             onOpen={(want) => setTileOpen(want ? "moves" : null)}
           />
-          <DetailTile label="Resources" value={`${heldResources} ⬢`} />
+          <DetailTile label="Resources" value={`${heldResources} ⬢`} sub={resourceSub} />
           <DetailTile
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
@@ -151,11 +178,12 @@ export default function LedgerBand({
           >
             {carry && (
               <span
-                className="depot-meter"
+                className="sheet-meter meter"
+                data-over={carry.weightUsed > carry.weightCap ? "true" : undefined}
                 role="img"
                 aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}
               >
-                <span className="depot-meter-fill" style={{ width: `${loadPct}%` }} />
+                <span style={{ width: `${loadPct}%` }} />
               </span>
             )}
           </DetailTile>
@@ -165,6 +193,12 @@ export default function LedgerBand({
             value={moodBand?.label ?? "Fine"}
             tone={moodBand?.tone ?? "muted"}
             word
+            // The mockup's "−16 · press for why". The number IS shown here, on
+            // the quiet line, where the word above it is what carries the
+            // meaning — and "press for why" is a true sentence, because the
+            // tile's detail is Bascinet's paragraph on what moves a mood. Only
+            // on your own sheet: somebody else's figure is not yours to read.
+            sub={isSelf ? `${signed(character.mood ?? 0)} · press for why` : null}
             detail={MOOD_DETAIL}
             open={tileOpen === "mood"}
             onOpen={(want) => setTileOpen(want ? "mood" : null)}
@@ -174,6 +208,11 @@ export default function LedgerBand({
             label="Gambit die"
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
             over={Boolean(gambit)}
+            // The mockup's "Bleeding −1": the heaviest single modifier, named.
+            // Which one is the biggest swing, not the first in the list — that
+            // is the one a player wants to know about. The whole list is still
+            // one press away in the detail below.
+            sub={gambitTop}
             detail={gambitDetail}
             open={tileOpen === "gambit"}
             onOpen={(want) => setTileOpen(want ? "gambit" : null)}
@@ -181,10 +220,13 @@ export default function LedgerBand({
         </div>
       </div>
 
-      {/* This turn · Combat · Turn Effects, same build (.ledger-turn/.ledger-tile share background/border/radius/padding). Grid is auto-fit. */}
-      <div className="sheet-band-row">
+      {/* This turn · Combat · Turn Effects, same build — .band-box is the
+          mockup's own name for the three; .sheet-band-row is shared with the
+          GM's Dev Character Panel (DevBand.js) so it stays, with .band-row
+          added alongside it. Grid is auto-fit. */}
+      <div className="sheet-band-row band-row">
         {isSelf && (
-          <div className="ledger-turn">
+          <div className="ledger-turn band-box">
             <span className="field-label">This turn</span>
             <SheetTurn moveState={moveState} pendingOffers={pendingOffers} />
           </div>

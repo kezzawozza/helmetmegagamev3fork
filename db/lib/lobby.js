@@ -8,6 +8,7 @@ const { heldSeatsByRole } = require("./seatCount");
 const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
 const { pickTurnBanner } = require("./turnBanner");
+const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
 
 // Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
@@ -31,7 +32,7 @@ async function loadAssignmentInput(db, memberRoles) {
     db.role.findMany({
       select: {
         id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true,
-        requiresWhitelist: true, grantsLeader: true, factionId: true,
+        requiresWhitelist: true,
       },
     }),
   ]);
@@ -41,7 +42,7 @@ async function loadAssignmentInput(db, memberRoles) {
     return {
       discordUserId: e.discordUserId,
       priorities: p?.rolePriorities ?? {},
-      joblessRole: p?.joblessRole ?? "COMMONER",
+      joblessRole: p?.joblessRole ?? "MIGRANT",
       whitelisted: (memberRoles.get(e.discordUserId) ?? []).includes(LEADER_WHITELIST_ROLE_ID),
     };
   });
@@ -122,7 +123,7 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
 
     const config = await getGameConfig(tx);
     const roles = await tx.role.findMany({
-      include: { faction: { select: { name: true } }, startingLocation: { include: { zone: { select: { name: true } } } } },
+      include: { startingLocation: { include: { zone: { select: { name: true } } } } },
     });
     const bySlug = new Map(roles.map((r) => [r.slug, r]));
     const now = new Date();
@@ -141,7 +142,6 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
           entryId: entry.id,
           discordUserId: row.discordUserId,
           roleName: role.name,
-          factionName: role.faction?.name ?? null,
           zoneName: role.startingLocation?.zone?.name ?? null,
           expiresAt,
         });
@@ -158,14 +158,27 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
       where: { id: 1 },
       data: { phase: "RUNNING", startedAt: now, playerCount: draft.playerCount ?? null, assignmentDraft: null },
     });
-    // Both stamps, not just gameDate: every Move deadline derives from startedAt (turnClock.js).
+    // Restamp the clock, not just the start: every Move deadline comes off the turn row now (turnClock.js), so `endsAt` has
+    // to be recomputed or Turn 1 keeps a deadline set before anybody was playing.
+    const turnLengthHours = normalizeTurnLength(config?.turnLengthHours);
+    const endsAt = new Date(nextBoundaryAfter(now.getTime(), turnLengthHours));
     const open = await tx.turn.findFirst({ where: { status: "OPEN" } });
     let turn;
-    if (open) turn = await tx.turn.update({ where: { id: open.id }, data: { gameDate: now, startedAt: now } });
+    if (open) turn = await tx.turn.update({ where: { id: open.id }, data: { startedAt: now, endsAt, turnLengthHours } });
     else {
       // Turn.number is unique; a resolved Turn 1 with nothing open must not throw a constraint error.
       const last = await tx.turn.aggregate({ _max: { number: true } });
-      turn = await tx.turn.create({ data: { number: (last._max.number ?? 0) + 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: now, startedAt: now } });
+      turn = await tx.turn.create({
+        data: {
+          number: (last._max.number ?? 0) + 1,
+          dayNumber: 1,
+          turnLengthHours,
+          endsAt,
+          banner: pickTurnBanner(),
+          status: "OPEN",
+          startedAt: now,
+        },
+      });
     }
 
     await tx.auditLog.create({
@@ -194,11 +207,11 @@ function epoch(date) {
 
 // First line is what Discord shows in the notification, so the seat is in
 // it. `origin` is passed in because db/ must not know it (web/lib/auth.js).
-function assignmentMessage({ roleName, factionName, zoneName, expiresAt }, origin) {
+function assignmentMessage({ roleName, zoneName, expiresAt }, origin) {
   const t = epoch(expiresAt);
   return [
     `**You're in. You are the ${roleName}.**`,
-    [factionName ? `${factionName}.` : null, zoneName ? `You start in ${zoneName}.` : null].filter(Boolean).join(" "),
+    zoneName ? `You start in ${zoneName}.` : "",
     `Build your character here: ${origin}/character`,
     `The seat is yours until <t:${t}:F> (<t:${t}:R>).`,
     "-# Can't make it? Free the seat up by pressing Decline.",

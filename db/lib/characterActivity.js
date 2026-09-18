@@ -1,6 +1,6 @@
 // Debounced writer for Character.lastActivityTurn, the clock db/lib/catatonicPass.js reads. Looks up
 // the open turn itself, so a chatty player costs one UPDATE per turn, not one per message. Called only
-// from things that mean "a real person did something this turn" — never from db/lib/autoLaborPass.js,
+// from things that mean "a real person did something this turn" — never from a pass the game runs on its own,
 // whose auto-filed Default Effort would otherwise mean nobody could ever go Catatonic.
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 async function touchCharacterActivity(prisma, characterId) {

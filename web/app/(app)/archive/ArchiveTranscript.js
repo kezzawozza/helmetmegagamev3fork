@@ -27,18 +27,17 @@ const FOLD_MARK = {
   LIFEWEB: "❧",
 };
 
-function phaseWord(phase) {
-  return phase ? `${phase.charAt(0)}${phase.slice(1).toLowerCase()}` : null;
-}
-
+// The day is snapshotted onto the ArchiveEntry itself — there is no Turn row to
+// join here, and it stopped being derivable from the turn number when the turn
+// length became a knob. The fallback covers rows written before the column.
 function dayLabel(row) {
   if (row.turnNumber == null) return "Before the game";
-  return `Day ${Math.ceil(row.turnNumber / 2)}`;
+  return `Day ${row.dayNumber ?? Math.ceil(row.turnNumber / 2)}`;
 }
 
 // channelKinds meaning "a place in the world", already covered by zoneName.
 // Anything else with no zone is a standing channel outside the zone system.
-const PLACED_KINDS = new Set(["summary", "location", "scene", "intercom"]);
+const PLACED_KINDS = new Set(["summary", "location", "scene", "intercom", "decree"]);
 
 // The KEY is placeKey where there is one, since the display string alone
 // merges two same-named rooms and splits a renamed one.
@@ -82,7 +81,7 @@ function buildBlocks(rows, { groupScenes = true } = {}) {
     if (thisDay !== dayKey) {
       dayKey = thisDay;
       sceneKey = undefined;
-      blocks.push({ type: "day", key: `d${row.id}`, label: dayLabel(row), phase: phaseWord(row.turnPhase) });
+      blocks.push({ type: "day", key: `d${row.id}`, label: dayLabel(row) });
     }
     if (row.kind === "TURN_START") {
       // The day line above already says everything this row carries.
@@ -178,7 +177,7 @@ export default function ArchiveTranscript({ rows, groupScenes = true, portraits 
         if (b.type === "day") {
           return (
             <div key={b.key} className="archive-day">
-              {[b.label, b.phase].filter(Boolean).join(" · ")}
+              {b.label}
             </div>
           );
         }

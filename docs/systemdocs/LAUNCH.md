@@ -74,7 +74,7 @@ The order, and why:
 | 3 | **Deadchat**: close every open seat, then a fresh provision (`ensureDeadchatChannel({ fresh: true })`) | Closing each seat by id is the belt; the fresh provision strips every member overwrite on the channel outright, which is the brace for a departed member or a failed call the loop missed. The mirror has no equivalent — it never touches a channel's raw per-member overwrites — so this stays its own step |
 | 4 | **Message wipe** (`wipeGameMessages`) | Clears `#turns`, every `#archive`-named channel, every zone's `#summary` and every Location channel. A zone Room's thread is **kept** — its messages clear, and its starter id/hash are nulled so the mirror reposts into it. A quest Room's thread, and any thread that matches no Room at all (a Conversation), is deleted outright — neither needs to survive, and the mirror already knows how to rebuild a quest Room's thread from scratch. Anchors are nulled unconditionally, since every channel they sit in just emptied |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
-| 6 | **Tag sync** → 7. **Role sync** → 8. **Desire sync** → 9. **Document sync** → 10. **Labor drop sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags, roles and factions; labor drops run last, against the tag and location catalogs the steps above just rebuilt |
+| 6 | **Tag sync** → 7. **Role sync** → 8. **Desire sync** → 9. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags and roles |
 | 11 | **Discord mirror** (`runDiscordMirror`, full scope, apply) | The structural backstop: reconciles every category, channel, role, radio net, Deadchat channel, Location anchor and Room thread against the database, and reposts anything step 4 just cleared. Replaces the old zone sync, special-channels sync and channel doctor steps — one repair path instead of three |
 
 ## 3. The runbook
@@ -143,7 +143,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its id, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
-| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Kept as rows throughout — nothing here re-syncs them from YAML any more. |
+| `Zone`, `Location`, `Room`, `Tag`, `Role`, `Document` | Kept as rows throughout — nothing here re-syncs them from YAML any more. |
 
 A quest Room's thread and any Conversation thread do not survive — see §2
 step 4 for why neither needs to.
@@ -187,7 +187,7 @@ bulk actions, letters, ambient lines, the inactivity nudge, threat seats and
 objectives (`DEV-PANEL.md` §11a).
 
 A GM-role holder **cannot**: end a turn early, wipe or restart, edit Game
-Config, set next turn's note, delete a faction, run the channel doctor's
+Config, set next turn's note, run the channel doctor's
 Repair, or delete a character or a custom tag. All of those are superadmin.
 
 The practical one is **ending a turn**. `forceAdvanceTurn` checks only

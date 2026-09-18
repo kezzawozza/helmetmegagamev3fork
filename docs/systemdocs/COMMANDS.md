@@ -95,8 +95,9 @@ Notes:
 - `/ooc` takes a string option for the same reason, and its own cap: 2000
   rather than `/shout`'s 300, because it reaches one channel rather than a
   couple of dozen. See §2f.
-- `/labor` is retired — laboring is now the **Labor checkbox** on the Move
-  modal (`LABORING.md` §4).
+- `/labor` is retired, and so is the Laboring it belonged to. A day's work is
+  a button on the character sheet now — Mine, Farm, Refine or Harvest Godflesh
+  (`MINING.md`).
 - `/persistent` is retired too — Bascinet 2 dropped forum topics, private
   Create-a-Thread anchors and any long-lived form of a player-made thread.
   The only thread a player can open now is a Conversation, and every
@@ -379,7 +380,7 @@ same place you are reading.
 ```
 
 through `db/lib/ambientLine.js` on Discord and a `channelKind: "ooc"` scene row
-on the web (`.chat-ooc`, subtext with a rule down its left edge). The web
+on the web (`.tline--system[data-kind="ooc"]`, subtext with a rule down its left edge). The web
 spelling escapes the outer brackets and Discord's does not, for a Markdown
 reason `db/lib/ooc.js` explains at length. Who said it *also* lives in the
 `AuditLog` row, which is what the GM's OOC lens reads (`ADJUDICATION.md` §3) —
@@ -564,8 +565,8 @@ zone" (free, on a cooldown), "Crosses into {Zone} — costs your Move", or
 
 **Every hop offers the party**, on the same message as the Confirm/Cancel
 row: `loc:bring` lists everyone standing **here** with a verdict from
-`db/lib/escort.js#escortCandidates` — a corpse, anyone helpless, a member of
-the faction you lead, or somebody you'd have to ask. The select is
+`db/lib/escort.js#escortCandidates` — a corpse, anyone helpless, or somebody
+you'd have to ask. The select is
 `minValues: 0`, is pre-ticked with whoever is already following you, and
 `buildBringRow` returns `null` (dropping the row entirely) when there is
 nobody to bring, since Discord rejects an empty select.
@@ -594,10 +595,10 @@ file and you must change it in `interactionCreate.js` too.
   this Location. Since phase 3 of Chat the rule itself is
   **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —
   `/chat`'s people column reads the same function, so the street and the page
-  cannot disagree about who a stranger is. Named characters first (with their `roleTitle` shown to a
-  fellow member of the same real faction, same rule the 🔍 inspect gate
-  uses), then concealed characters as their alias with an article — "a young
-  man" — and no title, since a Role is as identifying as a name. Nobody here
+  cannot disagree about who a stranger is. Named characters first, names and
+  nothing else — a role title is shown to nobody now, the same rule the 🔍
+  inspect embed keeps — then concealed characters as their alias with an
+  article, "a young man". Nobody here
   ⇒ "Nobody is here."
 - **Secret rooms?** (`handleSecretRooms`) lists the private Rooms this
   character's held tags admit them to (`db/lib/roomAccess.js#accessibleRooms`)
@@ -635,21 +636,26 @@ gate runs on submit instead.
 | Field | customId | Type |
 |---|---|---|
 | Your Move | `move:body` | Paragraph, required, max 1800 |
-| Kind | `move:kind` | Radio: `ROUTINE` / `GAMBIT`, required |
-| Labor | `move:labor` | Checkbox — Routine only, refused on a Gambit |
+
+**There is no Kind picker.** There was one, carrying Gambit and Labor. Laboring
+is gone and a day's work is a button on the sheet, so **a Move IS a Gambit**
+(`db/lib/moves.js#PLAYER_MOVE_KINDS`) and a picker with one option on it is not
+a choice. Routine is still written constantly — it is what the game calls a
+Move it filed for you — it just is not something a player picks. `/move` lost
+its `kind` argument for the same reason.
 
 Moves close three hours before the turn ends — 9:00 AM / 9:00 PM
 America/Chicago — so a GM can adjudicate what was filed before the push
 (`TURN-ENGINE.md` §6a). Both `move:open` and the submit handler check it: the
 button refuses to open the modal after the cutoff, and submit re-checks because
 a modal can sit open on screen across it. Either way the refusal is ephemeral
-and names the cutoff and the next turn's start. Travel, Speak, requests and the
-auto-labor pass are untouched.
+and names the cutoff and the next turn's start. Travel, Speak and requests are
+untouched.
 
 Submitting runs every gate the old `#turns` message flow ran — living
-character, open turn, before the cutoff, hasn't already acted, non-empty body,
-Labor resolved **before** any `Action` row exists so a refusal never costs a
-turn — then
+character, open turn, before the cutoff, hasn't already acted, non-empty body —
+every one of them **before** any `Action` row exists, so a refusal never costs
+a turn — then
 locks the Move in through `bot/src/lib/moveConfirm.js#confirmMove` and
 replies ephemerally. **Submit = locked**: there is no edit window, the dice
 and resource roll happen now, and the payout — like every Move payout — lands

@@ -43,14 +43,14 @@ it undercutting the Factory's refining.
 
 | Slug | Name | pt | Gate |
 |---|---|---|---|
-| `brewing-basic` | Brewing (Basic) | 5 | none |
-| `brewing-skilled` | Brewing (Skilled) | 5 | `parentTag: brewing-basic` (cumulative, total 10) |
-| `brewing-expert` | Brewing (Expert) | 5 | `parentTag: brewing-skilled` (cumulative, total 15) |
+| `brewing-basic` | Brewing I | 5 | none |
+| `brewing-skilled` | Brewing II | 5 | `parentTag: brewing-basic` (cumulative, total 10) |
+| `brewing-expert` | Brewing III | 5 | `parentTag: brewing-skilled` (cumulative, total 15) |
 
-Brewing (Expert) is new with the medical pass — it exists to gate the five
+Brewing III is new with the medical pass — it exists to gate the five
 medicines below that used to be a Medical crafter's work (§3a).
 
-## 2. Brewing (Basic)
+## 2. Brewing I
 
 Every ingredient below is **spent** unless the row says *kept*. The Turns
 column is the recipe's own `turnsCost`, a decimal share of a turn's work — so
@@ -71,7 +71,7 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
 | `nightshade` | 3 | 1 | `nightshade-herb` | — |
 
-## 3. Brewing (Skilled)
+## 3. Brewing II
 
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
@@ -117,7 +117,7 @@ copy says no MEDIC can treat it, which stays true: the still is the one
 door out.
 
 `gunpowder-grenade` (now named **Crude Grenade**) left this table
-altogether: it is smith's work now (Smithing (Skilled), `items-weapons`),
+altogether: it is smith's work now (Smithing II, `items-weapons`),
 listed in the Smithing paper beside `black-powder` and the `bomb`. See
 `SMITHING.md`.
 
@@ -134,7 +134,7 @@ Skilled, five at Expert — four of those hidden or secret, the Portable
 Surgical Pack plainly visible. Brewing them is a `brewing`
 craft now, billed off `craftFamily()` like any other brew (`CRAFTING.md`
 §2a); Healing a patient with a Heal request, and fitting the two prosthetics
-below with `administerSkill`, are still Medical (Expert)'s job
+below with `administerSkill`, are still Medical III's job
 (`MEDICAL.md` §2, `TAGS.md` §5c) — one Action carries one Move, shared
 across families since 2026-09-15, so a medic can brew a batch and heal a
 patient in the same turn, as long as both fit in the one Move.
@@ -143,13 +143,13 @@ These don't fit the **Consumes into** shape above — they're `Tag.cures`
 items (`MEDICAL.md` §1), not status brews — so the last column is **Cures**
 instead.
 
-| Brew (Skilled) | ⬢ | Turns | Cures |
+| Brew II | ⬢ | Turns | Cures |
 |---|---|---|---|
 | `antidote` | 4 | 0.5 | poisoned, envenomated |
 | `fever-draught` | 3 | 0.5 | feverish, heatstroke, cave-fever |
 | `burn-dressing` | 4 | 0.5 | burned, severe-burns |
 
-| Brew (Expert) | ⬢ | Turns | Ingredient | Cures |
+| Brew III | ⬢ | Turns | Ingredient | Cures |
 |---|---|---|---|---|
 | `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `brackenmoss` (HIDDEN — needs the brewer to hold all three) | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
 | `portable-surgical-pack` | 8 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
@@ -195,8 +195,8 @@ either the brewer's sheet carries the thing, or the craft is refused.
 now, `SMITHING.md`.)
 
 The forageable tags in that table are new, and **nothing drops them yet**. The
-laboring loot-table pass wires acquisition; this pass only had to make the
-slugs exist. Until then they arrive by GM grant.
+prospecting loot table is what would wire acquisition (`MINING.md` §3b); this pass
+only had to make the slugs exist. Until then they arrive by GM grant.
 
 `skinless-brain` is the one ingredient that is also a moral problem. A Graga is
 a beast; the Skinless used to be people and, per the Caves brief, can be talked
@@ -227,7 +227,9 @@ now (CRAFTING.md §2, Chris 2026-09-06). A brew that comes out in a batch
 authors its WORK as a decimal — `turnsCost: 0.25` — and the arithmetic does
 the rest: four Alcohol fill one Routine, one Alcohol leaves 0.75 of it for
 other brewing work. A hard RATION — `perTurn`, 0-turn recipes only — caps a
-Dead Simple brew below the shared pool of 4.
+0-turn brew at its own number, and only its own: there is no shared pool
+behind any `turnsCost: 0` recipe any more, on the smithing/crafting Dead
+Simple rung or here (`SMITHING.md` §2).
 
 They shared a column as well as a table until 9/2026: a fractional cost was
 stored as its denominator in `requirementPerTurn`, the same column the ration
@@ -250,8 +252,8 @@ lives in. Costs are decimals now and that column is a ration and nothing else.
 | `bone-mask` | 0 | 1 |
 
 `bone-mask` is not a brew, but it is the other recipe the ration exists for: 0
-turns and a `butcher` gate put it outside the Dead Simple pool, so one corpse
-would have minted masks forever. Its skill derives a `butcher` family now
+turns and a `butcher` gate mean it needs its own `perTurn` or one corpse
+would mint masks forever. Its skill derives a `butcher` family now
 like any other (CRAFTING.md §2a), so a mask past the ration spills into the
 Move instead of walling.
 
@@ -334,7 +336,7 @@ document; it is already two places.
 
 ## Brewing (Distilling)
 
-A `mastery` tag (`TAGS.md` §4a) gated on Brewing (Skilled): every brewing
+A `mastery` tag (`TAGS.md` §4a) gated on Brewing II: every brewing
 recipe yields **two** of its item for the price of one.
 
 The doubling lives in `grantCrafted` (`web/app/(app)/character/requestActions.js`),
@@ -350,9 +352,9 @@ Two details that are easy to get wrong:
   would read it as the generic `craft` and quietly stop doubling.
 - **The audit row's `quantity` stays the RECIPE RUNS**, not the units granted.
   The per-turn rations in `web/lib/requests.js` count that field, so billing
-  the doubled output would halve a Distilling brewer's own Dead Simple
-  allowance. What actually landed is recorded beside it as `granted` when the
-  two differ.
+  the doubled output would halve a Distilling brewer's own `perTurn`
+  allowance on a 0-turn recipe. What actually landed is recorded beside it as
+  `granted` when the two differ.
 
 A non-stackable brew is unaffected: `addToStack` pins one to quantity 1 however
 many times it is granted.

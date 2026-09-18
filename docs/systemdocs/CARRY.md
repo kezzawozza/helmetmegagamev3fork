@@ -170,7 +170,7 @@ different ways:
   buy, Loot, a stash pull) do **not** call it yet — those are self-inflicted
   rather than a griefing vector, so today they land and shed. Wiring them is
   owed work.
-- **Involuntarily** — a Labor payout (which is ⬢: `LABORING.md`), Caving loot,
+- **Involuntarily** — a mining payout (which is ⬢: `MINING.md`), Caving loot,
   a GM grant, a `consumesInto` chain. It lands, and then `settleCarry` sets the
   excess down in a random public Room where they stand. This is the farmer who
   reaps more than they can carry: past the cap they are Overburdened, past the
@@ -195,7 +195,8 @@ crossing per *day*. Now:
 
 - Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
 - An **equipped** mount adds one, and it refreshes every turn — a horse carries
-  you at Dawn and again at Dusk. It is **spent first**: the mount's crossing
+  you once per turn, which on a short turn length is several times a day. It
+  is **spent first**: the mount's crossing
   goes before the base one and stays charged to the mount, so parking the horse
   at an indoors door later in the turn cannot take back a crossing you never
   spent. **Only while your escort party fits its
@@ -367,7 +368,7 @@ It runs, in this order, at:
   Caving loot picked up on the way in.
 - **The bot's `/heal`**, beside its existing room-access sync.
 - **Turn close**, as the `carry` pass (`db/lib/carryPass.js`), after `hunger`
-  and before `lifewebDecay` so it sees the final sheet: Labor payouts, staged
+  and before `lifewebDecay` so it sees the final sheet: staged
   pushes, the expiry sweep and the ⬢ upkeep all happen earlier in the close
   and none of them may settle in place. One transaction per character, drops
   returned to `runSideEffects` rather than sent. Caving loot granted at turn
@@ -510,16 +511,10 @@ Tag from the catalog cascades its **room** stacks
 
 ## 7. Transfer
 
-> One exception to everything below: your own faction's **silo**. It is an
-> ordinary Room stash, but you can put things into it from anywhere in that
-> room's zone, and take things out only by standing in it — even when the door
-> is locked to you. See `FACTIONS.md` §4.
-
-
 One dialog — **Move things** (`web/app/components/actions/MoveThingsDialog.js`,
 modes `transfer` and `loot`) — is Transfer, Loot, Take, Drop and Give. Two
 chip rows say the direction (From: you, a Room here, or somebody helpless;
-To: you, a person here, a Room, your silo), then every stack the source
+To: you, a person here, or a Room), then every stack the source
 offers is a row with a count (`StackRow.js`: name · − n + · All), plus a ⬢
 box.
 

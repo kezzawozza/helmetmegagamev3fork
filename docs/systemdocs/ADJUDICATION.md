@@ -185,7 +185,7 @@ tray as "unattached" for the GM to keep or drop.
   withdraw it any time before the Move cutoff — `editMove` and `withdrawMove`
   in `db/lib/moves.js`, reached from the same dialog that filed it. A
   withdrawal deletes the Action and hands the day back, exactly as Reject
-  does. Nothing else is editable: a **Labor** pays out on the press, and a
+  does. Nothing else is editable: a **Mine** pays out on the press, and a
   Move the *game* filed (a craft, a burial, a torture, a travel stub, a
   lesson) is a receipt for something that already happened. `Action.playerFiled`
   is what tells those apart, and it defaults false so it fails closed.
@@ -234,21 +234,20 @@ tray as "unattached" for the GM to keep or drop.
   rename and are kept — renaming them would orphan old audit rows and DM
   log entries.)
 - **Declared numbers always pay.** Every confirmed Move's own
-  `resourceDelta` (now only ever machine-written — the Labor roll; players
+  `resourceDelta` (now only ever machine-written — the mining roll; players
   can no longer type a delta at all) applies at the push, solved or not. A GM
   who disagrees stages a counter-effect; the composer's "offset declared"
-  prefill is that in one click. **Labor is the exception and pays at confirm**
-  — the ⬢ and any labor drop land on the press, `appliedEffects` is stamped
-  there, and the push skips the row. A Routine the game filed still pays at
-  the push.
+  prefill is that in one click. **Mine is the exception and pays at the press**
+  — the ⬢ and any prospecting find land inside the filing transaction,
+  `appliedEffects` is stamped there, and the push skips the row (`MINING.md`
+  §3). A Routine the game filed still pays at the push.
 - **Solve is bookkeeping.** It stores the Result and Kind edit, stamps
   `reviewedBy`, and marks the staging complete. It applies nothing;
   Unsolve reverts nothing, because there is nothing yet to revert.
 - **Silent close.** A Move still `OPEN` at the push closes `PASSED` with
   `auto:silent_close` appended to `gmNotes` and pays its declared numbers.
-- **Every Routine gets a close DM**, whatever its review status, built to
-  match the auto-labor DM: the description, `**Applied:** …`, and the
-  resource roll. This is the *only* place a hand-filed Routine's payout is
+- **Every Routine gets a close DM**, whatever its review status: the
+  description, `**Applied:** …`, and the resource roll. This is the *only* place a hand-filed Routine's payout is
   reported — nothing pays at confirm — so a player who declared used to learn
   less about their turn than one who slept through it. A **tail** ("passed
   without any special adjudication notes…") is appended only when nothing else
@@ -340,6 +339,60 @@ the **cross-page** actions carry that call now (depot, store, dev panel,
 player desk…); the desk's own actions dropped theirs. What is left in
 `actions.js` is only ever another page's — `/character` after a Reject or a
 portrait takedown, `/gm/audit` after a fight is called off — never this one's.
+
+### 3a. Decree
+
+**Decree** is the one verb on this desk that belongs to no row, so it sits in
+the header beside the inspector toggle (`DecreeButton.js`) — the same seat
+`/gm/players` gives **Bulk message**. It opens a dialog
+(`DecreeComposer.js`) with three things in it: a **title**, the **words**, and
+which **zones** hear it, every zone ticked to start with. It asks before it
+sends (`useConfirm`), because nothing about a decree is staged.
+
+**It is not a staged row, and that is the point.** A staged public declaration
+waits for the midnight push (§1), which is right for the outcome of a Move and
+wrong for a proclamation — a decree held until midnight is a decree about
+yesterday. `sendDecree` (`actions.js`) sends it now, the way the intercom does
+(`db/lib/intercom.js`, and CLAUDE.md's "Bot message style" on why a
+loudspeaker is not scenery). There is no unsend.
+
+What `db/lib/decree.js` does, per chosen zone:
+
+- **One feed row**, `channelKind: "decree"`, filed against the zone's own
+  summary place through `sceneLineAt` — one per zone, never one for the
+  broadcast, since a zone feed can only show a row filed against its own place
+  key (`CHAT.md` §2). The row is the title, a blank line, then the words;
+  `db/lib/decreeText.js` is the only thing that writes or reads that seam, and
+  it has **zero requires** so the feed's own client code can read it back.
+- **One Discord embed** in the zone's `#summary`: `title`, `description`,
+  and the footer `Decree`. No colour and **no `@here`** — an embed never pings
+  anybody, so a decree is read rather than shouted, which is the one place it
+  parts company with the PA. A `CAVE_LEVEL` has no `#summary` and gets it in
+  each of its Location channels instead, through the same
+  `publicPostTargets.js` a staged declaration posts through (§1a).
+- **One `AuditLog` row** at the call site, `decree_broadcast`, carrying the
+  title, the first 500 characters and which zones heard it. The Oracle counts
+  it as a story fact (`db/lib/oracleAudit.js`).
+
+The title caps at **256** characters and the body at **4096** — Discord's own
+embed limits, not the desk's `GM_MESSAGE_MAX_LENGTH`. Both are refused rather
+than truncated: a GM must not find out a sentence went missing by reading it in
+the channel.
+
+**The row lands whether or not Discord took the post.** A zone whose `#summary`
+has not been provisioned yet still has a summary place on `/chat`, so the words
+are never lost to a missing channel — the dialog stays open and says which
+zones bounced.
+
+On the web it draws as the **notice block** the intercom draws as, with the
+blackletter heading the intercom does not get: the title over a `Decree ·
+<zone>` byline, the words in the serif, ruled top and bottom (`TranscriptLine`
+`variant="block"`, `CHAT.md` §2). One component, two faces.
+
+**A decree is not zone-scoped to the GM sending it.** `GmZoneView` decides
+which desk ROWS a GM reads (`GAMEMASTERS.md`); the picker offers every presence
+zone regardless, because the world speaks wherever it likes and the proclamation
+is Ravenheart's rather than one GM's.
 
 ### What the Move desk looks like
 
@@ -518,7 +571,7 @@ instance is a change to the hub, not a slider.
   had just Solved make the desk they were sitting in read back
   `solved = false` and offer Save/Solve on a row already SOLVED in the DB —
   the incident this section's model fixes. Search runs the shared
-  `scoreMatch` engine (`web/lib/fuzzySearch.js`) over name, role, faction,
+  `scoreMatch` engine (`web/lib/fuzzySearch.js`) over name, role,
   both zones, Discord handle, tag names, Move/Request kind and status, and
   the free text (a Move's description, a Request's reason/summary, GM notes)
   — a bare word matches anything, `field:term` (`role:smith`, `zone:caves`)
@@ -660,7 +713,7 @@ instance is a change to the hub, not a slider.
   the line below, all from the roster DTO already on the client — no fetch
   needed just to see who someone is. A search box above the pin row
   (`InspectorSearch`, fuzzy-matched via `web/lib/fuzzySearch.js#scoreMatch`
-  over name/role/faction/username/zone) opens anyone the same way, not just
+  over name/role/username/zone) opens anyone the same way, not just
   names already on screen. Pin the ones an arbitration keeps returning to.
   Fetched on demand via server actions, cached for the page view. Three quick
   edits live here too: the DMs tab carries a composer that sends immediately
@@ -910,6 +963,9 @@ adjudicable the moment the Ram is a ruin.
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
+| `.../DecreeButton.js` / `.../DecreeComposer.js` | The header's Decree door and the dialog behind it (§3a) — a SEND, not a staging composer |
+| `db/lib/decree.js` | What a decree IS: one feed row and one `#summary` embed per zone. `db/lib/intercom.js` is the model |
+| `db/lib/decreeText.js` | The title/body seam and Discord's two embed caps. **Zero requires**, so the feed's client code can read a decree row back (`db/lib/dmKinds.js`'s rule) |
 | `.../RoomEffectComposer.js` | The staging composer for a room's stash — its own dialog rather than a mode inside `EffectComposer.js`, which is character-shaped throughout (roster search, held tags, tag points, Relocate) |
 | `.../DeathComposer.js` | The staging composer for an instantaneous death — its own dialog for the same reason Room's is separate: death doesn't compose with a resource/tag/relocation delta on the same row |
 | `.../StagingStrip.js` | The one `+ Effect / + Transfer / + Room / + Death / + Message / + Public` button row, shared by the tray and both desks |

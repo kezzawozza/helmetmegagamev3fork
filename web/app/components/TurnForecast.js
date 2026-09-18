@@ -91,7 +91,7 @@ export default function TurnForecast({
   const shown = folded ? items.slice(0, SHOWN) : items;
 
   return (
-    <div className="ledger-turn">
+    <div className="ledger-turn band-box">
       <span className="field-label">Turn effects</span>
       <div className="sheet-forecast">
         {/* The separator LEADS its item and shares a box with it, so a wrap

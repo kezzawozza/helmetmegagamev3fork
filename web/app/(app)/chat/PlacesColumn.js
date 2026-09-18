@@ -5,13 +5,13 @@ import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
 import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, MailIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
-import { useFolded } from "./sectionFold";
 
-// The left column of Chat: everywhere this character may read.
+// The left column of Chat: everywhere this character may read, in the
+// mockup's own shape (docs/design/mockups/chat/index.html).
 //
-// The top of the column belongs to no zone — MESSAGES the DM pseudo-place,
-// DEADCHAT the room the dead talk in, RADIO the frequencies carried, FACTION
-// the roster pseudo-place. Everything under that is grouped BY ZONE, the way
+// The top of the column belongs to no zone — MAIL the Bascinet conversation
+// and Deadchat, one section, and RADIO the frequencies carried. Everything
+// under that is grouped BY ZONE, the way
 // Discord groups channels by category,
 // each group headed by a divider carrying the zone's name. Inside a group the
 // sections read the same as they always have: SUMMARY the zone's channel ·
@@ -23,6 +23,12 @@ import { useFolded } from "./sectionFold";
 // living player stands in one zone and sees exactly what they always did; it
 // is the GM and ghost seats, which watch every zone at once, that had a flat
 // run of every Location in the game under one "Location" heading.
+//
+// No section folds. It used to: a folded section stayed shut across visits,
+// and hiding a section was the reason the column could break — see chat.css's
+// `.bar` for the actual bug. The mockup has no fold either, so this is
+// deletion, not a stopgap: a long column stays long, the way the mockup's
+// does, and nothing here is ever hidden by accident.
 //
 // On a phone (under 720px) the SAME column is the ≡ drawer over the scene
 // (Chat.js), with a foot for the app's own links since the bottom bar is
@@ -39,23 +45,32 @@ function glyph(place) {
 // A row with a description shows it via HoverCard (the column scrolls, so an
 // in-tree tooltip would clip); `pinnable={false}` since the row is already a
 // button. A row with nothing to say stays a bare button, no portal mounted.
-const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
+const PlaceRow = memo(function PlaceRow({ place, active, unread, count = 0, onSelect }) {
   const button = (
     <button
       type="button"
-      className="chat-place"
+      className="place"
       data-active={active ? "true" : "false"}
       data-unread={unread ? "true" : undefined}
+      data-notified={count > 0 ? "true" : undefined}
       data-vantage={place.vantage ? "true" : undefined}
       onClick={() => onSelect(place.placeKey)}
     >
       {glyph(place) && (
-        <span className="chat-glyph" aria-hidden="true">
+        <span className="mail" aria-hidden="true">
           {glyph(place)}
         </span>
       )}
-      <span className="chat-place-name">{place.name}</span>
-      {unread && <span className="chat-dot" aria-label="Unread" />}
+      <span className="nm">{place.name}</span>
+      {/* Discord's two levels (REDESIGN.md §6). UNREAD is the name brightening
+          and nothing else — it used to be a dot, which is a second mark saying
+          what the weight already says. A NUMBER only for a notified place: your
+          name, your Bascinet mail, a DM. */}
+      {count > 0 && (
+        <span className="unread mono" aria-label={`${count} for you`}>
+          {count}
+        </span>
+      )}
     </button>
   );
   const description = place.description?.trim();
@@ -76,39 +91,23 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
   );
 });
 
-// A section folds shut and stays shut across visits (./sectionFold.js). A
-// fold NEVER hides an unread place — a column that silently withholds a waiting conversation is worse than a long one.
-// `foldKey` scopes the remembered fold to one zone group: with the column
-// split by zone, keying on the bare title would mean folding Rooms under Town
-// also folded Rooms under every other zone. Ungrouped, it IS the title, so a
-// player's existing folds carry over untouched.
-function Section({ title, places, selected, seen, newest, onSelect, foldKey = null }) {
-  const [folded, toggleFolded] = useFolded(foldKey ?? title);
-  if (places.length === 0) return null; // after the hook above, per rules-of-hooks
+// A plain heading, the mockup's `.sect` — no fold, nothing hidden. Empty
+// sections draw nothing, same as before.
+function Section({ title, places, selected, seen, notified, newest, onSelect }) {
+  if (places.length === 0) return null;
   const unreadOf = (place) =>
     place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place));
-  const shown = folded ? places.filter((place) => unreadOf(place)) : places;
-  const hidden = places.length - shown.length;
+  const countOf = (place) => notified?.get(place.placeKey) ?? 0;
   return (
     <div className="chat-section">
-      <button
-        type="button"
-        className="chat-section-title chat-section-fold"
-        aria-expanded={!folded}
-        onClick={toggleFolded}
-      >
-        <span className="chat-fold-mark" aria-hidden="true">
-          {folded ? "▸" : "▾"}
-        </span>
-        {title}
-        {hidden > 0 && <span className="chat-fold-count mono">{hidden}</span>}
-      </button>
-      {shown.map((place) => (
+      <p className="sect">{title}</p>
+      {places.map((place) => (
         <PlaceRow
           key={place.placeKey}
           place={place}
           active={place.placeKey === selected}
           unread={unreadOf(place)}
+          count={countOf(place)}
           onSelect={onSelect}
         />
       ))}
@@ -120,6 +119,10 @@ export default function PlacesColumn({
   places,
   selected,
   seen,
+  // placeKey -> how many things here were addressed to YOU (./notifiedStore.js).
+  // A Map, and possibly empty; never null in practice, defaulted for the desk's
+  // embeds.
+  notified = null,
   newest,
   onSelect,
   // A gamemaster who is also playing somebody: `{ mode, onChange }`, where
@@ -136,19 +139,20 @@ export default function PlacesColumn({
   foot = null,
 }) {
   // The zone-less places, pinned to the top: what the game said to YOU, where
-  // a turn result lands (CHAT.md §2b), the frequencies in your pack, and the
-  // faction roster. None of the three is a room on the map, so none of them
-  // belongs under a zone's divider.
-  const messages = places.filter((p) => p.kind === "dm");
-  // Its own section rather than folded under Radio: a net is something you carry and Deadchat is
-  // somewhere you ended up, and for a ghost it is the only row in the whole column they can answer.
-  const deadchat = places.filter((p) => p.kind === "dead");
+  // a turn result lands (CHAT.md §2b), and the frequencies in your pack.
+  // Neither is a room on the map, so neither belongs under a zone's divider.
+  //
+  // Mail is the mockup's own section: the Bascinet conversation THEN
+  // Deadchat, one heading — not the two folds this used to be. Deadchat is
+  // mail rather than a place in the same sense the Bascinet DM is: it is
+  // somewhere you ended up, not somewhere on the map, and for a ghost it is
+  // the only row in the whole column they can answer.
+  const mail = [...places.filter((p) => p.kind === "dm"), ...places.filter((p) => p.kind === "dead")];
   // Radio section: standing nets, plus the party chat (which is nowhere for the
   // same reason a net is — it travels with the leader, not a Location).
   const nets = places.filter((p) => p.kind === "net");
   const parties = places.filter((p) => p.kind === "party");
   const radio = [...nets, ...parties];
-  const faction = places.filter((p) => p.kind === "faction");
 
   // Everything else, bucketed by zone in the order the server sent it — which
   // already IS zone order (db/lib/feedAccess.js reads Zone.sortOrder). A place
@@ -163,7 +167,6 @@ export default function PlacesColumn({
         place.kind === "dm" ||
         place.kind === "net" ||
         place.kind === "party" ||
-        place.kind === "faction" ||
         place.kind === "dead"
       ) continue;
       if (!place.zoneId) {
@@ -186,12 +189,22 @@ export default function PlacesColumn({
   // player's column stays exactly as tall as it was.
   const divided = groups.length > 1;
 
+  // The one Location a living character stands in, against a GM's or a ghost's
+  // list of every Location in the game. The mockup heads the first "Here" and the
+  // rest "Locations" (docs/design/mockups/chat/index.html), and for a player that
+  // is exactly the same list under the truer of the two words.
+  const hereTitle = (list) => (list.length === 1 ? "Here" : "Locations");
+
   return (
     <nav className="chat-places" aria-label="Places">
-      <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Deadchat" places={deadchat} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Radio" places={radio} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      {/* The column's own bar, the way the feed and the right column have one
+          (REDESIGN.md §5, "One header strip"). The mockup draws it; the column
+          used to open straight onto its first section heading, which left the
+          three columns with two bars between them and a gap where the third
+          should be. */}
+      <p className="bar">Places</p>
+      <Section title="Mail" places={mail} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
+      <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
       {groups.map((group) => {
         // Elsewhere is cut FIRST and the other three exclude it, so a fogged
         // street and its rooms are drawn once, together, under their own
@@ -202,48 +215,46 @@ export default function PlacesColumn({
         const here = group.places.filter((p) => p.kind === "loc" && !p.vantage);
         const rooms = group.places.filter((p) => p.kind === "room" && !p.vantage);
         const conversations = group.places.filter((p) => p.kind === "conv" && !p.vantage);
-        const scope = divided ? group.zoneId : null;
-        const foldKey = (title) => (scope ? `${scope}:${title}` : null);
         return (
           <div className="chat-zone-group" key={group.zoneId ?? "elsewhere-zone"}>
             {divided && group.zoneName && (
-              <div className="chat-zone-divider" role="separator" aria-label={group.zoneName}>
-                <span>{group.zoneName}</span>
-              </div>
+              <p className="zone-div" role="separator" aria-label={group.zoneName}>
+                {group.zoneName}
+              </p>
             )}
             <Section
               title="Summary"
-              foldKey={foldKey("Summary")}
               places={summary}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
             <Section
-              title="Location"
-              foldKey={foldKey("Here")}
+              title={hereTitle(here)}
               places={here}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
             <Section
               title="Rooms"
-              foldKey={foldKey("Rooms")}
               places={rooms}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
             <Section
               title="Conversations"
-              foldKey={foldKey("Conversations")}
               places={conversations}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
@@ -251,10 +262,10 @@ export default function PlacesColumn({
                 empties itself when you leave the zone or the day turns. */}
             <Section
               title="Elsewhere"
-              foldKey={foldKey("Elsewhere")}
               places={elsewhere}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />

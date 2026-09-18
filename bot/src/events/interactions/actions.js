@@ -54,20 +54,18 @@ const { shout, deliverShout } = require("@lifeweb/db/lib/shout");
 const { ooc, deliverOoc } = require("@lifeweb/db/lib/ooc");
 const { oocRejectionDm } = require("@lifeweb/db/lib/oocGuard");
 const { sendDm } = require("../../lib/dm");
-const { clockFrozen } = require("@lifeweb/db/lib/gameState");
+const { movesOpen } = require("@lifeweb/db/lib/turnGate");
 const { resolveChannelContext } = require("../../lib/channels");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
-// Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js).
-// Returns the refusal text, or null when Moves are still open.
+// Why this player cannot file a Move, or null when they can — db/lib/turnGate.js is the gate, shared with the web so the two
+// faces refuse for the same reasons. The LOCKED case keeps its own Discord-flavoured wording, since <t:> tags let it name
+// both times in the reader's own clock and a bare "Moves are locked" throws that away.
 async function moveLockNotice() {
-  const [openTurn, frozen] = await Promise.all([
-    prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    clockFrozen(prisma),
-  ]);
-  if (!openTurn) return null;
-  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, { clockFrozen: frozen });
-  if (!locked) return null;
+  const gate = await movesOpen(prisma);
+  if (gate.ok || gate.reason === "NO_TURN") return null;
+  if (gate.reason !== "LOCKED") return gate.message;
+  const { cutoffAt, endsAt } = gate.window;
   return `Moves for this turn locked at <t:${epochSeconds(cutoffAt)}:t>. The next turn opens <t:${epochSeconds(endsAt)}:R>.`;
 }
 
@@ -100,7 +98,8 @@ async function handleMoveSubmit(interaction) {
   const result = await fileMove(prisma, {
     character,
     actorDiscordUserId: interaction.user.id,
-    moveKind: interaction.fields.getRadioGroup("move:kind"),
+    // No picker on the modal any more — a Move is a Gambit (bot/src/lib/moveModal.js).
+    moveKind: "GAMBIT",
     description: interaction.fields.getTextInputValue("move:body"),
   });
   if (!result.ok) {
@@ -113,7 +112,7 @@ async function handleMoveSubmit(interaction) {
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
 
-  const { lines } = await confirmMove(loaded, interaction.user.id, { laborRate: result.laborRate });
+  const { lines } = await confirmMove(loaded, interaction.user.id);
   await respond(interaction, lines.join("\n"));
 }
 

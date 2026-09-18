@@ -104,7 +104,6 @@ export default function InspectorHost({
           id: r.characterId,
           name: r.name,
           roleTitle: r.roleTitle,
-          factionName: r.factionName,
           zoneName: r.zoneName,
           username: r.username,
         })),

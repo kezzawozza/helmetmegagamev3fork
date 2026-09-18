@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
-import EmptyState from "./EmptyState";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
 import RichText from "./RichText";
@@ -58,6 +57,9 @@ export default function DesirePanel({
 
   const bySlot = new Map(slotStates.map((s) => [s.slotIndex, s]));
   const bottomIndex = desireSlots - 1;
+  const openCount = Array.from({ length: desireSlots }, (_, i) => bySlot.get(i)).filter(
+    (s) => (s?.lockedUntilTurn ?? null) == null,
+  ).length;
 
   function submitClaim(reason) {
     setError(null);
@@ -81,61 +83,63 @@ export default function DesirePanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="field-label panel-header--with-icon">
-        Desire
+      {/* A real .panel-header now, not a field-label: this is the card's own
+          heading, and phase 4 gave every panel heading the bold serif. */}
+      <h2 className="panel-header panel-header--with-icon">
+        Desires
         <InfoIcon text={desireHelp(desireSlots)} />
-      </h3>
+        <span className="note text-sm text-muted" style={{ marginLeft: "auto" }}>
+          {openCount} open
+        </span>
+      </h2>
 
-      <div className="flex flex-col gap-3">
+      <div>
+        {/* One .desire per slot, the mockup's own grammar (.head + a status
+            pill, then the body prose) — the retroactive-claim system this
+            game actually runs (Bascinet, 2026-09-18): a slot is never
+            "occupied" with a pending reward, only open or cooling down, so
+            the pill reads Open / a lock countdown rather than a reward
+            figure the mockup's older contract used to show. */}
         {Array.from({ length: desireSlots }, (_, slotIndex) => {
           const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
           const bound = slotIndex === bottomIndex && addiction;
+          const locked = slot.lockedUntilTurn != null;
           return (
-            <div
-              key={slotIndex}
-              className="flex flex-col gap-2"
-              style={
-                slotIndex > 0 && !bound
-                  ? { borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }
-                  : undefined
-              }
-            >
-              <div
-                className="flex flex-col gap-2"
-                style={
-                  bound
-                    ? {
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius)",
-                        padding: "0.75rem",
-                      }
-                    : undefined
-                }
-              >
-                {slot.lastEnded && (
-                  <p className="text-sm text-muted">
-                    <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
-                    {slot.lastEnded.points === 1 ? "" : "s"}
-                    {cooldownLabel(slot.lastEnded.template)
-                      ? ` · ${cooldownLabel(slot.lastEnded.template)}`
-                      : ""}
-                  </p>
-                )}
-                {slot.lockedUntilTurn != null ? (
-                  <EmptyState>{lockedSlotLabel(slot)}</EmptyState>
+            <div key={slotIndex} className="desire" data-bound={bound ? "true" : undefined}>
+              <div className="head">
+                <b>Desire {slotIndex + 1}</b>
+                {locked ? (
+                  <span className="status-pill" data-tone="warn">
+                    {lockedSlotLabel(slot)}
+                  </span>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn self-start"
-                    onClick={() => setCatalogSlot(slotIndex)}
-                  >
-                    Claim a Desire
-                  </button>
-                )}
-                {bound && (
-                  <p className="text-xs text-muted">Addiction: {addiction.name}</p>
+                  <span className="status-pill" data-tone="good">
+                    Open
+                  </span>
                 )}
               </div>
+              {slot.lastEnded && (
+                <p>
+                  <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag
+                  Point{slot.lastEnded.points === 1 ? "" : "s"}
+                  {cooldownLabel(slot.lastEnded.template)
+                    ? ` · ${cooldownLabel(slot.lastEnded.template)}`
+                    : ""}
+                </p>
+              )}
+              {locked ? (
+                !slot.lastEnded && <p>{lockedSlotLabel(slot)}</p>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ marginTop: "var(--sp-1)" }}
+                  onClick={() => setCatalogSlot(slotIndex)}
+                >
+                  Claim a Desire
+                </button>
+              )}
+              {bound && <p className="text-xs text-muted">Addiction: {addiction.name}</p>}
             </div>
           );
         })}

@@ -1,6 +1,6 @@
 # Soilery: the Farm button
 
-A design-doc-driven farming verb: a character with the Farming labor skill,
+A design-doc-driven farming verb: a character holding **Soilery**, the skill,
 standing on `soilery`-attributed ground, spends a seed bag's licence and sows
 up to a GM-tunable cap of crops (`GameConfig.farmMaxCrops`, 50 out of the
 box, editable on `/gm/dev` mid-round with no deploy) in one Move. The crops
@@ -9,10 +9,11 @@ pressed.
 
 Read this before touching `db/lib/soilery.js`, `db/lib/locationAttributes.js`'s
 `soilery` attribute, the `farmed` entry in `db/lib/moveEffects.js`,
-`db/lib/laborFatigue.js`, or the seed-bag/sowing/crop tags in `docs/tags.yaml`.
+`db/lib/fatigue.js`, or the seed-bag/sowing/crop tags in `docs/tags.yaml`.
 
-Related: [`LABORING.md`](LABORING.md) (the `laboring-farming` skill this reuses,
-and why Farming is not one of that page's paying Labors), [`FACTORY.md`](FACTORY.md)
+Related: [`MINING.md`](MINING.md) (Soilery's sibling skill, the other button
+that spends a day, and the fatigue ladder both share),
+[`FACTORY.md`](FACTORY.md)
 (the closest existing analog — a Location-attribute-gated verb with its own
 pure module and turn-push resolution), [`CARRY.md`](CARRY.md) (what a full
 harvest weighs), [`COOKING.md`](COOKING.md) §3 (`cooked.hunger`/`tasteForm`,
@@ -30,13 +31,16 @@ GM-tunable cap of crops (50 by default) in one action; the crops (with a
 1-in-6 per-unit wither chance) and a fatigue lockout land when the turn is
 pushed. Cooking (the doc's page 2) needed no new code at all — see §6.
 
-Farming pays **no ⬢**. That is the one thing that separates it from
-`laboring-farming`'s other life as a paying Labor tier (`LABORING.md` §2,
-15–21 ⬢ against a `yield.farming` Location) — the Farm button is a distinct
-verb that happens to gate on the same skill tag, not a `LocationYield`-priced
-Labor. A character can hold `laboring-farming` and use it for either: work a
-farming-yield tile for ⬢ on one turn, sow a `soilery` field with a seed bag on
-another. Nothing stops both, and nothing links them.
+Farming pays **no ⬢**. It pays in crops, which is the whole point of it — the
+one button that puts food on the map rather than money in a purse. Mining is
+the button that pays ⬢ (`MINING.md`), and the two skills are siblings in the
+`skills-work` tag group with neither gating the other.
+
+This used to need explaining at length, because `laboring-farming` had a
+second life as a paying Laboring tier priced against a Location's
+`yield.farming` coefficient, and the Farm button gated on the same tag without
+being that. Laboring is gone and so is that tier. **Soilery** is one flat
+7-point skill that turns on one button, and there is nothing else it does.
 
 ## 2. The `soilery` Location attribute
 
@@ -55,8 +59,7 @@ and the sheet's Farm-button visibility both read, so a tile either offers the
 whole system or none of it.
 
 **Currently one Location carries it**: `farms:` under the `forest` zone
-(`docs/zones.yaml`), the same Location that already carried `yield.farming`
-for the paying Labor tier above. This is a **deliberate placeholder**, not an
+(`docs/zones.yaml`). This is a **deliberate placeholder**, not an
 oversight — the whole Farms Location is expected to be reworked later, and
 `soilery: true` on it is a stand-in until that redesign lands. Both
 `locationAttributes.js` and `zones.yaml` say so in a comment at the point of
@@ -109,7 +112,7 @@ that commits now and resolves its dice at push.
    **one function** the server action and the sheet's Farm-button tooltip
    both call, so the refusal text can never drift from what actually blocks
    the request:
-   - Doesn't hold `laboring-farming` → *"You don't know how to farm."*
+   - Doesn't hold `soilery` → *"You don't know how to farm."*
    - Holds `exhausted` **or** `tired` → *"You're too worn out to farm right
      now."* (§5 — either rung of the fatigue ladder locks the farm out, not
      just the deeper one.)
@@ -185,8 +188,8 @@ rides along on the `Action` row for that later resolution.
 `describeMoveEffects` renders a `farmed` value via `harvestLine(value.rows)`.
 
 **The turn-close DM.** `stagedPush.js`'s close-DM suppression skips anything
-whose `gmNotes` contains `"auto:"` (auto-labor and travel stub already send
-their own DM) — which would otherwise swallow the farm harvest DM too, since
+whose `gmNotes` contains `"auto:"` (the travel stub and the Mine button's own
+row already speak for themselves) — which would otherwise swallow the farm harvest DM too, since
 Farming files as `"auto:farm"` (`web/lib/moves.js#AUTO_FARM`). A narrow
 carve-out reads `action.farmPlan && applied.farmed` and sends `farmDm` instead
 of skipping, rather than loosening the generic `"auto:"` skip for every other
@@ -194,20 +197,20 @@ auto-filed Routine.
 
 ## 5a. The exhausted/tired lockout
 
-`db/lib/laborFatigue.js#grantExhaustedOutright(tx, characterId, turnNumber)` —
-a small helper beside `nextLaborFatigueSlug`, the function that already owns
-the ordinary Tired → Exhausted ladder every other Labor climbs one rung at a
-time.
+`db/lib/fatigue.js#grantExhaustedOutright(tx, characterId, turnNumber)` —
+a small helper beside `nextFatigueSlug`, the function that already owns
+the ordinary Tired → Exhausted ladder a day's mining climbs one rung at a
+time (`MINING.md` §5).
 
 Farming's lockout does **not** climb that ladder. A day at the plough grants
 `exhausted` **outright**, with no lesser rung to pass through first. If the
-character already holds `tired` (say, from an unrelated Labor filed earlier
-the same turn), it is deleted and replaced rather than left to stack
+character already holds `tired` (say, from a bad night's sleep), it is deleted
+and replaced rather than left to stack
 alongside `exhausted` — its `expiresTurn` is snapshotted first, so Undo can
 restore it exactly.
 
 This produces the doc's "one every three turns" cadence using tags that
-**already existed** for ordinary Labor Fatigue, not a new one:
+**already existed** for ordinary fatigue, not a new one:
 
 - Turn the farm resolves: `exhausted` lands. Farm refused (`exhausted` held).
 - Next close: `exhausted` decays into `tired` (`expiresInto`,
@@ -357,7 +360,7 @@ entry the same way every other farmPlan field is.
 | The Farm server action | `web/app/(app)/character/actions/soilery.js` (`farmRequestImpl`) |
 | The thin request wrapper | `web/app/(app)/character/requestActions.js` (`farmRequest`) |
 | Turn-push resolution: the wither roll, the harvest, the fatigue grant | `db/lib/moveEffects.js` (`farmed`) |
-| The Exhausted-outright lockout helper | `db/lib/laborFatigue.js` (`grantExhaustedOutright`) |
+| The Exhausted-outright lockout helper | `db/lib/fatigue.js` (`grantExhaustedOutright`) |
 | Deferred-effects filing (`deferEffects`, `farmPlan`) | `web/lib/moveSpend.js` (`fileAutoRoutine`) |
 | The `"auto:farm"` Move marker and desk label | `web/lib/moves.js` |
 | The harvest DM carve-out past the `"auto:"` suppression | `db/lib/stagedPush.js` |

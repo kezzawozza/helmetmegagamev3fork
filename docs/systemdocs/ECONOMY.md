@@ -12,10 +12,10 @@ in, and forms are what `EconomyEntry.form` names:
 | Form | Where it lives | What is special about it |
 |---|---|---|
 | `BALANCE` | `resources` tag stacks, on a character or a Room | Raw material. A pound a unit, so a fortune is freight. The common case |
-| `COIN` | physical `obol` tags | Weightless, can be looted, is the Merchant's actual purse |
-| `ACCOUNT` | `Depot.accountObols` | The station's float. Opens at 20 ¢ |
+| `COIN` | physical `obol` tags | Weightless, can be looted. Also what is actually in the Keep's Vault |
+| `ACCOUNT` | `BankAccount.balanceObols` | A claim. Most are claims on the Vault's coin; the Merchant's is offshore |
 | `DEBT` | `Depot.debtObols` | Negative money, capped at `creditCapObols` (75) |
-| `MANIFEST` | `Depot.manifest` | Paid for, not yet landed. Real money, in transit |
+| `MANIFEST` | undelivered `DepotOrder` + unsettled `DepotSale` | Paid for or sold, still on the rails. Real money, in transit |
 | `GOODS` | any tag with `sellablePrice` or `depotPrice` | Valued at its catalog price. A tag with no price is not money |
 
 **`BALANCE` stopped being abstract in 9/2026.** It named two Int columns,
@@ -36,23 +36,39 @@ spread is the Merchant's margin, not the value of a ⬢. **A ware priced on both
 sides must never be counted as goods AND as balance** —
 `goodsValueInWorld()` excludes both slugs for exactly that reason.
 
-**Never sum the Depot's account and the Merchant's purse.** They are two pots
-and the ATM is the only door between them (`DEPOT.md` §0g). A panel that adds
-them together is telling a lie on its front page.
+**⬢ and ¢ stopped being interchangeable in 9/2026, without stopping being equal.**
+One obol is still one ⬢ and nothing converts — but ⬢ are a *material* now, spent
+on a recipe or a cure and nothing else, and ¢ are the money: every price, wage,
+balance and tax. The panel still counts both, because both are value; what
+changed is which glyph a surface prints. See `DEPOT.md` §0.
+
+**Never sum an account and the coin behind it.** A claim and the pile it draws
+on are two things, and the ATM is the door between them (`DEPOT.md` §0g). A
+panel that adds a TREASURY balance to the Vault's stash is counting the same
+money twice and telling a lie on its front page.
+
+`Depot.accountObols` — the station's single float, which used to be the whole of
+form `ACCOUNT` — is **gone**. The Merchant's own OFFSHORE `BankAccount` replaced
+it, and `db/scripts/ops/open-bank-accounts.js` writes the one `OPENING` row that
+closes `depot:account` out at zero so the retired end does not drift forever.
 
 ## 2. Accounts, and the two that make the books close
 
 Every entry has two ends, and each is one of:
 
 - `character:<id>` — a purse
-- `room:<id>` — a stash, **and also a faction treasury**. `Faction.siloRoomId`;
-  the `Silo` model was deleted in 9/2026 and does not come back
-- `depot:account`, `depot:debt`, `depot:manifest`
+- `room:<id>` — a stash, **and also the Keep's Vault**. The Vault needs no
+  model of its own: it is `undercroft-vault`, a room with coin in it
+- `bank:<accountId>` — one player's claim. `bank:clearing` is its book
+  counterparty: no live balance, exempt from reconcile, exactly like mint and
+  burn. It exists so that a movement whose coin leg is already booked by the tag
+  hook can book its claim leg without double-counting the same money
+- `depot:debt`; `depot:account` is retired but still named by old rows
 - `offworld:company` — the shuttle. The only door off-world
 - `world:mint` and `world:burn`
 
 Mint and burn are the only two things that change the money supply. That is
-why they are named accounts rather than a null end: "where did 400 ⬢ come
+why they are named accounts rather than a null end: "where did 400 of it come
 from" has to be answerable, and before this it was not.
 
 ## 3. The invariant
@@ -64,6 +80,21 @@ This is the point of the whole system. `reconcile()` in
 Health section lists every account that drifts. **A drift is a finding, not a
 bug in the ledger** — it means something moved money without saying so, and the
 size of the drift is the size of the hole.
+
+It covers three kinds now: characters and rooms over form `BALANCE`, and
+**bank accounts over form `ACCOUNT`**. The bank half holds because every balance
+move is one conditional `UPDATE` paired with exactly one `ACCOUNT` row inside
+the same transaction (`db/lib/bankAccounts.js#bumpBankAccount`); `bank:clearing`
+is skipped as a book account.
+
+**The Vault's backing is a SEPARATE check and must never be folded into
+reconcile.** Reconcile does not look at `COIN` at all, so a Health row claiming
+it had checked the backing would be lying. The question it answers is different
+anyway — not "do the books balance" but "is there enough coin in the Keep's
+Vault to honour what the TREASURY accounts claim". Under that line the books are
+perfectly balanced and somebody still walks up to the ATM and is told no.
+`npm run db:audit-vault-backing` is the check; it exits 1 when the Vault is
+short. See `DEPOT.md` §0g.
 
 `db/test/economyLedger.test.js` asserts the invariant against the primitives
 directly, including the two cases that are easy to get wrong: a transfer must
@@ -81,7 +112,8 @@ Each takes an optional trailing context; absent, the entry is recorded as
 |---|---|---|
 | `moveParty` | `db/lib/resourceTransfer.js` | every `BALANCE` move — over `db/lib/resourceStack.js`'s stack writes, not a column |
 | `applyTransfer` | `db/lib/resourceTransfer.js` | a two-legged transfer, as ONE row |
-| `bumpAccount` | `db/lib/depotState.js` | `ACCOUNT` and `DEBT` |
+| `bumpBankAccount` | `db/lib/bankAccounts.js` | `ACCOUNT` — one conditional `UPDATE` paired with exactly one row, which is what makes the bank reconcilable |
+| `bumpDebt` | `db/lib/depotState.js` | `DEBT` |
 | `addToStack` / `dropCharacterTag` / `addToRoomStack` / `dropRoomTag` | `db/lib/tagWrites.js` | `COIN` and `GOODS` |
 
 The tag hooks are instrumented **inside** the functions rather than at their
@@ -126,8 +158,16 @@ drags PrismaClient into the browser bundle.
 
 Each reason declares a `flow` — `FAUCET`, `SINK`, `TRANSFER` or `INTERNAL` —
 and that is what the charts group on. `INTERNAL` is the one worth
-understanding: an ATM withdrawal is the same ⬢ changing coat, so counting it as
+understanding: an ATM withdrawal is the same money changing coat, so counting it as
 trade would make a quiet turn at the Depot look like a boom.
+
+**Five reasons arrived with the Depot rework** (`DEPOT.md`): `BANK_DEPOSIT`,
+`BANK_WITHDRAWAL` and `BANK_OPEN` are `INTERNAL`, because a claim becoming a
+coin is the same money changing coat — the call `DEPOT_ATM` already made.
+`TRAIN_DELIVERY` and `SELL_TAX` are `TRANSFER`. Three are kept and unwritten:
+`DEPOT_ATM`, `DEPOT_REFUEL` and `DEPOT_SALE`'s old shuttle shape all still name
+themselves on rows written before the rework, and deleting a reason blanks those
+rows on the panel.
 
 **`UNATTRIBUTED` is a feature.** A write that reaches a hook with no context is
 recorded under that reason rather than dropped, so an un-hooked call site shows
@@ -215,25 +255,19 @@ and make the read path merge rather than choose.
 | Section | The question |
 |---|---|
 | Pulse | What is the town worth, is the supply growing, and is one person sitting on it |
-| Flows | Where does ⬢ come from, where does it go, and who trades with whom |
+| Flows | Where does money come from, where does it go, and who trades with whom |
 | Faucets | Which sources pay, and how much |
-| Sinks | What spends ⬢, and what destroys it — the Spillway and an overdrawn purse have their own panel, because those two are destruction rather than spending |
+| Sinks | What spends money, and what destroys it — the Spillway and an overdrawn purse have their own panel, because those two are destruction rather than spending |
 | Ledger | The book: every entry, filterable, newest first |
 | Accounts | Every purse and stash, and what moved through it this turn |
-| Goods | The catalog against reality — prices, what exists, what actually trades, and any ware whose round trip prints ⬢ |
-| The Depot | The station's books. Its account and the Merchant's purse are shown APART, always (§1) |
-| Factions | Silo treasuries, and what went in and out this turn |
+| Goods | The catalog against reality — prices, what exists, what actually trades, and any ware whose round trip prints money |
+| The Depot | Every account in the game, split TREASURY from OFFSHORE, against the coin in the Vault. A claim and its backing are shown APART, always (§1) |
 | Health | Drift, un-hooked call sites, and the backfill seam |
 
-Two numbers the desk deliberately does not compute:
+One number the desk deliberately does not compute:
 
-- **Labor drops show what they paid, not what they were designed to pay.** The
-  expected value needs `docs/labordrops.yaml` parsed and the roll shares
-  simulated (`db/lib/labordropsEv.js`), which is not a page render's job. Run
-  `npm run db:audit-labor-drops` for that side. Inventing a plausible number
-  there would be worse than leaving it out.
-- **No per-faction balance history.** There is no per-turn snapshot to group
-  off, so a sparkline would cost a query per faction.
+- **No per-account balance history.** There is no per-turn snapshot to group
+  off, so a sparkline would cost a query per account.
 
 ## 9. Things not to do
 
@@ -250,5 +284,6 @@ Two numbers the desk deliberately does not compute:
   anything. The write is fenced between `SAVEPOINT` and `ROLLBACK TO SAVEPOINT`.
   Keep it, and keep the test proving the savepoint is issued — the version of
   the fake transaction that never threw could not tell the difference.
-- **Don't bring back a `Silo` model.** A faction treasury is a Room.
+- **Don't bring back a `Silo` model.** Silos were a pointer from a faction at
+  a Room, and both went in 10/2026. A shared stash is a Room, full stop.
 - **Don't sum the Depot account and the Merchant's purse.**

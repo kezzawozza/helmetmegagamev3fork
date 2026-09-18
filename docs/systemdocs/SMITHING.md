@@ -14,8 +14,8 @@ Changing `Turns` here also changes what a merchant pays for the finished item �
 | Slug | Name | pt | Gate |
 |---|---|---|---|
 | `crafting` | Crafting | 2 | none |
-| `smithing` | Smithing | 5 | none |
-| `smithing-skilled` | Smithing (Skilled) | 5 | `parentTag: smithing` (cumulative, total 10) |
+| `smithing` | Smithing I | 5 | none |
+| `smithing-skilled` | Smithing II | 5 | `parentTag: smithing` (cumulative, total 10) |
 | `smithing-gunpowder` | Smithing (Gunpowder) | 9 | `requiredTag: smithing-skilled`, `mastery` |
 
 A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
@@ -37,7 +37,7 @@ and every gate are untouched.
 
 | Tier | pt | ⬢ | Turns | Skill gate | Combat gate | Purchasable at start |
 |---|---|---|---|---|---|---|
-| Dead Simple | 2 | 3 | 0 | `crafting` OR `smithing` | none | yes |
+| Dead Simple | 2 | 3 | 0.25 | `crafting` OR `smithing` | none | yes |
 | Simple | 5 | 6 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
 | Moderate | 7 | 13 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | High Quality | 9 | 25 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
@@ -64,12 +64,12 @@ full turn — a sword blade or a flanged head is real forging.
 surfaces.** The Skill gate is what it takes to *make* the item; the Combat
 gate is what it takes to *use* it. Character creation and `/store` enforce
 the Combat gate (`requiredTag`) — you can't buy a Crossbow at creation
-without Ranged (Basic). The **Craft menu enforces the Skill gate, not the
+without Ranged I. The **Craft menu enforces the Skill gate, not the
 Combat gate** (`db/lib/medicalVision.js#satisfiedSkillIds`,
 [`CRAFTING.md`](CRAFTING.md) §2, [`TAGS.md`](TAGS.md) §3b): the picker's "To
 make: …" line shows the Skill gate as a requirement, checked server-side, not
 just guidance. Nothing checks the Combat gate at craft time, so a smith with
-`Smithing (Skilled)` and no `Melee (Basic)` can still forge a sword they
+`Smithing II` and no `Melee I` can still forge a sword they
 can't swing; a fighter pulling a sword from their clan's armoury still files
 the same request with the fiction as their justification — that half of the
 honor system stands, it's just the Skill half that's now enforced.
@@ -84,7 +84,7 @@ the same predicate the private-room threads are synced with) — held kit, room
 stash, or standing forge are the three reaches, and a Forge serves everyone
 standing at its Location permanently, no hauling and no door. A `DAMAGED`
 forge serves nobody — the same `COMPLETE`-only reading `structureTools` uses
-for laboring tools (`LABORING.md` §5). All of this applies when the recipe
+for mining tools (`MINING.md` §4). All of this applies when the recipe
 names a `smithing-*` or `builder-*` skill **and does not offer `crafting`**. A
 recipe whose type carries `placement.fieldwork: true` — a light field
 structure — skips the workshop rule entirely.
@@ -116,27 +116,29 @@ gated nothing — its own description admitted "You don't need this to craft".
 
 Crafting is always filed as a Routine now, never a Gambit — the Craft button
 (the old Add Tag) enforces a recipe's skills server-side, and Dead Simple
-recipes still need no Move at all, just the per-turn unit cap below
+recipes bill their quarter of a Move the same as any other 0.25-turn rung
 (`CRAFTING.md`).
 
-A 0-turn recipe may also set **`requirement.perTurn`**, its own RATION,
-replacing the shared Dead Simple pool below as its free allowance (bone-mask
-at 1). Work is never written there: a recipe cheaper than a whole turn
+A 0-turn recipe may also set **`requirement.perTurn`**, its own RATION —
+there is no shared pool behind it any more, so this is the only free
+allowance a `turnsCost: 0` recipe gets (bone-mask at 1). Work is never
+written there: a recipe cheaper than a whole turn
 authors a decimal `turnsCost` on a quarter, and `quantity × work` against the
 Move is the only quantity limit a Move-costing recipe has
 ([`CRAFTING.md`](CRAFTING.md) §2–§2a). A plain `turnsCost: 1` rung — every
 tiered weapon but the four 0.25-turn small pieces in §2 — makes one per
 Routine by that arithmetic.
 
-**Dead Simple gives you 4 free items per character per turn.** It is the only
-rung that costs 0 turns, so nothing else rations it. The allowance counts
-*units*, not requests — these tags are stackable and one Craft request can
-carry any quantity — and it is summed across every `request_craft_tag`
-audit row written in the open turn. The constant is `DEAD_SIMPLE_PER_TURN` in
-`web/lib/tagRequests.js`, which also holds `isDeadSimple()` — the tier has no
-column of its own, so it is recognised as "0 turns of work plus a smithing or
-crafting skill gate". `craftAllowance()` (`web/lib/requests.js`) is the one
-place that decides what a recipe's free ration actually is.
+**Dead Simple costs a quarter of a Move now, not nothing.** It changed in
+9/2026 (`DEPOT.md` §4): it used to be `turnsCost: 0` with a shared 4-a-turn
+free ration, which meant four saleable things a day riding free on top of an
+untouched labour day. It is `turnsCost: 0.25` now, ordinary `CRAFTING.md` §2a
+Move math, and nothing more — four fill a Routine exactly, the same as any
+other 0.25-turn rung. The shared pool (`DEAD_SIMPLE_PER_TURN`) is gone from
+`web/lib/tagRequests.js` and does not come back; `craftAllowance()`
+(`web/lib/requests.js`) now only honours a recipe's own `perTurn`, and Dead
+Simple names none. Its flat markup is unchanged at **+3 ¢** — cutting it as well
+was nerfing one rung twice for one problem (`DEPOT.md` §4).
 
 **Not every Dead Simple smith recipe is a weapon.** `branding-iron` gates on
 `skills: [smithing]` the same as Work Knife and Hatchet, but it's a standing
@@ -144,15 +146,16 @@ kit rather than a Recipes-tab rung — no `group`, `pointCost: 0`, same shape as
 Torturing Equipment (§5 note in `TORTURE.md`) — so it doesn't appear in the
 weapon table below. See `TORTURE.md` §8 for what it does once crafted.
 
-**Over the cap, the work comes out of your Move.** This is the rule Milestone
-A deferred to here. Units past the allowance are not refused: each one costs
-**0.25 of the Routine** (1/`perTurn` for a recipe with its own ration), spent
-against the ledger on the turn's Action and locking that Routine to the
-recipe's family of work — so a smith can make 4 knives free and 4 more on
-their Move, but not a knife, a sling and a Simple sword all in one day.
-[`CRAFTING.md`](CRAFTING.md) §2a is the full rule, including the one case
-where the ration is still a hard wall: a recipe with no craft skill in its
-gate (bone-mask's `butcher`) has no family to bill the overflow to.
+**Past four a turn, the Move is simply gone.** Dead Simple has no allowance
+of its own to overflow past any more — at 0.25 of the Routine each, four of
+them already spend the whole thing, the same as any other 0.25-turn rung
+(`CRAFTING.md` §2a), and a fifth is refused for the ordinary reason: no Move
+left. Filing one also locks that Routine to the recipe's family of work, so a
+smith who spends the day on knives cannot also file a sling or a Simple sword.
+A recipe that still carries its own `perTurn` (bone-mask's 1, `bliss`'s 2) is
+a different case — those stay `turnsCost: 0` and keep the old overflow rule,
+where a unit past the ration bills `1/perTurn` of the Move instead of being
+refused outright. [`CRAFTING.md`](CRAFTING.md) §2a is the full rule.
 
 The Skill gate itself (a recipe's `requirementSkills`) is an **AND list and is
 enforced** — see [`TAGS.md`](TAGS.md) §3b. The rung splits by material:
@@ -174,7 +177,7 @@ Life) used to be the example; they're archived in
 Work Knife, Dagger, Spear, Gladius, Mace, Battle Axe, Halberd, Broadsword,
 War Hammer, Bastard Sword. +1 ⬢ lets the smith stamp their own name and
 words on the piece, the same door as the Badge and Hat (`CRAFTING.md` §4a),
-and it takes **Smithing (Skilled)** to open — whatever tier the piece itself
+and it takes **Smithing II** to open — whatever tier the piece itself
 is, so a basic smith forges a plain dagger and cannot sign it.
 
 Nothing else on this ladder carries the flag. The named and exotic pieces are
@@ -192,7 +195,7 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Truncheon | — | Not craftable at all, by design. Cerberi and Order issue. |
 | Sling | Dead Simple | `crafting` |
 | Quarterstaff | Dead Simple | `crafting` |
-| Pitchfork | Dead Simple | `smithing`. Carries the farming `laborBonus`, moved off the Hatchet. |
+| Pitchfork | Dead Simple | `smithing` |
 | Shortbow | Dead Simple | `crafting` |
 | Spear | Simple | 0.25 turns — four to a Routine (§2) |
 | Dagger | Simple | 0.25 turns — four to a Routine (§2) |
@@ -208,9 +211,9 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
 | Bastard Sword | High Quality | |
-| Rapier | High Quality | Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — the other turn moved into steel's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Rapier | High Quality | Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — the other turn moved into the ingot's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Sabre | High Quality | |
-| Katana | High Quality | Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — same move as Rapier (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Katana | High Quality | Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — same move as Rapier (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Silver Spear | High Quality | Spends one `silver` — its 25 ⬢ total is unchanged, the resourceCost is just 20 ⬢ of it now (2026-09-09; materials cut a further ~5% 2026-09-12). |
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
@@ -227,33 +230,42 @@ consumed like any brew's):
 |---|---|---|---|---|
 | `black-powder` | `smithing-gunpowder` | 3 | 1 | `saltpeter` (raw, mined) |
 | `gunpowder-grenade` (**Crude Grenade**) | `smithing-skilled` | 6 | 1 | `saltpeter` (raw, mined) |
-| `steel` | `smithing` | 4 | 0.25 | `coal` (Merchant stock or mined) |
+| `iron` | `smithing` | 0 | 0.25 | `hematite` (mined) |
+| `copper` | `smithing` | 0 | 0.25 | `malachite` (mined) |
+| `nickel` | `smithing` | 0 | 0.25 | `garnierite` (mined) |
 
-The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
+The grenade came over from Brewing II on 2026-09-05 — a powder device
 out of a still was always odd — and its group moved to `items-weapons` with
 it, the Smithing-family group the Recipes tab renders by.
-Renamed **Crude Grenade** and dropped to Smithing (Skilled) on 2026-09-06
+Renamed **Crude Grenade** and dropped to Smithing II on 2026-09-06
 (Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
 the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
 saltpeter and the Bomb; its numbers (3 ⬢, sells 6) are drafted, not signed
 off.
 
-**`steel`** (2026-09-09, repriced 2026-09-10) is the same shape as
-`black-powder` — priced at cost, no smith's margin, `sellablePrice` (8) equal
-to its own `resourceCost` (4) plus coal's (4). Gated at plain `smithing`
+**The three smelts** replaced `{tag:steel}` on 2026-09-18, when `coal` and
+`steel` both left the game with the Prospecting rework (`MINING.md`). `iron`
+took steel's slot exactly — the same `sellablePrice` (8) and `depotPrice` (13)
+— so the four recipes that spend an ingot keep the discount they were priced
+with, and a smith with no prospector to hand can still buy one off the
+Merchant. `copper` and `nickel` are the same recipe over a different ore and
+feed Trinkets rather than gear.
+
+They cost **0 ⬢**, not steel's 4: the ore IS the cost now, and an ore is
+something somebody spent a day underground for. Gated at plain `smithing`
 rather than `smithing-skilled` on purpose: smelting ore into a usable ingot is
-basic forge work, and it's only the four recipes that SPEND it — `katana`,
+basic forge work, and it is only the four recipes that SPEND one — `katana`,
 `rapier`, `brigandine`, `plate-armor` — that need the higher skill to shape it
 into something fine.
 
-It is the fifth recipe under the Simple rung's Turns column (§1): `turnsCost:
-0.25`, four ingots to a Routine, for the same reason the Spear and the Silver
-Knife run there — an ingot is not a day at the anvil. Each of the four recipes
-that spend one gave up a full turn of its own (the smelting the smith no
-longer does inside them) and 8 ⬢, the ingot's value — so a smith who smelts
-his own pays the ladder's ⬢ exactly, and a quarter of a turn on top. **This
-undercuts the ladder's Turns column on purpose:** High Quality steel gear is
+They run under the Simple rung's Turns column (§1): `turnsCost: 0.25`, four
+ingots to a Routine, for the same reason the Spear and the Silver Knife run
+there — an ingot is not a day at the anvil. Each of the four recipes that spend
+one gave up a full turn of its own (the smelting the smith no longer does
+inside them) and 8 ⬢, the ingot's value — so a smith who smelts his own pays
+the ladder's ⬢ exactly, and a quarter of a turn on top. **This
+undercuts the ladder's Turns column on purpose:** High Quality ingot gear is
 a 1.25-turn job now rather than 2, Plate 2.25 rather than 3. See the Weapons and
 Armor tables above. `{tag:silver}` got the same
 `Prospecting`-sourced treatment the same day, but stays a raw material with
@@ -273,17 +285,17 @@ Off the ladder — no recipe, no smithing gate:
 ### The Plow
 
 Not a weapon, but it is smith work: `plow`, 5 points, `turnsCost: 1`,
-`resourceCost: 10`, `skills: [smithing]`. It is an **Asset**, not an Item, so
+`resourceCost: 9`, `skills: [smithing]`. It is an **Asset**, not an Item, so
 it never weighs on your back — it lives in your shed and the horse does the
-hauling. It is the one Laboring tool that needs no equipping and the only one
-gated on holding something else — without a `horse` it does nothing at all. Worth +4 ⬢ to Farming, the largest single tool
-bonus in the game, because two tags and a smith stand behind it
-(`LABORING.md` §5).
+hauling. It carried the largest tool bonus in the game, +4 ⬢ to a Farming
+Labor, gated on also holding a `horse`. Laboring is gone, farming pays in crops
+rather than ⬢ (`SOILERY.md`), and only three tags carry a `miningBonus` now
+(`MINING.md` §4) — the Plow is not one of them.
 
 ## 4. Armor
 
 Every piece below is `customizable:` (2026-09-09) — the same +1 ⬢ and the
-same **Smithing (Skilled)** rung as the eleven weapons in §3, including the
+same **Smithing II** rung as the eleven weapons in §3, including the
 pieces that are `crafting` work to make. Armor is where a maker's mark is
 most worth having, so the whole table gets it rather than a chosen few.
 
@@ -312,9 +324,9 @@ pair still counts at the Spillway (`CRAFTING.md` §4a).
 | Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
 | Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
 | Censor's Helmet | High Quality | Force conceal |
-| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Breastplate | High Quality | |
-| Plate Armor | Exceptional | Spends one `steel`. 2 turns / 25 ⬢ now, not the tier's 3 / 32 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Plate Armor | Exceptional | Spends one `iron`. 2 turns / 25 ⬢ now, not the tier's 3 / 32 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 
 Off the ladder:
 
