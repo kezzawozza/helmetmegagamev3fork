@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import FormError from "@/app/components/FormError";
+import DesireRule from "@/app/components/DesireRule";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { describeAudit } from "@/lib/auditNarrative";
 import AuditSegments from "../audit/AuditSegments";
@@ -143,6 +144,13 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
           </button>
         </div>
       </header>
+
+      {desire.rule && (
+        <div className="desk-result mt-4 flex flex-col gap-2">
+          <span className="field-label">What counts</span>
+          <DesireRule text={desire.rule} className="text-sm" />
+        </div>
+      )}
 
       <div className="desk-result mt-4 flex flex-col gap-2">
         <span className="field-label">Reason — how they say they earned it</span>

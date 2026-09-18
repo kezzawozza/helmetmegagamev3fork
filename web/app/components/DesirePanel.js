@@ -5,6 +5,7 @@ import FormError from "@/app/components/FormError";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
 import RichText from "./RichText";
+import DesireRule from "./DesireRule";
 import DesireCatalog, { cooldownLabel } from "./DesireCatalog";
 import { claimDesire } from "../(app)/character/requestActions";
 import { lockedSlotLabel } from "@/lib/desireLabels";
@@ -180,6 +181,7 @@ export default function DesirePanel({
           <RichText text={claiming?.entry?.name} /> — {claiming?.entry?.tier} Tag Point
           {claiming?.entry?.tier === 1 ? "" : "s"}, into slot {(claiming?.slotIndex ?? 0) + 1}
         </p>
+        <DesireRule text={claiming?.entry?.description} className="text-sm" />
         <p className="text-xs text-muted">
           You get the points immediately, but tell the GMs how you pulled it off.
         </p>

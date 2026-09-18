@@ -295,7 +295,7 @@ export function avatarReviewRow(c, { usernameById, catatonicIds }) {
 // A fulfilled, catalog-backed Desire claim waiting on a GM (DESIRES.md §6, db/lib/desireReview.js). Unlike the
 // portrait queue, an ALREADY-REVIEWED row stays: `desireReviewWhere()` doesn't filter on `reviewedAt`.
 export const DESIRE_CLAIM_INCLUDE = {
-  template: { select: { name: true, tier: true, verifyQuery: true } },
+  template: { select: { name: true, tier: true, verifyQuery: true, description: true } },
   character: {
     select: {
       id: true,
@@ -328,6 +328,7 @@ export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
     reason: d.reason ?? "",
     reviewedAt: reviewed ? d.reviewedAt.getTime() : null,
     verifyQuery: d.template?.verifyQuery ?? "",
+    rule: d.template?.description ?? "",
     statusLabel: reviewed ? "Reviewed" : "Waiting",
     searchText: `${c.name} ${d.text}`,
     createdAtMs: d.createdAt.getTime(),

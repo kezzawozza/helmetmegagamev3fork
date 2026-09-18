@@ -642,8 +642,25 @@ desires:
     cooldownTurns: 5              # optional, overrides tier as cooldown length
     oncePerLife: true             # optional; forced true at tier 7 unless set false
     verify: "Alcohol"              # optional, see below
-    description: "..."            # optional
+    description: |-               # optional; the "counts / doesn't count" rule, see below
+      Counts: ...
+      Doesn't count: ...
 ```
+
+**`description:` is the rule for what a claim has to be.** A name alone leaves
+the edges to whoever is claiming — "Save someone's life" was being claimed for
+a warning or a tip-off. So a vague Desire gets a `Counts:` line and a
+`Doesn't count:` line, each starting with exactly those words. It is shown
+in three places: under the row in the catalog, in the Claim dialog above the
+reason box (so a player reads it at the moment they commit), and on the review
+desk as **What counts** above the reason (`web/app/components/DesireRule.js`).
+It is free text — the sync copies it as it is, nothing validates the labels — and
+the desk reads the template's *current* wording, not a copy frozen at claim
+time. Eight entries carry one so far: the three "save … life" Desires,
+`warn-the-town`, `deliver-a-message`, `stop-a-war`, `prediction-comes-true`
+and `call-it-out-loud`. Write a rule that names something the game can show — a
+tag held (Dying), a seat somebody holds, a public room — rather than what a
+character felt or meant.
 
 **`verify:` is one search string**, synced to `DesireTemplate.verifyQuery`,
 that prefills the review desk's audit-log filter (§6a) when a GM opens that
@@ -745,6 +762,7 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/components/GoalsPanel.js` | Mounts `DesirePanel` on `/character` |
 | `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot Award form (catalog or free text), Revoke on each past row, cooldown readout |
 | `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `awardDesireGm`/`revokeDesireGm` — gates bypassed, bookkeeping not (§6) |
+| `web/app/components/DesireRule.js` | Draws a template's `description` ("Counts: … / Doesn't count: …") in the catalog row, the Claim dialog and the review desk (§10) |
 | `db/lib/desireReview.js` | `desireNeedsReview`/`desireReviewWhere` (the review-queue predicate and its `where` twin) and `revokeDesireCore`, the shared transaction body Reject and `revokeDesireGmImpl` both call (§6a) |
 | `web/app/(desk)/gm/turns/actions.js` | `keepDesireClaim`/`rejectDesireClaim` (the desk's two buttons, §6a) and `getCharacterAuditSlice` (the mini audit-log filter behind `DesireDesk.js`) |
 | `web/app/(desk)/gm/turns/DesireDesk.js` | The arbitration panel for one claim — reason, the audit-slice search box, Keep/Reject |

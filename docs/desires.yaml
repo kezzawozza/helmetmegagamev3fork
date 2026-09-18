@@ -326,6 +326,12 @@ desires:
   # entries below are social or narrative — a GM has to judge those by
   # reading the scene, not by searching a log — and correctly have no
   # `verify:` at all.
+  # `description:` (optional, on any entry below): the rule for what a claim
+  # has to be, written as two lines that start "Counts:" and "Doesn't count:".
+  # It shows in the catalog, in the Claim dialog and on the GM review desk.
+  # Give one to any Desire a player could stretch — "save a life" was being
+  # claimed for a warning. Name something the game can show (a tag, a seat, a
+  # public room), not what a character felt. See DESIRES.md §10.
   # === 4a. Ungated ==========================================================
   con-a-noble:
     name: Con a member of royalty or a courtier out of resources or an item.
@@ -589,7 +595,10 @@ desires:
     families: [violence, bravery]
 
   save-someones-life:
-    name: Save someone's life
+    name: Save someone's life from Dying or a killing blow
+    description: |-
+      Counts: They held the Dying tag and you cured it, or someone was killing them right then and you stopped it. You ended the attack, took the blow, or got them out of it.
+      Doesn't count: A warning, a tip-off or advice. Treating a small wound. A danger that had not started yet. Someone who was winning the fight anyway. A scene staged just to claim this.
     tier: 3
     families: [bravery, charity]
     cooldownTurns: 5
@@ -1089,7 +1098,10 @@ desires:
       anyRoles: [sheriff]
 
   deliver-a-message:
-    name: Deliver an important message
+    name: Deliver a written message someone gave you to carry
+    description: |-
+      Counts: Somebody else gave you a letter or note to carry, and you put it in the hands of the person it was for.
+      Doesn't count: A note you wrote yourself. A message passed by word of mouth. A throwaway note handed over just to claim this.
     tier: 1
     families: [duty]
     requires:
@@ -1165,7 +1177,10 @@ desires:
       anyRoles: [heir, successor]
 
   save-the-barons-life:
-    name: Save the Baron's life
+    name: Save the Baron's life from Dying or a killing blow
+    description: |-
+      Counts: The Baron was Dying or being killed right then. You cured the Dying, or you stopped the killing: you ended the attack, took the blow, or got him out of it.
+      Doesn't count: A warning, a tip-off or a plot you heard about and reported. Treating a small wound. A danger that had not started yet.
     tier: 3
     families: [bravery, duty]
     requires:
@@ -1530,7 +1545,10 @@ desires:
       anyTags: [mad-doctor]
 
   prediction-comes-true:
-    name: Publicly declare a prediction that later comes true
+    name: Predict a specific event in public, then see it happen
+    description: |-
+      Counts: You said it in a public room before it happened, and it named something specific: who, what, and roughly when. It then happened without you causing it.
+      Doesn't count: A vague omen such as "something bad is coming". Several predictions made to cover every outcome. Something you made happen yourself. A prediction said in private.
     tier: 4
     families: [esoterica, social]
     requires:
@@ -1763,7 +1781,10 @@ desires:
       anyTags: [tactician]
 
   call-it-out-loud:
-    name: Say what the enemy will do, out loud, before they do it
+    name: Say out loud what an enemy will do, before they do it
+    description: |-
+      Counts: In a fight, before the enemy acted, you said one specific action they would take, and they took it.
+      Doesn't count: Naming several options. Calling something they always do. Calling it after they had moved. Calling an action you forced on them.
     tier: 3
     families: [social, scheming]
     requires:
@@ -1898,7 +1919,10 @@ desires:
       anyTags: [pacifist]
 
   stop-a-war:
-    name: Help in a significant way stop a war.
+    name: Help end a war
+    description: |-
+      Counts: It was already a war the GMs recognise, it ended in a truce or a peace, and you did real work toward it: you carried terms, brokered the talks, or stood between the two sides.
+      Doesn't count: A fight or a feud between a few people. Talk that changed nothing. A war that ended for other reasons.
     tier: 5
     families: [bravery, duty]
     oncePerLife: true
@@ -1965,7 +1989,10 @@ desires:
       anyTags: [forester]
 
   warn-the-town:
-    name: Warn the town of a threat moving toward town.
+    name: Warn the town of a threat you saw heading its way
+    description: |-
+      Counts: You saw the threat yourself (a monster, a raiding band, a hostile group) and told people in Town before it arrived.
+      Doesn't count: A rumor, a guess or a bad feeling. A threat you never saw. A warning given after it had already arrived.
     tier: 2
     families: [duty]
     requires:
@@ -2495,7 +2522,10 @@ desires:
     requires:
       anyTags: [thanati]
   thanati-save-the-leader:
-    name: Save the cult leader
+    name: Save the cult leader's life from Dying or a killing blow
+    description: |-
+      Counts: The cult leader was Dying or being killed right then. You cured the Dying, or you stopped the killing: you ended the attack, took the blow, or got them out of it.
+      Doesn't count: A warning, a tip-off or a plot uncovered in advance. Treating a small wound. A danger that had not started yet.
     tier: 4
     families: [thanati]
     oncePerLife: true

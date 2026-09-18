@@ -5,6 +5,7 @@ import Modal from "./Modal";
 import StatusPill from "./StatusPill";
 import ChipText from "./ChipText";
 import RichText from "./RichText";
+import DesireRule from "./DesireRule";
 import Select from "./Select";
 import CheckField from "./CheckField";
 import { formatCost, costColor } from "@/lib/characterCreation";
@@ -88,6 +89,7 @@ function DesireRow({ entry, family, otherNames, onChoose }) {
               </span>
             )}
           </span>
+          <DesireRule text={entry.description} />
           {state && <StatusPill tone={state.tone}>{state.label}</StatusPill>}
         </span>
       </button>
