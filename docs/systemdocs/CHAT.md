@@ -538,7 +538,7 @@ like everything else.
 - **A feed row is a LOG line, not a Discord message.** `TranscriptLine.js`'s
   `density="feed"` draws no face and no per-row clock: one line —
   `Marrow Vance: Second tithe. They say that like it costs them something.` —
-  a bold, hued name, a colon, then the words in `--speech`, the mockup's own
+  a name in its estate's colour, a colon, then the words in `--speech`, the mockup's own
   shape (`docs/design/mockups/chat/index.html`, `.row`/`.who`/`.said`). It
   used to be Discord's own shape instead: an avatar, a name-and-timestamp row,
   then the words on a second line, with a run's later lines dropping the name
@@ -1445,9 +1445,11 @@ a 48px head and a one-line composer:
      usual internal label would say it twice) so the SAME rows, avatars, eye
      and per-person menu the sheet's Actions panel uses are reused whole,
      never rebuilt as bare `.person` chips — the row IS the menu's anchor.
-     Named rows now wear the feed's own six name hues
-     (`nameHue.js`, `.chat-person-name[data-hue]`), so a face is as easy to
-     pick out of this list as out of the scene; a hood stays unhued.
+     Named rows now wear the feed's own six estate hues
+     (`db/lib/roleGroups.js`, `.chat-person-name[data-role-group]`), so a face
+     is as easy to pick out of this list as out of the scene; a hood stays
+     unhued, and so does a forced name — the feed hoods one, and the two lists
+     have to agree about who is coloured.
   5. **`Waiting on you · N`** block — the same `waitingOnYou()`/
      `answerWaiting()` pair as before, reskinned to the mockup's `.quote`
      (the offer's own sentence) plus plain `.btn`s (Accept/Decline/Answer/

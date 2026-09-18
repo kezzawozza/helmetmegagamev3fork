@@ -659,10 +659,6 @@ export default function CreateCharacterWizard({
               </dd>
             </div>
             <div>
-              <dt className="text-muted">Resources</dt>
-              <dd>{role.startingResources} ⬢</dd>
-            </div>
-            <div>
               <dt className="text-muted">Open to</dt>
               <dd className="flex flex-wrap gap-2">
                 {antagonists.length === 0 ? (

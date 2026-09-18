@@ -540,6 +540,14 @@ read at all. It is frozen onto each line the character says
 moment that line was said, and an opaque seat's title never enters the frozen
 payload in the first place.
 
+**The same split decides a name's colour.** A speaker's name in the feed and in
+Chat's people column is painted by their role GROUP — six coloured estates, with
+Outsiders and Elsewhere wearing none (`db/lib/roleGroups.js#roleGroupHue`,
+`DESIGN-SYSTEM.md` §2). That is not a second rule to keep in step with this one:
+all four opaque seats live in those two uncoloured buckets, so a colour can never
+name one. `db/test/roleGroupColour.test.js` fails the build if a re-bucketing in
+the YAML ever breaks that, which is the only thing holding it.
+
 None of this reaches a GM: the ⚜️ dossier and `/gm/players` print every role.
 It is also deliberately absent from the creation picker and the role charter —
 "this seat is opaque to a look" is exactly the hint you do not want printed
@@ -555,7 +563,6 @@ Picking a role decides almost everything:
   per-Location channels and no per-member overwrites to grant any more
   (`CHANNELS.md` §3). A `starting_zone` must be a *presence* zone: the Caves
   group is a container, not a place, and the role sync refuses it.
-- `resources` — `starting_resources`.
 - `isLeader` / `isTreasurer` — from `leader: true` / `treasurer: true`.
   These were once entries in `starting_tags`; they're booleans on
   `Character`, not Tags (`TAGS.md` §6).

@@ -46,7 +46,6 @@ function parseRolesYaml(doc) {
         isUnique: role.multiple === false,
         unlimited: role.weight === "unlimited",
         weight: typeof role.weight === "number" ? role.weight : null,
-        startingResources: role.starting_resources ?? 0,
         extraStartingPoints: role.extra_starting_points ?? 0,
         startingZoneSlug: role.starting_zone ?? null,
         startingLocationSlug: role.starting_location ?? null,
@@ -111,9 +110,24 @@ async function syncRolesFromYaml(prisma) {
   // and Role.startingTagSlugs stores the resolved slug. Built here rather than
   // at runtime: this is the one moment the two identifiers have to meet, and
   // doing it once at sync is what lets Tag.name stop being unique.
-  const slugByTagName = new Map(
-    (await prisma.tag.findMany({ select: { name: true, slug: true } })).map((t) => [t.name, t.slug]),
-  );
+  //
+  // Tag.name is NOT unique, so a plain `new Map(...)` here silently kept
+  // whichever row came last and handed the role the other tag. That is not
+  // hypothetical: `Seductive` is both the Courtesan's trade and a `catalog:
+  // secret` Demoness power, and the Courtesan quietly synced with the Demoness
+  // one — a seat starting with a secret it should never see, and without the
+  // tag its whole seat is built on. Nothing downstream could have caught it;
+  // both are real slugs.
+  //
+  // So AMBIGUITY IS AN ERROR, and a slug is the way out of it. Names that
+  // resolve to exactly one tag keep working untouched.
+  const allTags = await prisma.tag.findMany({ select: { name: true, slug: true } });
+  const slugsByTagName = new Map();
+  for (const t of allTags) {
+    if (!slugsByTagName.has(t.name)) slugsByTagName.set(t.name, []);
+    slugsByTagName.get(t.name).push(t.slug);
+  }
+  const knownSlugs = new Set(allTags.map((t) => t.slug));
   // Where a new character of the role STANDS: `starting_location` when the
   // role names one, else the first Location of its `starting_zone`.
   const locations = await prisma.location.findMany({ orderBy: { sortOrder: "asc" } });
@@ -147,7 +161,16 @@ async function syncRolesFromYaml(prisma) {
     // lookup is not repeated.
     r.startingTagSlugsResolved = r.startingTagNames.map((entry) => {
       const { slug: authored, quantity } = parseStartingTag(entry);
-      const slug = slugByTagName.get(authored);
+      const byName = slugsByTagName.get(authored) ?? [];
+      if (byName.length > 1) {
+        throw new Error(
+          `docs/roles.yaml: role "${r.name}" has starting_tag "${authored}", which is the display name of ${byName.length} different tags (${byName.join(", ")}) — name the slug you mean instead`,
+        );
+      }
+      // An exact slug is accepted as the way past an ambiguous name. Checked
+      // AFTER the name, so a tag whose name happens to match another's slug
+      // still resolves by name the way every existing entry expects.
+      const slug = byName[0] ?? (knownSlugs.has(authored) ? authored : null);
       if (!slug) {
         throw new Error(`docs/roles.yaml: role "${r.name}" has starting_tag "${authored}" not in docs/tags.yaml — run db:sync-tags first`);
       }
@@ -169,7 +192,6 @@ async function syncRolesFromYaml(prisma) {
       isUnique: entry.isUnique,
       unlimited: entry.unlimited,
       weight: entry.weight,
-      startingResources: entry.startingResources,
       extraStartingPoints: entry.extraStartingPoints,
       startingTagSlugs: entry.startingTagSlugsResolved,
       bankAccountClass: entry.bankAccountClass,

@@ -8,7 +8,7 @@ export default function AppearanceField({ defaultValue }) {
 
   return (
     <label className="field">
-      <span className="field-label">Appearance (Visible with 🔍 reaction)</span>
+      <span className="field-label">Appearance</span>
       <textarea
         name="appearance"
         defaultValue={defaultValue}

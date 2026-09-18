@@ -379,13 +379,25 @@ door locked to one is locked to the other.
 
 The panel is headed **Equipment**, with the combined armour beside it as two
 shield marks and two words (`armorValue.js#combineArmor` → `armorWord`). Each
-slot row names itself on the left and says how it fills on the right — "Mail,
-then Over", "3/4 hands", "one thing" — off `equipSlots.js#LAYER_NAMES` rather
-than written out again, so a slot that gains a layer says so. At the **foot of
-the board is the Carrying line and its meter**, the same two numbers and the same
-`carry` object the band's Carrying tile reads: the board above is what changes
-them, and taking a coat off to get under the cap should not mean scrolling back
-up to check.
+slot row names itself on the left; only **Weapon** still carries a hint on the
+right, "3/4 equipped" (`hands`/`handCap` off `equipSlots.js`, mono, red past
+the cap). Head, Body, Mount and Accessory used to spell out how they fill too
+— "Mail, then Over", "one thing", the layer names off
+`equipSlots.js#LAYER_NAMES` — but the mockup draws none of it, and the cells
+underneath already say what's worn, so those rows carry no hint now.
+Accessory keeps its own count, `1/4`, since it is the one slot the count is
+the whole point of. At the **foot of the board is the Carrying line and its
+meter**, the same two numbers and the same `carry` object the band's Carrying
+tile reads: the board above is what changes them, and taking a coat off to
+get under the cap should not mean scrolling back up to check.
+
+The overflow sentence under the Weapon row ("You are holding more than you
+can equip — put something away before you ready anything else.") and
+`equipSlots.js#describeHandsOverflow`'s own refusal both used to say "hands":
+the *concept* is still hands everywhere in code — `handsFor`, `handsOf`,
+`handsUsed`, `WEAPON_HANDS`, `HANDS_FLOOR`, `Tag.handsLost` — only the two
+sentences a player actually reads dropped the word, to match the row hint
+above them.
 
 The rows are only as good as the catalog: slots and layers reach the database
 through `npm run db:sync-tags`, which no deploy step runs, so a push without
@@ -517,10 +529,17 @@ looked SO much better"):
   `surface -> surface-raised`) and the border-vs-surface ratio — now fail at
   every lamp position, in both looks: the mockup's own surfaces sit closer
   together than the ~1.20-per-rung ladder the audit was written to enforce,
-  and narrowing that gap is the entire point of the change. Left failing,
-  reported rather than patched around, and not a reason to touch
-  `audit-contrast.js` itself.
+  and narrowing that gap is the entire point of the change. Left failing at
+  the time, reported rather than patched around — `audit-contrast.js`'s
+  `LADDER_MIN`/`BORDER_MIN` were lowered to 1.05/1.40 to admit this ground
+  properly a little later the same day, which is the state described in
+  `DESIGN-SYSTEM.md` §2 now.
 - **`.panel-header` dropped its sprite strip** — see `DESIGN-SYSTEM.md` §3a.
+
+Later the same day the two-look system this entry describes was retired
+outright — one look now, the mockup's `:root` taken verbatim rather than
+re-solved, no `[data-theme]` selector left in `globals.css`. See
+`DESIGN-SYSTEM.md` §3.
 
 `--font-serif` on `:root` is a real serif again —
 `"Times New Roman", Times, "Liberation Serif", serif` — where phase 1 had left it

@@ -609,23 +609,26 @@
   font-weight: 700;
 }
 
-/* THE NAME PALETTE (REDESIGN.md §3, Text). Six muted hues, one per character,
-   assigned by a hash of the character id so the colour is the same in every
-   session and on every device (web/app/components/nameHue.js). Bold coloured
-   names are how a reader finds a person in a wall of grey narration.
-   These owe FULL AA — they are bold body text, not a chip rule — and
-   audit-contrast.js gates all six at 4.5 against --surface.
+/* THE ESTATE PALETTE (REDESIGN.md §3, Text). Six muted hues, one per ROLE
+   GROUP (db/lib/roleGroups.js). Bold coloured names are how a reader finds a
+   person in a wall of grey narration, and now the colour also says which half
+   of the room they answer to. These owe FULL AA — bold body text, not a chip
+   rule — and audit-contrast.js gates all six at 4.5 against --surface.
+
+   Outsiders and Elsewhere get no rule here, so their names read in the ordinary
+   body colour. Deliberate twice over: they are the seats that belong to no
+   estate, and they are where every role a look may not read lives.
 
    Above the alias rule on purpose. The two have the same specificity, so source
-   order decides, and a HOOD is the more important thing for a name to say: a
-   line spoken under one takes the alias tint even though its speaker key hashes
-   to a hue like anybody else. */
-.tline-name[data-hue="1"] { color: var(--name-1); }
-.tline-name[data-hue="2"] { color: var(--name-2); }
-.tline-name[data-hue="3"] { color: var(--name-3); }
-.tline-name[data-hue="4"] { color: var(--name-4); }
-.tline-name[data-hue="5"] { color: var(--name-5); }
-.tline-name[data-hue="6"] { color: var(--name-6); }
+   order decides, and a HOOD is the more important thing for a name to say —
+   though a hooded row carries no group either (db/lib/archive.js#feedRowShape
+   withholds it beside the character id), so this is belt and braces. */
+.tline-name[data-role-group="court"] { color: var(--role-court); }
+.tline-name[data-role-group="clergy"] { color: var(--role-clergy); }
+.tline-name[data-role-group="cerberon"] { color: var(--role-cerberon); }
+.tline-name[data-role-group="saviors"] { color: var(--role-saviors); }
+.tline-name[data-role-group="business"] { color: var(--role-business); }
+.tline-name[data-role-group="soil"] { color: var(--role-soil); }
 
 /* Somebody speaking under an alias — a hood, or a forced name like Apex
    Form's Beast (db/lib/archive.js#feedRowShape). Tinted so a scene can be
@@ -1052,14 +1055,15 @@
    not the world. Subtext-sized like the scenery, because none of it is
    happening in the room either, but its own rule so it can be told from a
    smell or a gate crossing at a glance: the tint and the rule are the whole
-   tell. --name-6, the mockup's mauve OOC hue — an existing AA-gated colour
-   rather than a new token. The body already carries its `[OOC]:` tag, so
-   nothing here needs to say it twice. */
+   tell. --ooc, the mockup's mauve OOC hue — the same value the Clergy wear,
+   but its own token, because a player talking over the table is not a churchman.
+   The body already carries its `[OOC]:` tag, so nothing here needs to say it
+   twice. */
 .tline--system[data-kind="ooc"] {
   margin-left: calc(var(--chat-face) + var(--sp-3));
   padding-left: 6px;
   border-left: 2px solid var(--border-hi);
-  color: var(--name-6);
+  color: var(--ooc);
 }
 
 /* Discord's red line: everything below it arrived since you last had this
@@ -1539,17 +1543,17 @@
   background: var(--surface);
 }
 
-/* The Here block's own rows wear the same six name hues the feed does
-   (nameHue.js) — one colour per character, everywhere the app names them, so
-   a face is as easy to pick out of the aside's list as out of the scene. Not
-   drawn for a hood (`.chat-person-name.text-muted`, no `data-hue`), since a
+/* The Here block's own rows wear the same six estate hues the feed does
+   (db/lib/roleGroups.js) — so a face is as easy to pick out of the aside's list
+   as out of the scene, and the two lists agree about who stands with whom. Not
+   drawn for a hood (`.chat-person-name.text-muted`, no attribute), since a
    consistent colour would itself be a way to re-identify one. */
-.chat-person-name[data-hue="1"] { color: var(--name-1); font-weight: 600; }
-.chat-person-name[data-hue="2"] { color: var(--name-2); font-weight: 600; }
-.chat-person-name[data-hue="3"] { color: var(--name-3); font-weight: 600; }
-.chat-person-name[data-hue="4"] { color: var(--name-4); font-weight: 600; }
-.chat-person-name[data-hue="5"] { color: var(--name-5); font-weight: 600; }
-.chat-person-name[data-hue="6"] { color: var(--name-6); font-weight: 600; }
+.chat-person-name[data-role-group="court"] { color: var(--role-court); font-weight: 600; }
+.chat-person-name[data-role-group="clergy"] { color: var(--role-clergy); font-weight: 600; }
+.chat-person-name[data-role-group="cerberon"] { color: var(--role-cerberon); font-weight: 600; }
+.chat-person-name[data-role-group="saviors"] { color: var(--role-saviors); font-weight: 600; }
+.chat-person-name[data-role-group="business"] { color: var(--role-business); font-weight: 600; }
+.chat-person-name[data-role-group="soil"] { color: var(--role-soil); font-weight: 600; }
 
 .chat-menu {
   position: absolute;
@@ -1893,15 +1897,17 @@
 }
 
 /* A line quoting somebody's own words — the filed Move here, an offer's own
-   sentence in Waiting on you. `.mark` is the » itself, dimmer than the words
-   it introduces. */
+   sentence in Waiting on you. `.mark` is the » itself — the mockup draws it
+   in --accent-text against the muted sentence, brighter than the words it
+   introduces rather than dimmer, so the quote mark reads as a mark and not
+   as more of the same grey line. */
 .quote {
   margin: 0 0 var(--sp-2);
   color: var(--muted);
 }
 
 .quote .mark {
-  color: var(--muted);
+  color: var(--accent-text);
 }
 
 /* The filed Move, three lines of it. A Move can be a paragraph and the column

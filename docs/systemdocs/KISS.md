@@ -18,7 +18,8 @@ touch the copy: the wording in `db/lib/kiss.js` is settled.
 - Anyone picks somebody standing where they stand and presses **Kiss**. They
   get a DM with Accept / Decline; **nothing happens until they press one.**
 - On Accept **both** dials move **+17** — the same figure a confession is
-  worth (`MOOD.md`). **Nobody else is told** (§5).
+  worth (`MOOD.md`) — **plus what the other person's looks are worth** (§1a).
+  **Nobody else is told** (§5).
 - **It costs no Move**, files no `Action`, rolls nothing, and no turn pass
   touches it.
 - What holds it back instead is two rations. **Asking** has a **2-hour
@@ -30,6 +31,35 @@ touch the copy: the wording in `db/lib/kiss.js` is settled.
 Constants: `KISS_COOLDOWN_MS`, `KISS_SELECT` in `db/lib/kiss.js`;
 `KISS_BLOCKING_SLUGS` in `db/lib/constants.js`; `EVENTS.KISS` in
 `db/lib/mood.js`.
+
+
+## 1a. Appearance, and which way it points
+
+A kisser's looks are paid to **the person they kiss**, never to themselves —
+being pretty is not a thing that cheers you up, it is a thing that cheers up
+whoever you kiss. So the two terms **cross over**, and each side is computed
+independently from the other's tags.
+
+| Tag | Worth, to the other person |
+|---|---|
+| `pretty` | +6 |
+| `beautiful` | +12 |
+| `seductive` | **+75** |
+
+Seductive **stacks on top of** a face; pretty and beautiful are one tier chain
+(`beautiful` carries `parentTag: pretty`), so only one of them is ever held and
+the code takes the **max** of the two rather than trusting that. A GM grant
+walks past the tier rule, and a hand-granted pair would otherwise pay twice.
+
+The table is `KISS_APPEARANCE` in `db/lib/kiss.js`; `applyKissMood` only adds
+the number it is handed, so the mood tables stay the record of what an *event*
+is worth and nothing there has to know that Pretty exists.
+
+**Sizing.** `EVENTS.KISS` is 17, Ecstatic starts at 64 and the dial clamps at
+82 (`db/lib/mood.js`). So Seductive alone carries anyone at −22 or better
+straight into Ecstatic and its **+1 Gambit**. That is the Courtesan's seat
+working as intended, not an accident of the arithmetic — and it is why the
+ration in §4 has to stay a gate rather than a cap.
 
 ## 2. Who may not, and why it is a capability
 
@@ -108,8 +138,10 @@ the only thing that lets a ration ever count them.
 
 ## 4. Why the rations are AuditLog rows and not columns
 
-At +17 against a 17-a-turn ceiling, a magnitude cap and a once-a-turn gate are
-the same arithmetic — so this takes the cheap one. `applyKissMood` counts a
+A once-a-turn gate needs no migration, so this takes the cheap one. It cannot
+be a magnitude cap instead, and that is firmer since §1a arrived — a Seductive
+kiss is worth several times `EVENTS.KISS` on its own, so a cap sized to one
+ordinary kiss would silently eat most of it. `applyKissMood` counts a
 `mood_kissed` row the way the Cathedral's relief counts `mood_cathedral`, and
 the whole feature's migration is **one enum value**.
 

@@ -5,6 +5,12 @@
 // separation), and --accent vs --accent-text (text and outlines must
 // use --accent-text; --accent is a fill only). The zone code (--zone-*) is
 // fills only too, gated at 3.0 against --surface, not AA.
+//
+// One look, not two. Until 2026-09-18 this script re-mixed a dawn/dusk ramp
+// at five points of a lamp gradient and gated each one; that machinery is
+// gone along with the two-theme system itself (globals.css's own header
+// comment, and DESIGN-SYSTEM.md §3, say why). There is one :root now, gated
+// once.
 
 const fs = require("fs");
 const path = require("path");
@@ -32,12 +38,26 @@ const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "d
 // the zone code: these are deliberately desaturated, and muting spends chroma
 // rather than luminance precisely so this gate keeps holding.
 const TAG_KEYS = ["general", "skills", "status", "health", "items", "assets", "demoness"];
-// The name palette (REDESIGN.md §3), one hue per character. Unlike the zone
-// and tag codes these are TEXT — a bold name on a log line — so they owe full
-// AA, not the 3.0 graphic floor.
-const NAME_KEYS = ["1", "2", "3", "4", "5", "6"];
-// Large-display floor for the blackletter, which is only ever drawn at >= 24px.
-const DISPLAY_MIN = 3.0;
+// The estate palette (REDESIGN.md §3), one hue per role group
+// (db/lib/roleGroups.js). Unlike the zone and tag codes these are TEXT — a bold
+// name on a log line — so they owe full AA, not the 3.0 graphic floor. Six, not
+// eight: Outsiders and Elsewhere wear no colour at all.
+const ROLE_KEYS = ["court", "clergy", "cerberon", "saviors", "business", "soil"];
+
+// --muted and --blackletter both moved on 2026-09-18, when Bascinet said to
+// take the character-sheet mockup's own values verbatim rather than re-solve
+// them against a floor — twice, the second time explicitly naming these two
+// as the ones a re-solve would have touched. Their floors move to admit the
+// mockup's own numbers instead of the other way round:
+//   --muted on --surface measures 4.157 (was gated at AA, 4.5)
+//   --blackletter on --surface measures 2.218 (was gated at DISPLAY_MIN, 3.0)
+// The combat tile's "mediocre" band is a third casualty found by running the
+// gate, not asked for by name: it is --muted at full weight and nothing
+// else, so it carries MUTED_MIN too rather than AA, below.
+// All three stay real gates, just lower — a regression that pushes any of
+// them further down still fails the build.
+const MUTED_MIN = 4.1;
+const DISPLAY_MIN = 2.2; // large-display floor for the blackletter, only ever drawn at >= 24px
 
 function parseColor(value) {
   if (value.startsWith("#")) {
@@ -126,73 +146,37 @@ const COMBAT_BANDS = [
   ["legendary", "--positive", null, 1],
 ];
 
-// `readTokens(css, '[data-theme="dusk"]')` — a selector, not a theme name, so
-// the lamp ramp's own [data-theme] block is read by the same parser.
-function readTokens(css, selector) {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // The bare `[data-theme]` selector must not also match `[data-theme="dusk"]`
-  // or `[data-theme="dawn"]` — hence the negative lookahead on `=` right after
-  // the escaped selector, before the optional whitespace and the `{`.
-  const block = css.match(new RegExp(`${escaped}(?!=)\\s*\\{([\\s\\S]*?)\\n\\}`));
-  if (!block) throw new Error(`No ${selector} block in globals.css`);
+// Every top-level `:root { … }` block in the file, merged in source order
+// (later declarations of the same token win, same as the cascade would do).
+// `^:root` (multiline) is what keeps this from also picking up the phone
+// media query's own `  :root { … }` override two spaces in — that one only
+// ever touches type-scale tokens, never a colour.
+function readTokens(css) {
   const tokens = {};
-  for (const line of block[1].split("\n")) {
-    const m = line.match(/^\s*(--[\w-]+):\s*([^;]+);/);
-    if (m) tokens[m[1]] = m[2].trim();
+  const re = /^:root\s*\{([\s\S]*?)\n\}/gm;
+  let match;
+  let blocks = 0;
+  while ((match = re.exec(css))) {
+    blocks += 1;
+    for (const line of match[1].split("\n")) {
+      const m = line.match(/^\s*(--[\w-]+):\s*([^;]+);/);
+      if (m) tokens[m[1]] = m[2].trim();
+    }
   }
+  if (!blocks) throw new Error("No top-level :root block in globals.css");
   return tokens;
 }
 
-// `color-mix(in srgb, A p%, B)` — component-wise on non-linear sRGB, which is
-// what the browser does for an `in srgb` mix of two opaque colours. This one
-// reproduces globals.css's lamp ramp; mixOklab above is the Combat tile's.
-function mixSrgb(rgbA, rgbB, weightA) {
-  return rgbA.map((v, i) => Math.round(v * weightA + rgbB[i] * (1 - weightA)));
-}
-
-// The six tokens the daytime gradient moves (REDESIGN.md §4), and the only
-// ones. A seventh added to globals.css without a name here goes unaudited on
-// the ramp, which is what assertRampWiring below exists to catch.
-const RAMP_TOKENS = ["bg", "surface", "surface-raised", "border", "text", "speech"];
-
-// The sweep. 0 and 1 are the ends; 0.5 is the midpoint REDESIGN.md §4 asks
-// for. The range deliberately runs past clockTheme.js's LAMP_MAX of 0.6 and
-// all the way to 1, so raising LAMP_MAX later cannot walk the app into an
-// unaudited mix, and so this script needs no copy of that constant.
-const LAMP_STEPS = [0, 0.25, 0.5, 0.75, 1];
-
-// The CSS and the model above have to stay in step: this script computes the
-// mix itself rather than resolving var() and color-mix() out of the
-// stylesheet, so it has to be sure the stylesheet is still shaped that way.
-function assertRampWiring(dusk, dawn) {
-  const problems = [];
-  for (const name of RAMP_TOKENS) {
-    if (dusk[`--${name}`] !== `var(--dusk-${name})`) {
-      problems.push(`[data-theme="dusk"] --${name} should read exactly var(--dusk-${name})`);
-    }
-    if (!(dawn[`--${name}`] || "").startsWith(`color-mix(in srgb, var(--dawn-${name})`)) {
-      problems.push(`[data-theme="dawn"] --${name} should be a color-mix(in srgb, var(--dawn-${name}) …) of the ramp`);
-    }
-  }
-  return problems;
-}
-
-// Lifted out of main() so it can run once for dusk (flat) and once per lamp
-// step for dawn — see main(). `terse` collapses a pass to one line so the
-// gradient's five intermediate steps don't each print a full table; the
-// margin recorded is a step's tightest ratio to its own floor.
-function auditLook(label, t, { terse } = {}) {
+function auditLook(t) {
   const bg = parseColor(t["--bg"]).rgb;
   const surface = parseColor(t["--surface"]).rgb;
   const raised = parseColor(t["--surface-raised"]).rgb;
 
   const results = [];
-  const margins = [];
   let failures = 0;
   const gate = (gateLabel, actual, min) => {
     const ok = actual >= min;
     if (!ok) failures += 1;
-    margins.push({ label: gateLabel, margin: actual / min });
     results.push(`  ${ok ? "PASS" : "FAIL"}  ${gateLabel.padEnd(31)}${actual.toFixed(2)}  (min ${min})`);
   };
 
@@ -202,15 +186,21 @@ function auditLook(label, t, { terse } = {}) {
 
   gate("border vs surface", contrast(composite(parseColor(t["--border"]), surface), surface), BORDER_MIN);
 
-  for (const token of ["--text", "--muted", "--speech", "--accent-text", "--danger", "--positive", "--warning"]) {
+  gate("--muted on surface", contrast(composite(parseColor(t["--muted"]), surface), surface), MUTED_MIN);
+
+  for (const token of ["--text", "--text-hi", "--speech", "--accent-text", "--danger", "--positive", "--warning"]) {
     gate(`${token} on surface`, contrast(composite(parseColor(t[token]), surface), surface), AA);
   }
 
-  // Combat tile ramp (COMBAT.md): every step is body text on a panel, so every step owes full AA.
+  // Combat tile ramp (COMBAT.md): every step is body text on a panel, so every step owes full AA —
+  // except "mediocre", which is --muted at full weight and nothing else, so it is the exact same
+  // pixel colour on the exact same ground as the standalone --muted gate above. It owes that gate's
+  // floor, not a second, stricter one for the same number.
   for (const [key, tokenA, tokenB, weight] of COMBAT_BANDS) {
     const a = composite(parseColor(t[tokenA]), surface);
     const rgb = tokenB ? mixOklab(a, composite(parseColor(t[tokenB]), surface), weight) : a;
-    gate(`combat "${key}" on surface`, contrast(rgb, surface), AA);
+    const floor = tokenA === "--muted" && !tokenB ? MUTED_MIN : AA;
+    gate(`combat "${key}" on surface`, contrast(rgb, surface), floor);
   }
 
   gate(
@@ -235,59 +225,26 @@ function auditLook(label, t, { terse } = {}) {
     );
   }
 
-  for (const key of NAME_KEYS) {
-    gate(`--name-${key} on surface`, contrast(parseColor(t[`--name-${key}`]).rgb, surface), AA);
+  for (const key of ROLE_KEYS) {
+    gate(`--role-${key} on surface`, contrast(parseColor(t[`--role-${key}`]).rgb, surface), AA);
   }
+
+  // The out-of-character line. Its own token rather than a borrowed estate
+  // colour, so it owes its own gate — body text on the log ground, so AA.
+  gate("--ooc on surface", contrast(parseColor(t["--ooc"]).rgb, surface), AA);
 
   gate("--blackletter on surface", contrast(parseColor(t["--blackletter"]).rgb, surface), DISPLAY_MIN);
 
-  if (!terse || failures) {
-    console.log(`\n=== ${label} ===`);
-    console.log(results.join("\n"));
-  } else {
-    const tightest = margins.reduce((min, m) => (m.margin < min.margin ? m : min));
-    console.log(`\n=== ${label} ===`);
-    console.log(`  PASS  ${margins.length} gates, tightest ${tightest.label} at ${tightest.margin.toFixed(2)}x its floor`);
-  }
+  console.log(results.join("\n"));
 
   return failures;
 }
 
 function main() {
   const css = fs.readFileSync(CSS_PATH, "utf8");
-  const ramp = readTokens(css, "[data-theme]");
-  const dusk = readTokens(css, '[data-theme="dusk"]');
-  const dawn = readTokens(css, '[data-theme="dawn"]');
+  const tokens = readTokens(css);
 
-  const problems = assertRampWiring(dusk, dawn);
-  if (problems.length) {
-    console.error("\nThe lamp ramp in globals.css no longer matches this script's model:");
-    for (const p of problems) console.error(`  ${p}`);
-    process.exit(1);
-  }
-
-  // Each look this script gates: dusk flat, then dawn at every step of the
-  // day's gradient. A look is its block's tokens with the six ramp tokens
-  // overwritten by the mix at that lamp value, so the STATIC tokens are
-  // re-checked against the MIXED surface at every step — which is the point.
-  // The dusk block's --bg etc. now read var(--dusk-bg), so they're resolved
-  // from the ramp block too, or parseColor would choke on `var(...)`.
-  const duskResolved = { ...dusk };
-  for (const name of RAMP_TOKENS) duskResolved[`--${name}`] = ramp[`--dusk-${name}`];
-
-  const looks = [{ label: "dusk", tokens: duskResolved }];
-  for (const lamp of LAMP_STEPS) {
-    const tokens = { ...dawn };
-    for (const name of RAMP_TOKENS) {
-      const a = parseColor(ramp[`--dawn-${name}`]).rgb;
-      const b = parseColor(ramp[`--dusk-${name}`]).rgb;
-      tokens[`--${name}`] = `#${mixSrgb(a, b, 1 - lamp).map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-    }
-    looks.push({ label: `dawn (lamp ${lamp.toFixed(2)})`, tokens, terse: lamp !== 0 && lamp !== 1 });
-  }
-
-  let failures = 0;
-  for (const look of looks) failures += auditLook(look.label, look.tokens, { terse: look.terse });
+  let failures = auditLook(tokens);
 
   failures += auditAccentUsage();
 

@@ -1421,6 +1421,45 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The Courtesan's trade, and the largest single mood term in the game
+  # (db/lib/kiss.js). NOT a tier of pretty/beautiful — it stacks on top of
+  # whichever of those is held, because being good at this is a different fact
+  # from being nice to look at.
+  #
+  # `seductive` is free as a slug: demoness-seductive further down is a
+  # `catalog: secret` tag with nothing to do with kissing.
+  seductive:
+    catalog: all
+    name: Seductive
+    category: general
+    group: general-traits
+    description: "When you kiss people, the mood bonus is ecstatically higher."
+    pointCost: 6
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Worn, not carried: this is the collar once it is SHUT, which is why it is a
+  # trait rather than an item. The loose collar is the `bomb-collar` item in the
+  # Depot imports block; Apply Collar spends one to write this, and the Collar
+  # Key turns this back into one (docs/systemdocs/COLLAR.md).
+  #
+  # NO `removable: false` line, and none is needed: Destroy is derived from the
+  # category (DESTROYABLE_CATEGORIES, CRAFTING.md §5) and `general` never had
+  # the button. The sync throws on the line rather than ignoring it, which is
+  # how it caught this being written here in the first place. The only ways off
+  # are the Collar Key and the detonator.
+  bomb-collar-locked:
+    catalog: gm
+    name: Bomb Collar (Locked)
+    category: general
+    group: general-traits
+    description: "You have a shock collar around your neck."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
   # and all creation-only per TAGS.md §4.
   craven:
@@ -7199,7 +7238,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
-    depotPrice: 12
+    depotPrice: 14
     # A Trinket ingredient (TRINKETS.md §3).
     inlayValue: 8
 
@@ -7825,7 +7864,7 @@ tags:
     group: items-gear
     description: "A compact medical injector that immediately heals minor wounds, up to broken bones."
     pointCost: 0
-    depotPrice: 46
+    depotPrice: 54
     weight: 2
     stackable: true
     visible: false
@@ -7852,7 +7891,7 @@ tags:
       gambit: false
       items: [antidote, fever-draught, brackenmoss]
     sellable: true
-    sellablePrice: 28
+    sellablePrice: 32
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
   # until the player unpacks it from their own character sheet (see consumable
@@ -8796,8 +8835,8 @@ tags:
     # The Depot stocks it too, at a price that makes the 6-pt creation pick
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 80
-    depotPrice: 121
+    sellablePrice: 90
+    depotPrice: 150
     sealedShipping: true
 
   #Cave weapons
@@ -8966,8 +9005,8 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 6
-    depotPrice: 11
+    sellablePrice: 8
+    depotPrice: 13
 
   sling:
     catalog: all
@@ -9808,7 +9847,7 @@ tags:
     description: "A gentleman's cane, filled with three feet of steel."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 7
-    depotPrice: 20
+    depotPrice: 24
     equippable: true
     equipSlot: WEAPON
     weight: 2
@@ -10897,7 +10936,7 @@ tags:
     group: items-food
     description: "Foreign spices. Tastes delicious in meals."
     pointCost: 0
-    depotPrice: 14
+    depotPrice: 17
     weight: 0
     stackable: true
     visible: false
@@ -10911,7 +10950,7 @@ tags:
       # saffron (8 + 45) is the best thing anybody in Ravenheart will eat.
       mood: 45
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 10
 
   tinned-butter:
     catalog: gm
@@ -12070,7 +12109,7 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 60
-    depotPrice: 61
+    depotPrice: 76
 
   surgical-equipment:
     catalog: all
@@ -12084,8 +12123,8 @@ tags:
     requiredTag: medical-basic
     weight: 12
     sellable: true
-    sellablePrice: 19
-    depotPrice: 28
+    sellablePrice: 20
+    depotPrice: 33
 
   # +1 on a torture roll for anyone working within reach (db/lib/torture.js,
   # docs/systemdocs/TORTURE.md). Not a smithing recipe and not on the ladder:
@@ -12245,8 +12284,8 @@ tags:
     # sell (the Motorcycle is the other). Everything else on this shelf stays
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
     sellable: true
-    sellablePrice: 116
-    depotPrice: 175
+    sellablePrice: 130
+    depotPrice: 217
     sealedShipping: true
 
   #Artifacts
@@ -12353,8 +12392,8 @@ tags:
     purchasableAfterStart: false
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
-    sellablePrice: 103
-    depotPrice: 154
+    sellablePrice: 115
+    depotPrice: 191
 
   sawn-off-double-barrel:
     catalog: gm
@@ -12725,7 +12764,7 @@ tags:
   #     a player could just buy at creation gives him nothing to sell. The one
   #     exception is the Poison Snooper, deliberately priced high at 4 pt.
   #   * `pointCost: 0` follows from that: an unpurchasable tag's point cost is
-  #     never read (TAGS.md §4a), so the real price is the ⬢ one.
+  #     never read (TAGS.md §4a), so the real price is the ¢ one.
   #   * `tradeable: true` on all of it. He has to be able to hand it over.
   #   * Most carry a `sellablePrice` well under their `depotPrice`, so buying
   #     a thing and selling it straight back always loses money. syncTags.js
@@ -12753,6 +12792,90 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: []
+
+  # The collar kit (docs/systemdocs/COLLAR.md). Three wares that only make
+  # sense together, so they sit together: the collar, the key that takes it off
+  # and the trigger that sets it off. All three are Black Market — the Silver
+  # Chip is the whole gate, and the Exactor is the one seat that starts holding
+  # all three.
+  #
+  # NOT craftable, any of them. A forge that could strike a collar key would
+  # free every slave in Ravenheart on a Dead Simple recipe, and one that could
+  # strike collars would let anybody start a slave trade without ever paying
+  # the Merchant. Import or steal, nothing else.
+  bomb-collar:
+    catalog: gm
+    name: Bomb Collar
+    category: items
+    group: items-gear
+    description: "A collar that can be locked around someone's neck, controlled by a remote detonator."
+    manifest: black-market
+    pointCost: 0
+    depotPrice: 15
+    sellable: true
+    sellablePrice: 9
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  remote-detonator:
+    catalog: gm
+    name: Remote Detonator
+    category: items
+    group: items-gear
+    description: "A small, handheld device with a big red trigger and an antenna on the top."
+    manifest: black-market
+    pointCost: 0
+    depotPrice: 23
+    sellable: true
+    sellablePrice: 14
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  collar-key:
+    catalog: gm
+    name: Collar Key
+    category: items
+    group: items-keys
+    description: "It unlocks slave collars."
+    manifest: black-market
+    pointCost: 0
+    depotPrice: 4
+    sellable: true
+    sellablePrice: 2
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # A tool that cuts, and cuts people about as well as a short sword. On the
+  # Black Market rather than the Merchant's own shelf because it is the
+  # Exactor's kit, not a smith's.
+  machete:
+    catalog: gm
+    name: Machete
+    category: items
+    group: items-weapons
+    description: "A cutting implement."
+    fighting: { tiers: 0.3, weaponClass: sword }
+    manifest: black-market
+    pointCost: 0
+    depotPrice: 11
+    sellable: true
+    sellablePrice: 7
+    equippable: true
+    equipSlot: WEAPON
+    weight: 3
+    stackable: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
 
   # Public (Chris 2026-09-07): a shelf good, not a secret — was hiding the
   # Lavish Meal recipe by accident.
@@ -14026,9 +14149,9 @@ tags:
     group: items-gear
     description: "A metal vessel which substances can be poured into to diffuse through the room."
     pointCost: 0
-    depotPrice: 11
+    depotPrice: 13
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 8
     weight: 2
     visible: false
     purchasable: false
@@ -14046,7 +14169,7 @@ tags:
     group: items-gear
     description: "You can immediately tell when a meal is poisoned. This item is reusable."
     pointCost: 9
-    depotPrice: 19
+    depotPrice: 22
     sellable: true
     sellablePrice: 13
     weight: 0.5
@@ -14061,9 +14184,9 @@ tags:
     group: items-gear
     description: "An odd contraption with a spot to place the eyes. Heavily magnifies small objects placed under it."
     pointCost: 0
-    depotPrice: 26
+    depotPrice: 31
     sellable: true
-    sellablePrice: 17
+    sellablePrice: 19
     weight: 8
     visible: true
     purchasable: false
@@ -14113,10 +14236,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 63
+    depotPrice: 78
     sealedShipping: true
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 47
 
   light-infantry-armour:
     catalog: gm
@@ -14125,10 +14248,10 @@ tags:
     group: items-armor
     description: "A bulletproof vest and pad combination."
     pointCost: 0
-    depotPrice: 31
+    depotPrice: 37
     sealedShipping: true
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 22
     weight: 12
     equippable: true
     equipSlot: BODY
@@ -14147,9 +14270,9 @@ tags:
     description: "A large, well-trained fighting dog ready to obey commands."
     fighting: { situational: true }
     pointCost: 0
-    depotPrice: 34
+    depotPrice: 40
     sellable: true
-    sellablePrice: 23
+    sellablePrice: 24
     tradeable: true
     visible: true
     purchasable: false
@@ -14188,10 +14311,10 @@ tags:
     group: items-gear
     description: "A small vial containing a wriggling mass that will eat all material it finds. Can be used to effectively clean up crime scenes."
     pointCost: 0
-    depotPrice: 47
+    depotPrice: 55
     sealedShipping: true
     sellable: true
-    sellablePrice: 31
+    sellablePrice: 33
     weight: 0.5
     stackable: true
     visible: false
@@ -14207,10 +14330,10 @@ tags:
     group: items-special
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
-    depotPrice: 68
+    depotPrice: 84
     sealedShipping: true
     sellable: true
-    sellablePrice: 45
+    sellablePrice: 50
     weight: 5
     visible: true
     purchasable: false
@@ -14223,9 +14346,9 @@ tags:
     group: items-gear
     description: "A metal cylinder that can be equipped to a firearm to muffle its shots."
     pointCost: 0
-    depotPrice: 67
+    depotPrice: 83
     sellable: true
-    sellablePrice: 44
+    sellablePrice: 50
     equippable: true
     equipSlot: ACCESSORY
     weight: 1
@@ -14241,9 +14364,9 @@ tags:
     group: items-drink
     description: "A small vial of liquid that can be drunk to immediately cure all stages of infection."
     pointCost: 0
-    depotPrice: 74
+    depotPrice: 92
     sellable: true
-    sellablePrice: 49
+    sellablePrice: 55
     weight: 0.5
     stackable: true
     visible: false
@@ -14262,10 +14385,10 @@ tags:
     description: "A 9mm pistol."
     fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 135
+    depotPrice: 167
     sealedShipping: true
     sellable: true
-    sellablePrice: 89
+    sellablePrice: 100
     weight: 2
     equippable: true
     equipSlot: WEAPON
@@ -14287,10 +14410,10 @@ tags:
     description: "A semi-automatic rifle chambered in .308."
     fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 192
+    depotPrice: 238
     sealedShipping: true
     sellable: true
-    sellablePrice: 128
+    sellablePrice: 143
     weight: 9
     equippable: true
     equipSlot: WEAPON
@@ -14307,10 +14430,10 @@ tags:
     description: "An experimental fully automatic rifle that belongs to the past."
     fighting: { tiers: 1.2, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 400
+    depotPrice: 496
     sealedShipping: true
     sellable: true
-    sellablePrice: 266
+    sellablePrice: 298
     weight: 8
     equippable: true
     equipSlot: WEAPON
@@ -14327,10 +14450,10 @@ tags:
     description: "A gleaming sword fit for the highest of nobility. Light, strong, and unimaginably sharp."
     fighting: { tiers: 1, weaponClass: sword }
     pointCost: 0
-    depotPrice: 171
+    depotPrice: 212
     sealedShipping: true
     sellable: true
-    sellablePrice: 113
+    sellablePrice: 127
     weight: 3
     equippable: true
     equipSlot: WEAPON
@@ -14346,9 +14469,9 @@ tags:
     description: "A sword with a blade of pure silver. Might be useful…"
     fighting: { tiers: 0.5, weaponClass: sword }
     pointCost: 0
-    depotPrice: 111
+    depotPrice: 138
     sellable: true
-    sellablePrice: 74
+    sellablePrice: 83
     weight: 3
     equippable: true
     equipSlot: WEAPON
@@ -14364,9 +14487,9 @@ tags:
     description: "A small pistol that shoots nonlethal, but still painful, bullets."
     fighting: { tiers: 0.1, weaponClass: exotic }
     pointCost: 0
-    depotPrice: 55
+    depotPrice: 68
     sellable: true
-    sellablePrice: 37
+    sellablePrice: 41
     weight: 1
     equippable: true
     equipSlot: WEAPON
@@ -15028,7 +15151,7 @@ tags:
     group: items-drink
     description: "A brown powder. You can smoke it to become {tag:inspired} — your next Gambit is rolled with advantage."
     pointCost: 0
-    depotPrice: 12
+    depotPrice: 14
     weight: 0.5
     stackable: true
     visible: false
@@ -15092,7 +15215,7 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
-    depotPrice: 14
+    depotPrice: 17
     sellable: true
     sellablePrice: 10
     requiredTag: brigand
@@ -15261,7 +15384,7 @@ tags:
     group: items-drink
     description: "A bitter draught that clears the basic poisons."
     pointCost: 0
-    depotPrice: 16
+    depotPrice: 19
     weight: 0.5
     stackable: true
     visible: false
@@ -15276,7 +15399,7 @@ tags:
       skills: [brewing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 11
 
   fever-draught:
     catalog: all
@@ -15308,7 +15431,7 @@ tags:
     group: items-gear
     description: "A cooling salve to treat burns."
     pointCost: 0
-    depotPrice: 16
+    depotPrice: 19
     weight: 0.5
     stackable: true
     visible: false
@@ -15323,7 +15446,7 @@ tags:
       skills: [brewing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 11
 
   # No `cures:` — it doesn't treat anything. It substitutes for Surgical
   # Reworked M6b: no longer a single-use +1 stand-in. It's a standing site
@@ -15432,7 +15555,7 @@ tags:
     group: items-gear
     description: "A carved peg buckled tight with leather straps. You can walk again."
     pointCost: 0
-    depotPrice: 31
+    depotPrice: 37
     weight: 3
     stackable: true
     visible: false
@@ -15450,7 +15573,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 21
+    sellablePrice: 22
 
   iron-hook:
     catalog: all
@@ -15459,7 +15582,7 @@ tags:
     group: items-gear
     description: "A fitted iron hook."
     pointCost: 0
-    depotPrice: 31
+    depotPrice: 37
     weight: 1
     stackable: true
     visible: false
@@ -15477,7 +15600,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 21
+    sellablePrice: 22
 
   prosthetic-hand:
     catalog: all
@@ -15486,7 +15609,7 @@ tags:
     group: items-gear
     description: "A prosthetic hand."
     pointCost: 0
-    depotPrice: 52
+    depotPrice: 64
     weight: 1
     stackable: true
     visible: false
@@ -15504,7 +15627,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 36
+    sellablePrice: 38
 
   glass-eye:
     catalog: all
@@ -15811,7 +15934,7 @@ tags:
       turnsCost: 1
       resourceCost: 13
       skills: [smithing-skilled]
-    depotPrice: 41
+    depotPrice: 48
     sellable: true
     sellablePrice: 34
 
@@ -16296,7 +16419,7 @@ tags:
     group: items-headgear
     description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 5
-    depotPrice: 13
+    depotPrice: 15
     equippable: true
     equipSlot: HEAD
     melee: 0.31
@@ -16666,6 +16789,27 @@ tags:
     sellable: true
     sellablePrice: 3
 
+  # The Exactor's outfit. Salvage Plate's protection in a shape nobody reads as
+  # armour — the padded vest is doing the work, and the numbers are deliberately
+  # copied from it rather than invented. Light, where the plate is 20 lb: what
+  # you pay for it is the point cost, not the weight.
+  suit-and-tie:
+    catalog: gm
+    name: Suit and Tie
+    category: items
+    group: items-armor
+    description: "A fine although scuffed outfit, with a padded vest inside."
+    pointCost: 4
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 2
+    melee: 0.31
+    ballistic: 0.09
+    visible: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+
   energy-shield:
     catalog: all
     name: Energy Shield
@@ -16681,9 +16825,9 @@ tags:
     weight: 2
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 131
+    depotPrice: 162
     sellable: true
-    sellablePrice: 87
+    sellablePrice: 97
 
   silver-cross:
     catalog: gm
@@ -16875,7 +17019,7 @@ tags:
     consumable: false
     sellable: true
     sellablePrice: 16
-    depotPrice: 23
+    depotPrice: 27
 
   # Bespoke consume, same reason the camera above needs one: it mints two
   # runtime rows (db/lib/pointerMint.js) that no consumesInto chain can name.
@@ -17229,5 +17373,5 @@ tags:
     purchasableAfterStart: false
     # Priced at about 65% of a {tag:flamethrower}, the shelf it shares.
     sellable: true
-    sellablePrice: 76
-    depotPrice: 113
+    sellablePrice: 84
+    depotPrice: 140

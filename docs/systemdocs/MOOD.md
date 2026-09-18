@@ -276,6 +276,7 @@ they did before.
 | Consume anything at all that grants `ate-meal` | +6 | same |
 | Fulfil a Desire (player claim or GM award) | +12 per point | both award sites |
 | A confession the die absolved | +17 | `confessionPass.js` |
+| A kiss, once per turn per person | +17, **plus the other person's looks** — `pretty` +6, `beautiful` +12, `seductive` +75 (`KISS.md` §1a) | `applyKissMood` |
 | A **Musician's** `/play` with an instrument, once per listener per turn (Musician (Pythagorean): ×4, +48) | +12 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
 | A **Musician's** `/play` with no instrument — sung — same ration (Musician (Pythagorean): ×4, +36) | +9 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
 | Walk into the Cathedral, once per turn | +12 **to Fine only** | `applyArrivalMood` |

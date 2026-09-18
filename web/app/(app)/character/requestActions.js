@@ -44,6 +44,9 @@ import {
   crucifyCharacterRequestImpl,
   shackleCharacterRequestImpl,
   tortureCharacterRequestImpl,
+  applyCollarRequestImpl,
+  unlockCollarRequestImpl,
+  detonateCollarRequestImpl,
   disguiseSelfRequestImpl,
   harmCharacterRequestImpl,
   brandCharacterRequestImpl,
@@ -183,6 +186,15 @@ export async function shackleCharacterRequest(input) {
 }
 export async function tortureCharacterRequest(input) {
   return guarded(() => tortureCharacterRequestImpl(input));
+}
+export async function applyCollarRequest(input) {
+  return guarded(() => applyCollarRequestImpl(input));
+}
+export async function unlockCollarRequest(input) {
+  return guarded(() => unlockCollarRequestImpl(input));
+}
+export async function detonateCollarRequest(input) {
+  return guarded(() => detonateCollarRequestImpl(input));
 }
 export async function disguiseSelfRequest(input) {
   return guarded(() => disguiseSelfRequestImpl(input));

@@ -189,7 +189,6 @@ async function loadCreationData(discordUserId) {
             difficulty: role.difficulty,
             startingLocationName: role.startingLocation?.name ?? null,
             startingZoneName: role.startingLocation?.zone?.name ?? null,
-            startingResources: role.startingResources,
             extraStartingPoints: role.extraStartingPoints,
             // Parsed, because the wizard matches these against catalog tag
             // slugs and an entry may carry a count ("obol x5").
@@ -804,6 +803,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const canTorture = heldSlugs.has("torturer"); // tortureCharacterRequest re-checks the tag and that the target is Bound
   const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug)); // Cruel, Torturer or Thanati
   const canBrand = heldSlugs.has("branding-iron"); // brandCharacterRequest re-checks tag and target's incapacitation
+  // The collar's three (docs/systemdocs/COLLAR.md). Each is purely "what is in
+  // my pocket" — never "is anybody here collared", which is the dialog's
+  // answer and the server's refusal, never the button's.
+  const canApplyCollar = heldSlugs.has("bomb-collar");
+  const canUnlockCollar = heldSlugs.has("collar-key");
+  const canDetonateCollar = heldSlugs.has("remote-detonator");
   // Shackles only give to an Escape Artist (LESSONS.md §3c); breakRestraintsRequest re-checks the tag, the Move, and rolls itself.
   const canBreakRestraints =
     heldSlugs.has("bound") || (heldSlugs.has("shackled") && heldSlugs.has("escape-artist"));
@@ -1192,6 +1197,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canTorture: canTorture,
       canMutilate: canMutilate,
       canBrand: canBrand,
+      canApplyCollar: canApplyCollar,
+      canUnlockCollar: canUnlockCollar,
+      canDetonateCollar: canDetonateCollar,
       canBreakRestraints: canBreakRestraints,
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,

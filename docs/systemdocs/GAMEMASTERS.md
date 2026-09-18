@@ -146,16 +146,16 @@ map's palette rather than an invented one:
 
 They are `--zone-fortress` / `--zone-town` / `--zone-forest` /
 `--zone-hills` / `--zone-marshes` / `--zone-caves` / `--zone-depths`,
-declared **inside each `[data-theme]` block** in `globals.css` (not on `:root`)
-so `audit-contrast.js` picks them up with no parser change. There is no
-`--zone-underground`: that zone is a category and a seat, never a place, so
-nothing ever renders a chip for it.
+declared **on `:root`** in `globals.css` — the app has one look now, not two,
+so there is no per-theme block left for them to live inside; see
+`DESIGN-SYSTEM.md` §3. There is no `--zone-underground`: that zone is a
+category and a seat, never a place, so nothing ever renders a chip for it.
 
-A few of the values deviate from the map, and the comments in
-`globals.css` say why: Fortress's terracotta measures **2.00** on dusk's
-surface and **2.12** on dawn's, so it is lifted in lightness with hue and
-saturation held. The other nine ship the map hex untouched. Do not "fix" the
-two back.
+One value deviates from the map, and the comment in `globals.css` says why:
+Fortress's terracotta measures **2.00** against `--surface`, under the 3.0
+graphic floor, so it is lifted off the map's own `#9c4132` in lightness with
+hue and saturation held, to `#c7604f`. The other six ship the map hex
+untouched. Do not "fix" it back.
 
 **These are fills only — the rule down the side of a chip, never a text
 colour.** They are gated at **3.0** against `--surface` (the large-graphic

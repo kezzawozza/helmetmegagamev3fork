@@ -464,6 +464,26 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     })),
   ];
 
+  // The collar's rosters (docs/systemdocs/COLLAR.md). Everybody standing here,
+  // alive, hoods included — and deliberately NOT filtered on who is already
+  // wearing a collar. A list that showed only the collared would hand whoever
+  // picked up a detonator the Exactor's entire roster at a glance; the server
+  // refuses an uncollared target by name instead, which costs the clicker a
+  // turn of attention and tells them one thing rather than all of them.
+  //
+  // collarTargets carries a SELF row that no other pool here does: you may put
+  // a collar on your own neck, and peopleHere never returns you to yourself.
+  const collarRoster = [
+    ...zoneRoster
+      .filter((c) => c.status === "ALIVE")
+      .map((c) => ({ id: `character:${c.id}`, name: rosterName(c) })),
+    ...hoodRoster.map((c) => ({ id: c.id, name: c.name })),
+  ];
+  const collarTargets = [{ id: `character:${character.id}`, name: rosterName(character) }, ...collarRoster];
+  // Unlock and Detonate act on other people only — there is no reading of
+  // either that wants your own name in the list.
+  const collarOthers = collarRoster;
+
   // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
   const harmTargets = [
     ...helpless
@@ -551,6 +571,8 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     lootTargets,
     consumeTargets,
     bindTargets,
+    collarTargets,
+    collarOthers,
     harmTargets,
     harmTags,
     doseTargets,

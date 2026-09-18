@@ -72,11 +72,6 @@ export default function LedgerBand({
   // web/lib/purse.js is the one copy — the chat aside's you-frame counts the
   // same way.
   const obols = obolsOf(character);
-  // The mockup's Resources tile also shows a cap. There is none: the old
-  // GameConfig.carryResourceCap was retired when a ⬢ started weighing a pound
-  // and pushing against the Carrying tile's cap instead (CARRY.md §1). So the
-  // sub-line says the coin and nothing else.
-  const resourceSub = obols > 0 ? `${obols} ¢ on you` : "no coin on you";
 
   const gambitParts = gambitModifiers(character.tags, { mood: character.mood });
   // Summed from the parts: two calls to the same module is two chances for the number and its explanation to disagree.
@@ -88,9 +83,12 @@ export default function LedgerBand({
     (worst, m) => (worst && Math.abs(worst.value) >= Math.abs(m.value) ? worst : m),
     null,
   );
+  // Only when something IS weighing on the roll. A tile saying "nothing
+  // weighing on it" under a die already reading ±0 says the same thing twice,
+  // and the quiet line is worth more empty than repeating the value above it.
   const gambitTop = heaviest
     ? `${heaviest.label} ${signed(heaviest.value)}${gambitParts.length > 1 ? ` · +${gambitParts.length - 1} more` : ""}`
-    : "nothing weighing on it";
+    : null;
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
@@ -159,15 +157,18 @@ export default function LedgerBand({
             label="Free moves"
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
-            // The mockup's "Gambit not yet filed" under this number: the same
-            // fact the turn card below states, said where a player counting
-            // their moves is already looking.
-            sub={isSelf ? (moveState?.move ? "Gambit filed" : "Gambit not yet filed") : null}
+            // "Gambit filed"/"not yet filed" used to sit here too, but the
+            // This turn box beside the strip already says the same thing —
+            // one fact, said once.
             detail={zoneMovesReason || null}
             open={tileOpen === "moves"}
             onOpen={(want) => setTileOpen(want ? "moves" : null)}
           />
-          <DetailTile label="Resources" value={`${heldResources} ⬢`} sub={resourceSub} />
+          {/* "Purse", not "Resources": ⬢ and ¢ side by side on one line, no
+              sub-line under it — the old sub carried "N ¢ on you" beside a
+              value that was already ⬢ alone, which is the same fact twice
+              once the two glyphs share a tile. */}
+          <DetailTile label="Purse" value={`${heldResources} ⬢ | ${obols} ¢`} />
           <DetailTile
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
@@ -193,12 +194,12 @@ export default function LedgerBand({
             value={moodBand?.label ?? "Fine"}
             tone={moodBand?.tone ?? "muted"}
             word
-            // The mockup's "−16 · press for why". The number IS shown here, on
-            // the quiet line, where the word above it is what carries the
-            // meaning — and "press for why" is a true sentence, because the
-            // tile's detail is Bascinet's paragraph on what moves a mood. Only
-            // on your own sheet: somebody else's figure is not yours to read.
-            sub={isSelf ? `${signed(character.mood ?? 0)} · press for why` : null}
+            // The figure, and nothing else. The mockup writes "−16 · press for
+            // why", but the tile is visibly pressable and the instruction only
+            // took up the line. The word above carries the meaning; this is the
+            // number behind it. Only on your own sheet: somebody else's figure
+            // is not yours to read.
+            sub={isSelf ? signed(character.mood ?? 0) : null}
             detail={MOOD_DETAIL}
             open={tileOpen === "mood"}
             onOpen={(want) => setTileOpen(want ? "mood" : null)}

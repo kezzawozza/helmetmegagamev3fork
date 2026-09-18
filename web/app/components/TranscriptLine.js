@@ -33,7 +33,7 @@
 // ArchiveTranscript keeps .archive-row.
 //
 // Phase 5 added the two of those it promised: the speaker-name palette rides on
-// `hue`, and the intercom block is `variant="block"` — which the decree shares,
+// `roleGroup`, and the intercom block is `variant="block"` — which the decree shares,
 // since a PA and a proclamation are the same shape with different heading faces.
 
 /**
@@ -74,11 +74,12 @@
  * @param {import("react").ReactNode} [p.name=null]
  *   The shown speaker. Null hides the head.
  * @param {boolean} [p.alias=false] tints the name (data-alias)
- * @param {number|null} [p.hue=null]
- *   1–6, the speaker's colour from the fixed name palette (REDESIGN.md §3).
- *   Lands on data-hue on the name. Assigned per character and stable across
- *   sessions — see web/app/components/nameHue.js. A hooded line keeps its alias
- *   tint instead; the hood is the more important thing to say.
+ * @param {string|null} [p.roleGroup=null]
+ *   The speaker's estate — one of the six coloured role groups
+ *   (db/lib/roleGroups.js#roleGroupHue). Lands on data-role-group on the name
+ *   and paints it from the estate palette (REDESIGN.md §3). Null for an
+ *   Outsider, for Elsewhere, for anybody with no seat, and for a hooded line,
+ *   whose row withholds it along with the character id.
  * @param {import("react").ReactNode} [p.meta=null]
  *   Extra head children, printed after the name — a source chip, a place, a
  *   turn number.
@@ -113,7 +114,7 @@ export default function TranscriptLine({
   gutterAside = null,
   name = null,
   alias = false,
-  hue = null,
+  roleGroup = null,
   meta = null,
   time = null,
   timeTitle = null,
@@ -192,7 +193,7 @@ export default function TranscriptLine({
           <span
             className="tline-name"
             data-alias={alias ? "true" : undefined}
-            data-hue={hue ?? undefined}
+            data-role-group={roleGroup ?? undefined}
           >
             {name}
           </span>
@@ -231,7 +232,7 @@ export default function TranscriptLine({
             <span
               className="tline-name"
               data-alias={alias ? "true" : undefined}
-              data-hue={hue ?? undefined}
+              data-role-group={roleGroup ?? undefined}
             >
               {name}
             </span>

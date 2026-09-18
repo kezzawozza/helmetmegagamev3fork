@@ -319,7 +319,7 @@ export default function EquipBoard({
 
   return (
     <section className="panel p-3 equip-board">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="panel-header-row justify-between">
         <h2 className="panel-header">Equipment</h2>
         {/* What the rig comes to, in the header, the way the mockup draws it:
             the shield mark and the word, twice, melee then ballistic. */}
@@ -447,21 +447,18 @@ export default function EquipBoard({
           <div key={slot} className="equip-row">
             <span className="field-label equip-row-title">
               <span>{SLOT_TITLES[slot]}</span>
-              {/* The one hint about how the slot fills, on the right of the
-                  row's own line — "Mail, then Over", "4 hands", "one thing".
-                  Named layers come from equipSlots.js rather than being written
-                  out again here, so a slot that gains a layer says so. */}
-              <span className="equip-row-hint">
-                {slot === "WEAPON" ? (
+              {/* Only WEAPON still carries a hint here — how many hands are
+                  full. HEAD, BODY and MOUNT used to prose out their own
+                  layer names ("Mail, then Over") or "one thing" beside the
+                  slot title; the mockup draws none of that, and the cells
+                  underneath already say what's worn. */}
+              {slot === "WEAPON" && (
+                <span className="equip-row-hint">
                   <span className="mono" data-over={hands > handCap ? "true" : undefined}>
-                    {hands}/{handCap} hands
+                    {hands}/{handCap} equipped
                   </span>
-                ) : LAYER_NAMES[slot] ? (
-                  LAYER_NAMES[slot].join(", then ")
-                ) : (
-                  "one thing"
-                )}
-              </span>
+                </span>
+              )}
             </span>
             {/* The slot's own cells, widened to whatever actually had to be
                 drawn — a stray layer on a layered row, or a second piece in an
@@ -482,8 +479,8 @@ export default function EquipBoard({
                 the server on an unrelated click. Say it here instead. */}
             {slot === "WEAPON" && hands > handCap && (
               <span className="chat-quiet-line">
-                You are holding more than {handCap} hands&apos; worth — put something away
-                before you ready anything else.
+                You are holding more than you can equip — put something away before you
+                ready anything else.
               </span>
             )}
           </div>

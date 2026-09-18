@@ -110,6 +110,10 @@ export const ACTION_HELP = {
     "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep.",
   brand:
     "Permanently brand someone who's bound or incapacitated. It costs you nothing, and it never comes off.",
+  applycollar:
+    "Permanently lock a collar around someone's neck. It can only be removed with a key.",
+  unlockcollar: "Unlock someone's collar.",
+  detonatecollar: "Detonate a slave collar.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   whisper:
@@ -520,6 +524,15 @@ export const ACTION_SECTIONS = [
       // is your own sheet's fact. Who here is bound or incapacitated is the
       // dialog's answer, never the button's.
       { mode: "brand", icon: BrandIcon, label: "Brand", show: "canBrand" },
+      // The collar's three (docs/systemdocs/COLLAR.md). HIDDEN on the same rule
+      // as the five above: what is in YOUR pockets is your own fact. Who here
+      // is already wearing a collar is deliberately NOT a gate and not a
+      // filter — the dialog lists everybody and the refusal is what tells you,
+      // because a button that lit up only over the collared would publish the
+      // Exactor's whole roster to anyone who could see it.
+      { mode: "applycollar", icon: ShackleIcon, label: "Apply Collar", show: "canApplyCollar" },
+      { mode: "unlockcollar", icon: KeyIcon, label: "Unlock Collar", show: "canUnlockCollar" },
+      { mode: "detonatecollar", icon: SkullIcon, label: "Detonate", show: "canDetonateCollar" },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       // The three body actions used to sit in a section of their own, on the
       // argument that a corpse is an object rather than somebody standing

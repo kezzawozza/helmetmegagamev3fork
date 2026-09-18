@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
-import nameHue from "@/app/components/nameHue";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
 import ActionButton from "@/app/components/ActionButton";
@@ -249,7 +248,7 @@ export default function HereList({
                 size={24}
                 online={person.online}
               />
-              <span className="chat-person-name" data-hue={nameHue(person.characterId)}>
+              <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
                 {person.name}
                 {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
                 {/* The avatar's glow ring is the mobile signal (portrait always
@@ -332,7 +331,7 @@ export default function HereList({
                   src={person.avatarPath ?? undefined}
                   size={24}
                 />
-                <span className="chat-person-name" data-hue={nameHue(person.characterId)}>
+                <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
                   {person.name}
                 </span>
               </span>

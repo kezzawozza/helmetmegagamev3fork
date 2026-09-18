@@ -173,9 +173,10 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
         });
       }
 
-      // Starting ⬢ are granted AFTER the row exists: they are a stack now, not
-      // a column, so there is nothing to set on the create.
-      await addCharacterResources(tx, character.id, threat.spawn.resources ?? spawn.role.startingResources ?? 0);
+      // A threat's own starting ⬢, granted AFTER the row exists: they are a
+      // stack now, not a column. The ROLE carries none — a seat that wants to
+      // hand ⬢ over lists them in startingTagSlugs like any other item.
+      await addCharacterResources(tx, character.id, threat.spawn.resources ?? 0);
 
       await tx.threatSpawn.update({
         where: { id: spawn.id },

@@ -9,6 +9,7 @@ import { DESK_CHANNEL } from "@lifeweb/db/lib/deskNotify";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow, GM_DM_SELECT, gmDmRow } from "./dmThread";
 import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream —
 // Railway runs `next start` as one long-lived Node server with one replica,
@@ -122,7 +123,7 @@ const NAME_MEMO_MS = 30_000;
 async function typingNameFor(characterId) {
   const h = hub();
   const cached = h.nameMemo.get(characterId);
-  // A miss on `name`, not the key: avatarVersionFor below writes the same entry.
+  // A miss on `name`, not the key: speakerFactsFor below writes the same entry.
   if (cached && cached.name != null && Date.now() - cached.at < NAME_MEMO_MS) return cached.name;
 
   const character = await prisma.character.findUnique({
@@ -149,20 +150,26 @@ async function typingNameFor(characterId) {
 // key (schema.prisma), so feedRowShape's own-row sentAt fallback changed on
 // every message and made your own avatar blink on send. Memoised beside the
 // typing name for the same reason: nobody gets a new portrait per message.
-async function avatarVersionFor(characterId) {
-  if (!characterId) return null;
+//
+// The estate the name is painted in comes back from the same lookup and lives
+// in the same memo entry — this is the live twin of
+// db/lib/archive.js#withAvatarVersions, and the two must answer alike or a line
+// would change colour when the page reloaded.
+async function speakerFactsFor(characterId) {
+  if (!characterId) return { avatarVersion: null, roleGroup: null };
   const h = hub();
   const cached = h.nameMemo.get(characterId);
-  if (cached && Date.now() - cached.at < NAME_MEMO_MS && cached.avatarVersion !== undefined) {
-    return cached.avatarVersion;
+  if (cached && Date.now() - cached.at < NAME_MEMO_MS && cached.avatarVersion !== undefined && cached.roleGroup !== undefined) {
+    return { avatarVersion: cached.avatarVersion, roleGroup: cached.roleGroup };
   }
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    select: { updatedAt: true },
+    select: { updatedAt: true, role: { select: { groupSlug: true } } },
   });
   const avatarVersion = character?.updatedAt?.getTime?.() ?? null;
-  h.nameMemo.set(characterId, { ...(cached ?? { name: null }), at: Date.now(), avatarVersion });
-  return avatarVersion;
+  const roleGroup = roleGroupHue(character?.role?.groupSlug);
+  h.nameMemo.set(characterId, { ...(cached ?? { name: null }), at: Date.now(), avatarVersion, roleGroup });
+  return { avatarVersion, roleGroup };
 }
 
 async function handleTyping(payload) {
@@ -371,11 +378,13 @@ async function handleNotification(msg) {
   // An edit goes out as the whole row; the client replaces by seq.
   // `clientId` goes to EVERY watcher, which is fine — it is a token a
   // browser only acts on if it is still holding a pending row for it.
+  const speaker = await speakerFactsFor(row.characterId);
   fanOut(
     parsed.placeKey,
     feedRowShape(row, {
       op: op === "edit" ? "edit" : "new",
-      avatarVersion: await avatarVersionFor(row.characterId),
+      avatarVersion: speaker.avatarVersion,
+      roleGroup: speaker.roleGroup,
       ...(parsed.clientId ? { clientId: String(parsed.clientId) } : {}),
     }),
   );

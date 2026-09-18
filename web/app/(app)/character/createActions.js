@@ -20,6 +20,7 @@ import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { seedMemories } from "@lifeweb/db/lib/locationVisits";
+import { issueSlaveContract } from "@lifeweb/db/lib/slaveContract";
 import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
   isWanted,
@@ -29,7 +30,6 @@ import {
   DEBTOR_STARTING_OBOLS,
 } from "@lifeweb/db/lib/wantedPoster";
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
-import { addCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import { openAccount } from "@lifeweb/db/lib/bankAccounts";
 import {
@@ -375,11 +375,6 @@ export async function createCharacter(formData) {
         })),
       });
 
-      // The starting ⬢. They can't ride along on the create any more — a ⬢
-      // balance is a stack row, so it needs the character to exist first.
-      // Same shape as db/lib/reincarnate.js.
-      await addCharacterResources(tx, character.id, role.startingResources ?? 0);
-
       // Any assigned seat this player held is spent by this character (db/lib/lobby.js#settleLobbyEntry).
       await settleLobbyEntry(tx, discordUserId, character.id);
 
@@ -444,6 +439,14 @@ export async function createCharacter(formData) {
   if (isDebtor(heldSlugs)) {
     await postDebtorNotices(prisma, { ...created, zoneName: role.startingLocation?.zone?.name ?? null }, openTurn)
       .catch((err) => console.error("postDebtorNotices failed:", err));
+  }
+  // The Slave's papers (db/lib/slaveContract.js). Keyed on the ROLE, not a tag:
+  // the contract is what the seat is, and a collar can be taken off somebody who
+  // was never sold. Best-effort like the posters above — a character who arrives
+  // without their paperwork is a GM fix, not a failed creation.
+  if (role.slug === "slave") {
+    await issueSlaveContract(prisma, created)
+      .catch((err) => console.error("issueSlaveContract failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   // UNCONDITIONAL, and it must stay that way. The old line was `if (cursed)`, back when one

@@ -6,6 +6,7 @@ const { Prisma } = require("@prisma/client");
 const { notifyFeed } = require("./feedNotify");
 const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
+const { roleGroupHue } = require("./roleGroups");
 
 // The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
@@ -40,13 +41,20 @@ function feedRowShape(row, extra = {}) {
   if (!row) return null;
   // Any row said under a name that isn't their own (a hood, or a forced name like Apex Form's Beast) wears a face that isn't theirs (presentedIdentity.js), so both withhold the id behind it.
   const hooded = Boolean(row.concealedAlias);
-  // Pulled out of `extra`, or a caller that knows the speaker's updatedAt (withAvatarVersions, feedHub) would put the cache-buster back on a hooded row after this took it off.
-  const { avatarVersion, ...rest } = extra;
+  // Both pulled out of `extra`, or a caller that knows the speaker (withAvatarVersions, feedHub) would spread the cache-buster and the estate back onto a hooded row after this took them off.
+  const { avatarVersion, roleGroup, ...rest } = extra;
   return {
     seq: String(row.seq),
     placeKey: row.placeKey ?? null,
     characterId: hooded ? null : (row.characterId ?? null),
     speakerKey: hooded && row.characterId ? hoodToken(row.characterId) : null,
+    // The estate the name is painted in (db/lib/roleGroups.js). Withheld on a
+    // hooded row beside the id and for the same reason: a bucket is a 1-of-6
+    // narrowing on its own, and it would sit next to a speakerKey that groups
+    // every line one person said all session. Only the six COLOURED groups ever
+    // get this far — roleGroupHue answers null for an Outsider, for Elsewhere
+    // and for anybody with no seat, so an uncoloured bucket never leaves here.
+    roleGroup: hooded ? null : (roleGroup ?? null),
     name: row.concealedAlias ?? row.characterName ?? null,
     alias: row.concealedAlias ?? null,
     avatarPath: row.presentedAvatarPath ?? null,
@@ -70,15 +78,27 @@ async function withAvatarVersions(prisma, rows, extra = {}) {
   const list = Array.isArray(rows) ? rows : [];
   const ids = [...new Set(list.map((row) => row?.characterId).filter(Boolean))];
   const versions = new Map();
+  const groups = new Map();
   if (ids.length > 0) {
     const characters = await prisma.character
-      .findMany({ where: { id: { in: ids } }, select: { id: true, updatedAt: true } })
+      // The role rides on the query that was already running — the estate a
+      // name is painted in comes off the same one lookup as the cache-buster,
+      // so a page of a hundred lines still costs one query, not a hundred.
+      .findMany({ where: { id: { in: ids } }, select: { id: true, updatedAt: true, role: { select: { groupSlug: true } } } })
       .catch(() => []);
-    for (const c of characters) versions.set(c.id, c.updatedAt?.getTime?.() ?? null);
+    for (const c of characters) {
+      versions.set(c.id, c.updatedAt?.getTime?.() ?? null);
+      groups.set(c.id, roleGroupHue(c.role?.groupSlug));
+    }
   }
   return list.map((row) => {
     const version = row?.characterId ? versions.get(row.characterId) : undefined;
-    return feedRowShape(row, version === undefined ? extra : { ...extra, avatarVersion: version });
+    const roleGroup = row?.characterId ? (groups.get(row.characterId) ?? null) : null;
+    return feedRowShape(row, {
+      ...extra,
+      ...(version === undefined ? {} : { avatarVersion: version }),
+      roleGroup,
+    });
   });
 }
 

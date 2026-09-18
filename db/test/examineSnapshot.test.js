@@ -60,11 +60,11 @@ const held = (tag, { equipped = false, expiresTurn = null, quantity } = {}) => (
 
 // `roleTitle` is the CHARACTER's own title and `role.examineVisible` the seat's
 // answer to whether a look may read it — presentedStateFrom needs both.
-const speaker = (tags, { roleTitle = "Serpent", examineVisible = true } = {}) => ({
+const speaker = (tags, { roleTitle = "Serpent", examineVisible = true, groupSlug = "saviors" } = {}) => ({
   name: "Semyun Varyutskaya",
   appearance: "Tall, with a burn along one jaw.",
   roleTitle,
-  role: roleTitle ? { examineVisible } : null,
+  role: roleTitle ? { examineVisible, groupSlug } : null,
   concealed: false,
   tags: [held(RESOURCES_TAG, { quantity: 4 }), ...tags],
 });
@@ -139,11 +139,25 @@ test("the role title is frozen too, and a rename afterwards does not reach the l
   assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleTitle, "Serpent");
 });
 
+test("the estate is frozen beside the title, so the colour answers for the line too", () => {
+  const state = roundTrip(speaker([]));
+  const subject = rehydrateSubject({ live, state, tags: [] });
+  assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleGroup, "saviors");
+});
+
+test("a seat in an uncoloured group freezes a title and no estate", () => {
+  const state = roundTrip(speaker([], { roleTitle: "Mercenary", groupSlug: "outsiders" }));
+  assert.equal(state.roleTitle, "Mercenary");
+  assert.equal(state.roleGroup, null);
+});
+
 test("a seat nobody reads off a look freezes no title at all", () => {
   const state = roundTrip(speaker([], { roleTitle: "Brigand", examineVisible: false }));
   assert.equal(state.roleTitle, null);
   // And it is absent from the stored payload, not merely dropped on the way out.
-  assert.equal(presentedStateFrom(speaker([], { roleTitle: "Brigand", examineVisible: false })).rt, null);
+  const frozen = presentedStateFrom(speaker([], { roleTitle: "Brigand", examineVisible: false, groupSlug: "outsiders" }));
+  assert.equal(frozen.rt, null);
+  assert.equal(frozen.rg, null);
   const subject = rehydrateSubject({ live, state, tags: [] });
   assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleTitle, null);
 });
@@ -167,9 +181,10 @@ test("readPresentedState refuses anything it does not recognise", () => {
 });
 
 test("readPresentedState survives junk inside a well-formed payload", () => {
-  const state = readPresentedState({ v: 1, n: 7, a: null, r: null, rt: 7, s: "x", f: null, c: 1, t: [null, ["ok", 1, 3], [4, 1, 1], ["bad", 0, "soon"]] });
+  const state = readPresentedState({ v: 1, n: 7, a: null, r: null, rt: 7, rg: 7, s: "x", f: null, c: 1, t: [null, ["ok", 1, 3], [4, 1, 1], ["bad", 0, "soon"]] });
   assert.equal(state.name, null);
   assert.equal(state.roleTitle, null);
+  assert.equal(state.roleGroup, null);
   assert.equal(state.resources, null);
   assert.equal(state.concealed, true);
   assert.deepEqual(state.tags, [

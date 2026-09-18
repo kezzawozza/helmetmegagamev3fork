@@ -439,6 +439,17 @@ desires:
     families: [feud, violence]
     oncePerLife: true
 
+  # The Slave's whole arc, so it pays like one and can only land once. The
+  # 50 obols on the contract paper is fiction the GM adjudicates against —
+  # nothing counts a balance and nothing fires automatically.
+  buy-your-freedom:
+    name: Buy your freedom
+    tier: 3
+    families: [status, wealth]
+    oncePerLife: true
+    requires:
+      anyRoles: [slave]
+
   # Gambling ladder (2026-09-02): a bet, then stakes that climb, then the
   # once-ever big win. win-3-gambling was retired by this pass.
   win-a-bet:

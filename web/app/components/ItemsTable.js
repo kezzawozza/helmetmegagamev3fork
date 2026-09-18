@@ -38,7 +38,7 @@ export default function ItemsTable({
 
   return (
     <section className="panel p-3 sheet-card" data-card="items">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="panel-header-row justify-between">
         <h2 className="panel-header">Items</h2>
         <span className="mono text-sm text-muted">
           {totalWeight != null ? `${totalWeight} lb carried` : `${rows.length}`}

@@ -82,6 +82,15 @@ export default function NavRail({ items }) {
   return (
     <>
       <nav className="app-rail" aria-label="Main">
+        {/* The rail's own console cap (DESIGN-SYSTEM.md §3a's chrome pass).
+            Decorative only — not a link, not a heading, just the metal strip
+            every other column head wears (.bar, chat.css) with a blackletter
+            initial in place of a word the 56px rail has no room for. */}
+        <div className="rail-cap bar">
+          <span className="rail-cap-glyph" aria-hidden="true">
+            B
+          </span>
+        </div>
         {items.map((item, i) => {
           const Icon = ICONS[item.icon];
           const divide = i > 0 && item.section !== items[i - 1].section;

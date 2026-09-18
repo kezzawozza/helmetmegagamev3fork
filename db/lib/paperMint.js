@@ -203,6 +203,9 @@ module.exports = {
   writeNewPaper,
   bindBook,
   mintLetterFor,
+  // The titled twin of mintLetterFor, which is only this with the title left
+  // off. The Slave's contract needs one (db/lib/slaveContract.js).
+  mintPaperRow,
   mintUnownedPaper,
   sealWithMark,
   appendToPaper,

@@ -162,7 +162,12 @@
    alongside it, so this rule also answers to the mockup's class. */
 .ledger-tile,
 .tile {
-  background: var(--field-bg);
+  /* var(--surface-raised), matching the mockup's own .tile — this is a
+     raised card sitting on the band, not a recessed input well. It used to
+     read var(--field-bg), which is the well colour, and painted all five
+     tiles (Free moves, Resources, Carrying, Mood, Gambit die) as flat black
+     boxes where the mockup reads warm. */
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-1) var(--sp-2);
@@ -264,7 +269,11 @@
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  background: var(--field-bg);
+  /* Same fix as .ledger-tile above, and for the same reason: this class rides
+     alongside it on every OPENABLE tile (Mood, the Gambit die — DetailTile.js
+     applies both), and being later in the cascade it was winning, so those
+     two tiles stayed black after the plain ones turned warm. */
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-1) var(--sp-2);
@@ -282,12 +291,17 @@
   outline-offset: 2px;
 }
 
+/* --text-hi, not --text. The mockup draws a tile's number a shade brighter
+   than the prose around it, the same lift it gives a heading — the figure is
+   the thing you came to the tile to read. A tone below overrides it when the
+   number means something (over cap, a mood band). */
 .ledger-tile-value {
   font-family: var(--font-mono);
   font-size: var(--fs-lg);
   line-height: 1.2;
   display: block;
   margin-top: var(--sp-1);
+  color: var(--text-hi);
 }
 
 .ledger-tile-value[data-over="true"] {
@@ -449,10 +463,10 @@
   display: block;
 }
 
-/* The strip under the tiles: the Move as filed, on the recessed surface
-   the tiles use so the whole band reads as one instrument panel. */
+/* The strip under the tiles: the Move as filed, on the raised surface the
+   tiles use so the whole band reads as one instrument panel. */
 .ledger-turn {
-  background: var(--field-bg);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-1) var(--sp-2);
@@ -556,31 +570,43 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-1) 0;
-}
-
-.action-strip-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  /* Column-gap used to be 0 here, with the between-buttons spacing coming
+     from .action-strip-group's own `gap`. Now every button is a direct flex
+     item of this row (the group is `display: contents`), so this is the
+     only gap left to carry that spacing — between buttons AND between a
+     button and the next .action-strip-sep. */
   gap: var(--sp-1);
-  padding-right: var(--sp-2);
-  margin-right: var(--sp-2);
-  border-right: 1px solid var(--border);
 }
 
-.action-strip-group:last-child {
-  padding-right: 0;
-  margin-right: 0;
-  border-right: none;
+/* No box of its own: its buttons flow as direct items of .action-strip so
+   the outer row wraps BUTTON by button rather than section by section — a
+   section used to be its own flex box, so one that didn't fit the remaining
+   width moved to the next line WHOLE, an orphan row of one icon whenever a
+   section's count didn't divide evenly, and the divider between sections
+   stopped reading once every section was already starting its own line.
+   `display: contents` keeps the element's `role="group"`/`aria-label` in the
+   accessibility tree (screen readers still hear the section boundary) while
+   dropping its layout box; ActionGrid.js draws `.action-strip-sep` as a real
+   sibling element to carry the rule this used to draw as its own border. */
+.action-strip-group {
+  display: contents;
+}
+
+.action-strip-sep {
+  align-self: stretch;
+  width: 1px;
+  background: var(--border);
 }
 
 /* On top of .btn-secondary, not instead of it. The font-family is pinned
    because the .tag-hover wrapper the tooltip brings with it hands down the mono
    face, and these are labels, not data. */
+/* 3px, the mockup's own .btn padding, not 4 — an extra pixel top and bottom
+   on 24 buttons is two more rows' worth of dark between the labels, and the
+   strip is meant to read as one dense bar. */
 .action-strip-item {
   gap: var(--sp-1);
-  padding: 4px var(--sp-2);
+  padding: 3px var(--sp-2);
   font-family: var(--font-sans);
   letter-spacing: normal;
   white-space: nowrap;
@@ -595,9 +621,9 @@
    stay pressable so its tooltip can be opened (ActionButton.js), so the look
    has to be said again rather than riding :disabled. */
 .action-strip-item[data-muted="true"] {
-  border: 2px dashed var(--border);
-  background: var(--field-bg);
-  color: var(--muted);
+  border: 2px dashed var(--well-border);
+  background: var(--well-bg);
+  color: var(--well-text);
   cursor: not-allowed;
 }
 
@@ -610,6 +636,28 @@
    One card per kind, one row per tag. A row is a button (the name and its
    note) with the verbs and the value beside it; open, its details follow on
    the recessed surface. */
+/* The Tags panel's own note, "4 tag points · Spend Tag Points" — the count
+   sits in plain muted text (TagPointsValue keeps toning the number itself),
+   the verb is the one accent-coloured word. This used to be one fused
+   .btn-quiet reading "Spend Tag Points (4)", uniformly muted throughout, so
+   the count and the control read as a single grey button rather than a
+   count with an action beside it. */
+.tag-points-note {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.tag-points-spend {
+  all: unset;
+  cursor: pointer;
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.tag-points-spend:hover {
+  color: var(--text-hi);
+}
+
 .sheet-tags-filter {
   display: block;
   margin-bottom: var(--sp-2);
@@ -933,14 +981,23 @@
   align-items: stretch;
   min-width: 0;
   min-height: 30px;
-  background: var(--field-bg);
+  /* var(--surface-raised), matching the mockup's own filled .equip-cell —
+     this is a card sitting on the panel, not a well cut into it. It used to
+     read var(--field-bg), the same bug class the band tiles carried last
+     pass: a filled cell painted in the recessed-input colour. */
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
 }
 
+/* An empty slot is a well, not a fainter card: a darker ground, a dashed
+   edge, dimmer text than the rest of the row. It used to be transparent
+   over the panel, which read as a gap rather than as a place to fill. */
 .equip-cell.is-empty {
   border-style: dashed;
-  background: transparent;
+  border-color: var(--well-border);
+  background: var(--well-bg);
+  color: var(--well-text);
 }
 
 .equip-cell-face {
@@ -969,10 +1026,19 @@ button.equip-cell-face:focus-visible {
   outline-offset: -2px;
 }
 
+/* The name of the thing you are wearing, lifted the way the mockup lifts it
+   (its `.cell-name b`). It used to inherit --muted from the cell, which put
+   the one word that matters in a slot at the same weight as the fact under
+   it. An EMPTY cell's label stays quiet — that rule is below. */
 .equip-cell-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-hi);
+}
+
+.equip-cell.is-empty .equip-cell-name {
+  color: var(--well-text);
 }
 
 .equip-cell-fact {
@@ -1080,7 +1146,7 @@ button.equip-cell-face:focus-visible {
 }
 
 .desire .head b {
-  color: var(--text);
+  color: var(--text-hi);
 }
 
 .desire p {

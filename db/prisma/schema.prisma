@@ -3495,8 +3495,9 @@ model Role {
   unlimited Boolean @default(false)
   weight    Int?
 
-  // The starting package handed to a character who picks this role.
-  startingResources   Int      @default(0)
+  // The starting package handed to a character who picks this role. No ⬢ line
+  // here any more: ⬢ are the stackable `resources` Tag now, so a role that
+  // wants to hand some over lists them in startingTagSlugs like anything else.
   extraStartingPoints Int      @default(0)
   startingTagSlugs    String[] @default([])
   docElements         String[] @default([])
@@ -4355,6 +4356,9 @@ enum OfferKind {
   ESCORT
   KISS
   SEARCH
+  // Putting a bomb collar on somebody who could say no (docs/systemdocs/COLLAR.md).
+  // A helpless or dead target skips the offer entirely, exactly as BIND does.
+  COLLAR
 }
 
 enum OfferStatus {

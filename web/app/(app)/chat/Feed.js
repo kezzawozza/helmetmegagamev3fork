@@ -4,7 +4,6 @@ import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { useRefresh } from "@/app/components/useRefresh";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import TranscriptLine from "@/app/components/TranscriptLine";
-import nameHue from "@/app/components/nameHue";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
@@ -317,11 +316,12 @@ const FeedRow = memo(function FeedRow({
       // second element.
       name={realName ? `${row.name} (${realName})` : row.name}
       alias={Boolean(row.alias)}
-      // The speaker's own colour out of the six (REDESIGN.md §3). Hashed off the
-      // character id, or off the hood token when the row carries no id — either
-      // way it is the same colour every session, which is what makes it worth
-      // reading. The alias tint wins in the CSS for a hooded line.
-      hue={nameHue(row.characterId ?? row.speakerKey ?? null)}
+      // The estate the speaker answers to, out of the six coloured role groups
+      // (REDESIGN.md §3). Decided on the server and withheld on a hooded row
+      // (db/lib/archive.js#feedRowShape), so there is nothing to fall back to
+      // here and nothing to guess: a line with no colour is a line whose
+      // speaker belongs to no estate, or one nobody can see the face of.
+      roleGroup={row.roleGroup ?? null}
       time={timeLabel(row.sentAt)}
       edited={Boolean(row.editedAt)}
       // The bar FLOATS over the row's top-right corner (.tline-actions), so it
@@ -1365,6 +1365,7 @@ export default function Feed({
       // confirmed one agree about which lines are yours.
       characterId: self.aliased ? null : self.characterId,
       speakerKey: self.aliased ? self.speakerKey : null,
+      roleGroup: self.aliased ? null : (self.roleGroup ?? null),
       name: self.name,
       avatarVersion: self.aliased ? null : self.avatarVersion,
       avatarPath: self.avatarPath,

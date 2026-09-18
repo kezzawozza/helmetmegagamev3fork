@@ -3,17 +3,22 @@
 // (appearance, name, held/worn tags, ⬢); catalog-side live (a tag's name/armour/
 // requirement/visibility, read off Tag at look time — db/lib/examine.js#EXAMINE_TAG_SELECT — so a
 // rebalance reaches old lines); viewer-side live (the looker's own faculties, never frozen). Payload
-// is compact — rides on every message row: `{ v, n, a, s, c, rt, t: [[tagId, 0|1, expiresTurn]] }`. A
+// is compact — rides on every message row: `{ v, n, a, s, c, rt, rg, t: [[tagId, 0|1, expiresTurn]] }`. A
 // row written before factions were removed also carries `r` and `f`; both are ignored on the way back
 // out. `rt` is the role title and a NEW key rather than a reuse of `r`: the old one froze a title for
 // everybody, and this one is written only for a seat whose Role says a look may read it
 // (`examine_visible:` in docs/roles.yaml), so an opaque seat never enters the payload at all — not in
-// the database, and not in an exported archive packet, which ships the blob verbatim.
+// the database, and not in an exported archive packet, which ships the blob verbatim. `rg` is the
+// estate that title is PAINTED in (db/lib/roleGroups.js), under the same gate, so the colour on the
+// readout answers for the same moment its words do. The feed's own name colour does NOT come from
+// here — presentedState holds the whole tag list and is barred from a wire select, so
+// db/lib/archive.js#withAvatarVersions reads that one live.
 // EVERY tag goes in, not a filtered subset — pruning hidden rows would let a Beast's frozen line read
 // out under their real name. Prisma-free except loadPresentedState, which takes `prisma` (db/lib/dm.js
 // convention).
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 const { RESOURCES_SLUG, resourcesOf } = require("./resourceStack");
+const { roleGroupHue } = require("./roleGroups");
 
 const SNAPSHOT_VERSION = 1;
 
@@ -25,7 +30,7 @@ const PRESENTED_STATE_SELECT = {
   appearance: true,
   concealed: true,
   roleTitle: true,
-  role: { select: { examineVisible: true } },
+  role: { select: { examineVisible: true, groupSlug: true } },
   tags: {
     select: {
       tagId: true,
@@ -53,6 +58,7 @@ function presentedStateFrom(character) {
     // them as. Written only when the seat is one a look may read; an opaque
     // seat, or a character with no Role row behind the title, freezes nothing.
     rt: character.role?.examineVisible ? (character.roleTitle ?? null) : null,
+    rg: character.role?.examineVisible ? roleGroupHue(character.role?.groupSlug) : null,
     t: (character.tags ?? [])
       .filter((ct) => ct?.tagId)
       .map((ct) => [ct.tagId, ct.equipped ? 1 : 0, ct.expiresTurn ?? null]),
@@ -82,6 +88,7 @@ function readPresentedState(value) {
     resources: Number.isFinite(value.s) ? value.s : null,
     concealed: Boolean(value.c),
     roleTitle: typeof value.rt === "string" ? value.rt : null,
+    roleGroup: typeof value.rg === "string" ? value.rg : null,
     tags,
   };
 }
@@ -103,6 +110,7 @@ function rehydrateSubject({ live, state, tags = [] }) {
     // not called `roleTitle`: a raw Character row carries one of those with no
     // visibility attached, and db/lib/examine.js must not be able to read it.
     visibleRoleTitle: state.roleTitle ?? null,
+    visibleRoleGroup: state.roleGroup ?? null,
     tags: state.tags
       .map((row) => {
         const tag = byId.get(row.tagId);

@@ -126,6 +126,8 @@ export default function RequestActionsProvider({
   // corpse being nobody to hand a cure to. Empty selection means self.
   consumeTargets = [],
   bindTargets = [],
+  collarTargets = [],
+  collarOthers = [],
   harmTargets = [],
   harmTags = [],
   // Poison's own dose-a-helpless-person roster (M4) — the same helpless class
@@ -231,6 +233,9 @@ export default function RequestActionsProvider({
   // and that the target is bound or otherwise incapacitated
   // (INCAPACITATING_SLUGS — TORTURE.md §8). Reuses `doseTargets` above.
   canBrand = false,
+  canApplyCollar = false,
+  canUnlockCollar = false,
+  canDetonateCollar = false,
   // Break Restraints: you hold `bound`. Your own sheet, the same HIDDEN rule
   // as Extract — the action re-checks the tag and the Move itself.
   canBreakRestraints = false,
@@ -345,6 +350,8 @@ export default function RequestActionsProvider({
     lootTargets,
     consumeTargets,
     bindTargets,
+    collarTargets,
+    collarOthers,
     harmTargets,
     harmTags,
     doseTargets,
@@ -562,6 +569,9 @@ export default function RequestActionsProvider({
       canTorture,
       canMutilate,
       canBrand,
+      canApplyCollar,
+      canUnlockCollar,
+      canDetonateCollar,
       canBreakRestraints,
       hasDatacard,
       hasDevice,
@@ -628,6 +638,9 @@ export default function RequestActionsProvider({
       canTorture,
       canMutilate,
       canBrand,
+      canApplyCollar,
+      canUnlockCollar,
+      canDetonateCollar,
       canBreakRestraints,
       hasDatacard,
       hasDevice,

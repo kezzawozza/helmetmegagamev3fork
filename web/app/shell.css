@@ -82,20 +82,3 @@
   gap: 4px 12px;
   justify-content: space-between;
 }
-
-/* ---------- the rail, restyled (NavRail.js) ----------
-   Square corners, a hairline against the page (.app-rail already carries
-   border-right/background from globals.css — left alone), and the active
-   item marked with an edge rather than a filled pill. Scoped to the same
-   min-width the desktop rule lives at in globals.css, so the mobile bottom
-   bar (which never draws this pseudo-element) is untouched. */
-@media (min-width: 721px) {
-  .rail-item[data-active="true"]::before {
-    border-radius: 0;
-    width: 2px;
-    height: 100%;
-    top: 0;
-    transform: none;
-    background: var(--accent-text);
-  }
-}

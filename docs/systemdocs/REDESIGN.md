@@ -66,8 +66,11 @@ it landed in phase 1 and has since moved with the app: **`DESIGN-SYSTEM.md`
 
 This section specified moving off `themeForPhase` (turn-phase-based) onto the
 real Chicago clock, with a slow warmth gradient through the day and a hard
-switch at dusk. Landed in phase 2. **`DESIGN-SYSTEM.md` §3 (Themes)** is the
-current description, alongside `web/lib/clockTheme.js` itself.
+switch at dusk. Landed in phase 2, and ran until **2026-09-18**, when
+Bascinet retired the two-look system outright: one look now, the
+character-sheet mockup's own `:root` taken verbatim rather than re-solved,
+no clock, no ramp, no `web/lib/clockTheme.js` (deleted along with it).
+**`DESIGN-SYSTEM.md` §3 (Themes)** is the current description.
 
 ## 5. One component set
 

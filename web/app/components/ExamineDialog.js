@@ -140,8 +140,9 @@ export function Readout({ readout }) {
 
       {/* Above the gear, because an office is part of who somebody is rather
           than a thing found on them. Null for a hood and for the four seats
-          nobody reads off a look — decided once in db/lib/examine.js. */}
-      <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} />
+          nobody reads off a look — decided once in db/lib/examine.js. Painted
+          in its estate's colour, the same one the feed paints their name in. */}
+      <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} roleGroup={readout.roleGroup} />
 
       <Line label="Ailments" values={readout.ailments} />
       <Line label="Equipment" values={readout.equipment} />
@@ -161,12 +162,17 @@ export function Readout({ readout }) {
   );
 }
 
-function Line({ label, values }) {
+// `roleGroup` is only ever passed by the Role line, and only for one of the six
+// coloured estates — the same attribute the feed paints a name with, so the two
+// surfaces cannot drift apart on what colour somebody is.
+function Line({ label, values, roleGroup = null }) {
   if (!values || values.length === 0) return null;
   return (
     <div className="field">
       <span className="field-label">{label}</span>
-      <p className="text-sm">{values.join(", ")}</p>
+      <p className={roleGroup ? "text-sm examine-role" : "text-sm"} data-role-group={roleGroup ?? undefined}>
+        {values.join(", ")}
+      </p>
     </div>
   );
 }

@@ -1,0 +1,13 @@
+-- Role.startingResources is gone. ⬢ became the stackable `resources` Tag, so a
+-- role-level integer that creation turned into that stack was a second spelling
+-- of `starting_tags: [Resources xN]` -- two ways to say one thing, and only one
+-- of them showed up on the sheet as an item you could put down, hand over or
+-- have stolen.
+--
+-- Nothing is granted in its place: every seat loses its starting ⬢ outright.
+-- A role that wants to hand some over lists them in `starting_tags` from now on.
+--
+-- Not dropped: AuditLog rows whose `details` carry a `startingResources` key.
+-- db/lib/economyAdapter.js still reads it when replaying history, and a JSONB
+-- key costs nothing to leave alone.
+ALTER TABLE "Role" DROP COLUMN IF EXISTS "startingResources";
