@@ -287,7 +287,6 @@ async function FreshDepot() {
         depot: {
           debtObols: depot.debtObols,
           creditCapObols: depot.creditCapObols,
-          sellTaxRate: depot.sellTaxRate,
           turretArmed: depot.turretArmed,
         },
         greetingName: greeting,

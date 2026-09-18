@@ -11,11 +11,12 @@ import RequestDialog from "./RequestDialog";
 
 // Your account, and the door between a claim and a coin.
 //
-// The class is the thing to read first. A Treasury account is backed by real
+// The heading is the thing to read first. A Treasury account is backed by real
 // coin in the Keep's Vault: withdrawing takes it out, depositing puts it back,
 // and an empty Vault means nobody gets paid however healthy their balance
-// looks. An Offshore account — the Merchant's and his Dockers' — is money the
-// Company holds off-world, so none of that applies to it.
+// looks — which is why the Vault, not the balance, caps a withdrawal below. An
+// Offshore account — the Merchant's and his Dockers' — is money the Company
+// holds off-world, so none of that applies to it.
 export default function DepotAtmsTab({
   account,
   heldObols,
@@ -70,7 +71,6 @@ export default function DepotAtmsTab({
     return (
       <section className="panel p-5">
         <h2 className="panel-header">No account</h2>
-        <p className="mt-3 text-sm text-muted">Opening one costs nothing.</p>
         <button
           type="button"
           className="btn mt-4"
@@ -118,12 +118,6 @@ export default function DepotAtmsTab({
             </div>
           )}
         </dl>
-
-        <p className="mt-3 text-sm text-muted">
-          {account.backed
-            ? "Backed by the treasury — you can only draw what's there."
-            : "Held off-world, with no treasury behind it."}
-        </p>
 
         <div className="mt-4 flex gap-2">
           <button
@@ -241,7 +235,6 @@ export default function DepotAtmsTab({
               onChange={(e) => setAmount(e.target.value)}
             />
           </label>
-          <p className="text-sm text-muted">At most {dialog.max} ¢.</p>
         </RequestDialog>
       )}
     </div>

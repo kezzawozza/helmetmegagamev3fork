@@ -88,7 +88,7 @@ export default function DepotConsole(props) {
 
       {/* Keyed, so switching tabs resets each one's search box and page
           number rather than carrying a stale filter across. */}
-      <Body key={tab} {...props} sellTaxRate={props.depot?.sellTaxRate ?? 0} />
+      <Body key={tab} {...props} />
     </div>
   );
 }

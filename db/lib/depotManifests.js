@@ -25,19 +25,16 @@ const MANIFESTS = [
     name: "General",
     // Open to everybody standing at the counter, account or not.
     requiredTagSlug: null,
-    blurb: "Bulk material and ration boxes.",
   },
   {
     id: MANIFEST_BLACK_MARKET,
     name: "Black Market",
     requiredTagSlug: "silver-chip",
-    blurb: "Drink, smoke and worse.",
   },
   {
     id: MANIFEST_MERCHANT,
     name: "Merchant",
     requiredTagSlug: "merchants-license",
-    blurb: "Everything the depot stocks, sealed goods included.",
   },
 ];
 

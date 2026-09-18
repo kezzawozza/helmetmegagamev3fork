@@ -6,6 +6,7 @@ import { depotDrop, depotSaleDestination } from "@/app/(app)/depot/actions";
 import { TableScroll } from "./DataTable";
 import Select from "./Select";
 import RequestDialog from "./RequestDialog";
+import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/placeAffordances";
 
 // What you have put in the drop box, and where the money is going.
 //
@@ -31,8 +32,6 @@ export default function DepotSellingTab({
   defaultDestination = "SELF",
   canSellToMerchant = false,
   licensed = false,
-  sellTaxRate = 0,
-  train,
   disabled,
 }) {
   const [refresh] = useRefresh();
@@ -95,11 +94,7 @@ export default function DepotSellingTab({
           </Select>
         </label>
 
-        <p className="mt-3 text-sm text-muted">
-          Whatever you drop is gone at once and pays out when the train leaves —
-          it {train?.nextLabel ?? "runs every other turn"}.
-          {sellTaxRate > 0 ? ` The Meister takes ${sellTaxRate}%.` : ""}
-        </p>
+        <p className="mt-3 text-sm text-muted">{DROPBOX_HELP}</p>
 
         {staged.length > 0 && (
           <>
@@ -224,6 +219,7 @@ export default function DepotSellingTab({
 
       <section className="panel p-5 depot-aside">
         <h2 className="panel-header">Dropbox</h2>
+        {sellable.length === 0 && <p className="mt-3 text-sm text-muted">{DROPBOX_EMPTY}</p>}
         {sellable.length > 0 && (
           <ul className="depot-list mt-3">
             {sellable.map((item) => (

@@ -24,6 +24,7 @@ const {
   canOrder,
   isManifestId,
 } = require("../lib/depotManifests");
+const { normalizeQuantity, DEPOT_MAX_QUANTITY } = require("../lib/depot");
 
 test("turn 1 is a departure close with nothing to load — turn 2's close brings down what was ordered on turn 1", () => {
   assert.equal(isDepartureTurn(1), true);
@@ -69,12 +70,14 @@ test("a turn number that is missing reads as the resting state rather than throw
   assert.equal(typeof trainState(null).label, "string");
 });
 
-test("every manifest in the catalog has an id, a name and something to say", () => {
+test("every manifest in the catalog has an id and a name, and carries no blurb", () => {
   assert.equal(MANIFESTS.length, MANIFEST_IDS.length);
   for (const m of MANIFESTS) {
     assert.equal(typeof m.id, "string");
     assert.ok(m.name.length > 0, `${m.id} has no name`);
-    assert.ok(m.blurb.length > 0, `${m.id} has no blurb`);
+    // A shelf is named and either open to you or not. The one-line descriptions
+    // were cut on purpose — do not put one back.
+    assert.equal("blurb" in m, false, `${m.id} has a blurb`);
     assert.equal(isManifestId(m.id), true);
   }
 });
@@ -176,4 +179,29 @@ test("the anchor's buttons still chunk under Discord's five-per-row cap", () => 
   const rows = locationAnchorRows({ ...DEPOT_LOCATION, attributes: { depot: true, noticeboard: true } });
   assert.ok(rows.length >= 2, "seven buttons should be more than one row");
   for (const row of rows) assert.ok(row.components.length <= 5, "a row is over Discord's cap");
+});
+
+// The per-train cap is a null, and the order action reads that null two ways on
+// purpose: an over-cap WARE line is refused out loud, an over-cap ⬢ line is
+// dropped silently and the rest of the cart still prices. Both readings depend
+// on this returning null rather than clamping, so pin it.
+test("the per-train cap refuses rather than clamps, and a legal quantity comes back unchanged", () => {
+  assert.equal(normalizeQuantity(1), 1);
+  assert.equal(normalizeQuantity(DEPOT_MAX_QUANTITY), DEPOT_MAX_QUANTITY);
+  assert.equal(normalizeQuantity(DEPOT_MAX_QUANTITY + 1), null);
+  assert.equal(normalizeQuantity(0), null);
+  assert.equal(normalizeQuantity(-3), null);
+  assert.equal(normalizeQuantity(2.5), null);
+  assert.equal(normalizeQuantity("not a number"), null);
+});
+
+// The Dropbox says one thing on three faces, so it is defined once.
+test("the Dropbox's help line and empty state are single definitions beside its label", () => {
+  const { DROPBOX_HELP, DROPBOX_EMPTY, ROOM_AFFORDANCES } = require("../lib/placeAffordances");
+  assert.match(DROPBOX_HELP, /^The next time the train leaves,/);
+  assert.match(DROPBOX_HELP, /credited to your chosen account\.$/);
+  assert.equal(DROPBOX_EMPTY, "You don't have anything you can sell.");
+  // Straight apostrophe, never curly (CLAUDE.md).
+  assert.equal(/[\u2018\u2019]/.test(`${DROPBOX_HELP}${DROPBOX_EMPTY}`), false);
+  assert.equal(ROOM_AFFORDANCES.some((a) => a.id === "dropbox" && a.label === "Dropbox"), true);
 });

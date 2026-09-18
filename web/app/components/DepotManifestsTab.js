@@ -16,7 +16,7 @@ export default function DepotManifestsTab({ manifests = [], openManifests = [], 
           return (
             <li key={m.id}>
               <span>
-                <strong>{m.name}</strong> — {m.blurb}
+                <strong>{m.name}</strong>
               </span>
               <span className={open ? "mono" : "mono text-muted"}>{open ? `${count} wares` : "closed"}</span>
             </li>

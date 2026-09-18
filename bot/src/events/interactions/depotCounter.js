@@ -19,6 +19,7 @@ const {
 } = require("@lifeweb/db/lib/depotCounter");
 const { buildAmountModal } = require("../../lib/depotModals");
 const { buildTurretModal, TURRET_WORD_FIELD } = require("../../lib/turretModal");
+const { DROPBOX_HELP, DROPBOX_EMPTY } = require("@lifeweb/db/lib/placeAffordances");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ack, respond } = require("../../lib/respond");
@@ -126,14 +127,12 @@ async function handleDropBoxOpen(interaction) {
     return;
   }
   if (!state.sellable.length) {
-    await respond(interaction, "Nothing on you the depot buys.");
+    await respond(interaction, DROPBOX_EMPTY);
     return;
   }
 
   await respond(interaction, {
-    content:
-      "» *The next time the train leaves, anything you put in the dropbox will be automatically sold and " +
-      "credited to your chosen account.*",
+    content: `» *${DROPBOX_HELP}*`,
     components: [
       new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()

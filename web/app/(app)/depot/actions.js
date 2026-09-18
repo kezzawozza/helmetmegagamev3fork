@@ -148,7 +148,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
   const { session, character, held, account } = await requireAccount();
 
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
-    throw new UserError("Nothing on the order.");
+    throw new UserError("You didn't order anything.");
   }
   if (rawItems.length > MAX_ORDER_LINES) {
     throw new UserError(`More than ${MAX_ORDER_LINES} line items — split the order.`);
@@ -180,10 +180,11 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
   // the row records — the Buying tab carts per section anyway.
   let manifestId = MANIFEST_GENERAL;
 
-  if (resourceUnits > 0) {
-    if (normalizeQuantity(resourceUnits) == null) {
-      throw new UserError("That's more ⬢ than the depot will put on one train.");
-    }
+  // Over the per-train cap, the ⬢ line is dropped and the rest of the cart is
+  // priced — a silent refusal, not a message. The Buying tab's number input is
+  // capped already, so an honest click never gets here; a hand-built request
+  // buys the wares it asked for and no ⬢.
+  if (resourceUnits > 0 && normalizeQuantity(resourceUnits) != null) {
     total += RESOURCE_IMPORT_PRICE * resourceUnits;
     // No tagId marks it as Resources downstream (db/lib/depotCrates.js packs it).
     lines.push({ name: "Resources", quantity: resourceUnits, unitPrice: RESOURCE_IMPORT_PRICE, sealed: false });
@@ -203,7 +204,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
     }
     // Non-stackable wares are unique per character (CharacterTag), so ordering two would charge for two, deliver one.
     if (!tag.stackable && quantity > 1) {
-      throw new UserError(`The depot will not ship more than one ${tag.name}.`);
+      throw new UserError(`The depot can't ship more than one ${tag.name}.`);
     }
     total += tag.depotPrice * quantity;
     lines.push({
@@ -356,10 +357,10 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
     },
     data: { destination },
   });
-  if (!count) throw new UserError("That one has already gone.");
-
+  // No row updated means the train settled it between the click and here.
+  // Nothing to say — the refresh redraws it under Sold, which is the answer.
   revalidateAll();
-  return { destination };
+  return { destination, settled: count === 0 };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
