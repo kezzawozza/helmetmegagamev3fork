@@ -191,10 +191,10 @@ export default function RequestActionsProvider({
   canSeeRefine = false,
   canRefine = false,
   refineBlocked = null,
-  // Mine (db/lib/mining.js). The LocationMining row is what decides whether
-  // the button exists at all; `mineBlocked` carries the skill, the Exhausted
-  // lockout and the once-a-turn Move rule, all resolved by the same
-  // resolveMiningRate the action re-runs.
+  // Mine (db/lib/mining.js). Holding Prospecting is what decides whether the
+  // button exists at all; `mineBlocked` carries being outside the Caves, the
+  // LocationMining row, the Exhausted lockout and the once-a-turn Move rule,
+  // resolved alongside the same resolveMiningRate the action re-runs.
   canSeeMine = false,
   canMine = false,
   mineBlocked = null,

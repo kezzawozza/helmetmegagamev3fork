@@ -65,6 +65,14 @@ One `LocationMining` row per minable Location, and **the row is the gate**:
 - **A row drifted to 0** — the button still appears and Examine still prints a
   word. That *is* worth checking back on.
 
+**The sheet's Mine button only ever shows in the Caves.** `resolveMiningRateFrom`
+still reads whatever `LocationMining` row a character stands on, so the
+Black Hills and the Depths (`depths-chasm` included) are still priced and
+still drift, but `/character` (`web/app/(app)/character/page.js`) shows the
+button to anyone holding Prospecting and greys it — "You need to be in the
+caves." — everywhere outside the `caves` zone. There is currently no player
+surface that reaches a mining payout anywhere but the Caves.
+
 `base` is authored in `docs/zones.yaml` as a bare `mining:` value and is what
 `current` reverts toward. `current` is the live coefficient, re-drifted at
 every turn close, and it is the only number a payout reads.

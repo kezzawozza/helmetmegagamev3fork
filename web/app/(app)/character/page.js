@@ -41,6 +41,7 @@ import {
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
+  PROSPECTING_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   hasAttribute,
@@ -264,7 +265,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       // building is a fact about the ground, not the presence `zone`.
       location: {
         include: {
-          zone: { select: { kind: true } },
+          zone: { select: { kind: true, slug: true } },
           // The Mine button's gate: the row IS the gate (db/lib/mining.js), so its
           // absence is what hides the button.
           mining: { select: { current: true } },
@@ -657,19 +658,21 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         ? "You already have an action this turn."
         : null;
   const canRefine = canSeeRefine && !refineBlocked;
-  // Mine (MINING.md). The LocationMining row is the gate, so a place with no
-  // seam shows no button at all; a seam drifted to 0 still does, because that
-  // is worth checking back on. The skill, the Exhausted lockout and the
-  // once-a-turn Move rule are the greys.
-  const canSeeMine = Boolean(character.location?.mining);
-  const mineRate = canSeeMine ? await resolveMiningRate(prisma, character.id) : null;
+  // Mine (MINING.md). The button shows for anyone holding Prospecting; being
+  // outside the Caves, the location's own gate, the Exhausted lockout and the
+  // once-a-turn Move rule are all greys.
+  const canSeeMine = heldSlugsForRooms.has(PROSPECTING_SLUG);
+  const inCaves = character.location?.zone?.slug === "caves";
+  const mineRate = canSeeMine && inCaves ? await resolveMiningRate(prisma, character.id) : null;
   const mineBlocked = !canSeeMine
     ? null
-    : !mineRate.ok
-      ? mineRate.reason
-      : currentAction
-        ? "You already have an action this turn."
-        : null;
+    : !inCaves
+      ? "You need to be in the caves."
+      : !mineRate.ok
+        ? mineRate.reason
+        : currentAction
+          ? "You already have an action this turn."
+          : null;
   const canMine = canSeeMine && !mineBlocked;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
