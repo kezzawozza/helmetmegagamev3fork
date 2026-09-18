@@ -75,7 +75,6 @@ function moveLine(action, name) {
       action.diceModifier ? `die ${action.diceRoll} -> ${modified} (${action.diceModifier})` : `die ${action.diceRoll}`,
     );
   }
-  if (action.laborTier) bits.push(`tier ${action.laborTier}`);
   if (action.resourceDelta != null) bits.push(`${action.resourceDelta} ⬢`);
   if (action.location?.name) bits.push(action.location.name);
   bits.push(action.moveReviewStatus === "SOLVED" ? "solved" : "unsolved");
@@ -154,7 +153,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
   );
 
   const [actions, auditRows, beats, chat, stagedMessages, stagedEffects, spawns, rites] = await Promise.all([
-    // Moves go by the WINDOW, not turnId: the auto-labor pass files a Move for everybody who filed none, at the PUSH — three hours after N's page is written (db/lib/autoLaborPass.js). Stamped turnId N but created after N's page exists, so on the FK it would appear in no page ever. The window catches it in N+1. A player's own Move is unaffected — filed before the lock, so it lands in its own window either way.
+    // Moves go by the WINDOW, not turnId. A Move the GAME files on somebody's behalf at the PUSH is stamped turnId N but created after N's page is written, so on the FK it would appear in no page ever; the window catches it in N+1. A player's own Move is unaffected — filed before the lock, so it lands in its own window either way.
     prisma.action.findMany({
       where: { createdAt: { gte: window.from, lt: window.to } },
       select: {
@@ -167,7 +166,6 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         diceRoll: true,
         diceModifier: true,
         resourceDelta: true,
-        laborTier: true,
         location: { select: { name: true } },
       },
     }),

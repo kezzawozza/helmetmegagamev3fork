@@ -1,5 +1,5 @@
 // A slug's capabilities (table below) derive everything else, so INCAPACITATING_SLUGS and the speech
-// gate can't drift apart. ACT must stay literally true — db/lib/autoLaborPass.js skips auto-Labor for
+// gate can't drift apart. ACT must stay literally true — the buttons that spend a day refuse
 // slugs that block it. Not capabilities: seeing (db/lib/examineVision.js, db/lib/inspectVision.js) or
 // hearing (unmodellable — Discord channels are shared).
 const ACT = "ACT";
@@ -68,7 +68,7 @@ const FINISHABLE_SLUGS = new Set(["dying", "bound", "shackled"]);
 
 // The narrower gate on a GAMBIT Move (db/lib/moves.js#fileMove): only being truly out of it stops a
 // long shot. Bound, Crucified and Catatonic can still try something — Bascinet's ruling. Routine and
-// Labor keep the full ACT gate; every other action does too.
+// Mining keeps the full ACT gate; every other action does too.
 const GAMBIT_BLOCKING_SLUGS = new Set(["unconscious", "paralyzed", "seizure", "dying"]);
 
 // Accepts CharacterTag[] ({ tag: { slug } }) or a bare Tag[], matching db/lib/examineVision.js#slugSet.

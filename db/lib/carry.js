@@ -85,7 +85,7 @@ function carryStatus(character, config) {
 }
 
 // The one guard every DELIBERATE acquisition asks before it writes — Transfer, Craft,
-// /store, the Depot, Loot, pulling out of a room stash. An involuntary gain (a Labor payout, Caving loot, a GM grant) does NOT ask — it lands, and settleCarry sets down whatever won't fit. Returns { ok } or { ok: false, reason }, so a caller can hand the sentence straight to the player.
+// /store, the Depot, Loot, pulling out of a room stash. An involuntary gain (a mining payout, Caving loot, a GM grant) does NOT ask — it lands, and settleCarry sets down whatever won't fit. Returns { ok } or { ok: false, reason }, so a caller can hand the sentence straight to the player.
 // `resources` is still its own option rather than folded into `weightLbs` by the caller, because it reads at the call site as what it is — "and N ⬢ with it" — and this is the one place that has to know a ⬢ weighs a pound.
 function carryAdmits(character, config, { weightLbs = 0, resources = 0 } = {}) {
   const caps = carryCaps(config, carryMultiplier(character?.tags));
@@ -195,7 +195,7 @@ function drawDrops(characterTags, excessLbs) {
   // every top-up — so a stack somebody added to this turn is almost always the
   // newest row on the sheet, and money would be the first thing shed every
   // time. That is the worst possible draw: the shed is announced in the room
-  // (deliverCarryDrop), so an involuntary 1 ⬢ of Labor income could tip a rich
+  // (deliverCarryDrop), so an involuntary 1 ⬢ of mining income could tip a rich
   // character over and empty their whole purse onto a public floor in front of
   // whoever was standing there. Gear first, savings last.
   const moneyLast = (ct) => (ct.tag.slug === RESOURCES_SLUG ? 1 : 0);
@@ -240,7 +240,7 @@ function applyDrops(characterTags, taken) {
 // Recomputes one character's load against their caps and makes the sheet agree with
 // it: grants or clears `overburdened`, and — past the HARD cap (1.5×, carryAdmits above) — sets the excess down in a random public room at their Location.
 // The drop is acquisition-driven, never capacity-driven — Character.carryWeightSeen
-// is what tells the two apart: a load that hasn't GROWN since the last settle sheds nothing, however far the cap has fallen beneath it, so unequipping a cart at an inn door or a GM lowering the base cap makes people Overburdened and no more. Only goods that arrived without asking (a Labor payout, Caving loot, a GM grant) can push someone past the ceiling, and only those get set down — deliberate acquisitions are refused by carryAdmits() before they land.
+// is what tells the two apart: a load that hasn't GROWN since the last settle sheds nothing, however far the cap has fallen beneath it, so unequipping a cart at an inn door or a GM lowering the base cap makes people Overburdened and no more. Only goods that arrived without asking (a mining payout, Caving loot, a GM grant) can push someone past the ceiling, and only those get set down — deliberate acquisitions are refused by carryAdmits() before they land.
 // Returns null when there was nothing to do; otherwise { characterId, over, granted,
 // removed, drop } where `drop` carries the Discord work for deliverCarryDrop(). Nothing here talks to Discord: web callers deliver in after(), the turn pass hands the drops to runSideEffects.
 // With nowhere to put anything down (unplaced, or a Location with no public room) the

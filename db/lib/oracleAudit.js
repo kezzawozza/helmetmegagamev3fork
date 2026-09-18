@@ -77,7 +77,7 @@ const INCLUDED = new Set([
 
 // Rows worth one line for the WHOLE TURN rather than one per character — the
 // Oracle wants "hunger was charged" once, not ninety times.
-const AGGREGATE = new Set(["hunger_resolved", "auto_labor_resolved", "caving_resolved", "tag_expiry_resolved"]);
+const AGGREGATE = new Set(["hunger_resolved", "caving_resolved", "tag_expiry_resolved"]);
 
 // A person shopping — real events, but a hundred crowd out what matters, so folded into one line per character by collapseShopping() below.
 const SHOPPING = new Set(["request_add_tag", "request_remove_tag", "request_buy_tags"]);
@@ -99,7 +99,7 @@ const DETAIL_KEYS = [
   "toName",
   "fromName",
   "locationName",
-  "labor",
+  "mining",
   "text",
   "desireName",
   "untilTurn",

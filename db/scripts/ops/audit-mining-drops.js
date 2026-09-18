@@ -128,7 +128,7 @@ async function main() {
     );
   }
 
-  // ── 2. Combined, as a real Labor payout would actually draw it ────────
+  // ── 2. Combined, as a real mining payout would actually draw it ───────
   const zoneId = zoneSlug ? catalogs.zoneIdBySlug.get(zoneSlug) : null;
   const locationId = locationSlug ? catalogs.locationIdBySlug.get(locationSlug) : null;
   if (zoneSlug && !zoneId) console.log(`(warning: unknown --zone "${zoneSlug}", ignored)\n`);

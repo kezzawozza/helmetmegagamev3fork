@@ -27,8 +27,8 @@ const {
   validateRequirementItems,
   normalizeFighting,
   validateFighting,
-  normalizeLaborBonus,
-  validateLaborBonus,
+  normalizeMiningBonus,
+  validateMiningBonus,
   normalizeExpiresInto,
   validateExpiresInto,
   normalizeRemovesInto,
@@ -583,7 +583,7 @@ async function syncTagsFromYaml(prisma) {
     }
 
     // Armour values: a fraction of a blow turned aside, so 0..1 and nothing
-    // else. Rejected on a tag nobody can wear for the same reason a laborBonus
+    // else. Rejected on a tag nobody can wear for the same reason a miningBonus
     // is — armour that never gets equipped is dead config, and combineArmor
     // skips unequipped rows, so it would silently do nothing rather than fail.
     for (const field of ["melee", "ballistic"]) {
@@ -759,10 +759,10 @@ async function syncTagsFromYaml(prisma) {
         placement: t.placement ?? null,
       },
     );
-    // laborBonus — the tools table (docs/systemdocs/LABORING.md). A bonus that
+    // miningBonus — the tools table (docs/systemdocs/MINING.md). A bonus that
     // only pays while equipped, on a tag nothing can equip, is dead weight
     // nobody would notice; this is the one place that catches it.
-    validateLaborBonus(normalizeLaborBonus(t.laborBonus), {
+    validateMiningBonus(normalizeMiningBonus(t.miningBonus), {
       selfSlug: t.slug,
       tagSlugs: allTagSlugs,
       equippable: t.equippable ?? false,
@@ -1001,7 +1001,7 @@ async function syncTagsFromYaml(prisma) {
       mealMood: entry.mealMood ?? null,
       mealHunger: entry.mealHunger ?? null,
       ...normalizeCustom(entry.custom, { slug: entry.slug, customizable: entry.customizable ?? false }),
-      laborBonus: normalizeLaborBonus(entry.laborBonus),
+      miningBonus: normalizeMiningBonus(entry.miningBonus),
       fighting: normalizeFighting(entry.fighting),
       handsLost: entry.handsLost ?? null,
       placement: normalizePlacement(entry.placement),

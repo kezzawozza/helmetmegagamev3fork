@@ -162,7 +162,7 @@ const ROLE_MEMORIES = {
 };
 
 // A Commoner's trade decides which road out of town they have walked. Keyed by
-// the kit crate, not by the laboring tag inside it, because the crate is what
+// the kit crate, not by the skill tag inside it, because the crate is what
 // exists at creation — it is unpacked later, by hand.
 const KIT_MEMORIES = {
   "commoner-farmer": ["forest-south", "farms"],

@@ -2,7 +2,7 @@
 // carry a nightly chance of a bad night's sleep, stepped through the same
 // Tired -> Exhausted ladder a day's mining uses (db/lib/fatigue.js) — a
 // first bad night lands on Tired, a second one running (or one on top of a
-// day's Labor) escalates to Exhausted. Run from db/index.js#resolveNeeds()
+// day's mining) escalates to Exhausted. Run from db/index.js#resolveNeeds()
 // right after the hunger pass. Takes `prisma` as a parameter — see
 // db/lib/dm.js.
 const { TIRED_SLUG, EXHAUSTED_SLUG, GUILT_RIDDEN_SLUG, INSOMNIAC_SLUG } = require("./constants");
@@ -69,7 +69,7 @@ async function runDawnAfflictionPass(prisma, turn, { rng = Math.random } = {}) {
     const result = await prisma
       .$transaction(async (tx) => {
         // Escalating: consume the Tired row rather than leaving it to expire
-        // alongside the new Exhausted, the same reasoning as the Labor payout
+        // alongside the new Exhausted, the same reasoning as the mining payout
         // in db/lib/moveEffects.js.
         if (tiredRow) await tx.characterTag.delete({ where: { id: tiredRow.id } });
         return tx.characterTag.createMany({

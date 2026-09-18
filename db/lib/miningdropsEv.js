@@ -1,4 +1,4 @@
-// The labor-drop EV maths, pulled out of db/scripts/ops/audit-mining-drops.js
+// The mining-drop EV maths, pulled out of db/scripts/ops/audit-mining-drops.js
 // so it's testable with node --test. See that script for callers and
 // MININGDROPS.md §6a/§7 for what the numbers mean.
 const { rowShares } = require("./miningdropsRarity");

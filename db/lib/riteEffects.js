@@ -282,7 +282,7 @@ const EFFECTS = {
       equipLayer: source.equipLayer,
       twoHanded: source.twoHanded,
       requiredTagId: source.requiredTagId,
-      laborBonus: source.laborBonus ?? undefined,
+      miningBonus: source.miningBonus ?? undefined,
       inspectVisibility: source.inspectVisibility,
       meleeArmor: source.meleeArmor,
       ballisticArmor: source.ballisticArmor,

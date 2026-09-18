@@ -214,13 +214,13 @@ test("annotateLines: the location's roll 6 shows own AND combined (global's obol
   assert.match(line, /combined EV 1\.20 ⬢ · hit 100%/);
 });
 
-test("annotateLines: the category rollup is a true per-labor EV — divided by all 6 faces, not the 1 configured one", () => {
+test("annotateLines: the category rollup is a true per-day EV — divided by all 6 faces, not the 1 configured one", () => {
   const { lines, ...ctx } = fixture();
   const out = annotateLines(lines, ctx);
   const categoryLine = out[5]; // '  hunting:'
   // Roll 6's combined EV is 1.20 (see the test above), rolls 1-5 are
   // unconfigured (0 EV each) — the rollup is 1.20/6, NOT 1.20 itself.
-  assert.match(categoryLine, /⬢ EV\/labor 0\.20 · hit 17%/);
+  assert.match(categoryLine, /⬢ EV\/day 0\.20 · hit 17%/);
 });
 
 test("annotateLines: forester's rollup folds in global AND zone.forest — the cascading case", () => {
@@ -229,13 +229,13 @@ test("annotateLines: forester's rollup folds in global AND zone.forest — the c
   const forestLine = out[10]; // '  forest:'
   // Only Global(obol=1) pools at plain zone.forest on roll 6 (own EV 1.00);
   // divided across all 6 faces: 1.00 / 6.
-  assert.match(forestLine, /⬢ EV\/labor 0\.17 · hit 17%/);
+  assert.match(forestLine, /⬢ EV\/day 0\.17 · hit 17%/);
   const foresterLine = out[12]; // '      forester:'
   // Global(obol, ultracommon) + the gated rope (uncommon). ultracommon is the
   // commonest band present so it absorbs every absent band's share (0.87);
   // the rope keeps uncommon's 0.13. 1(0.87) + 4(0.13) = 1.39 on roll 6
   // alone, divided across all six faces.
-  assert.match(foresterLine, /⬢ EV\/labor 0\.23 · hit 17%/);
+  assert.match(foresterLine, /⬢ EV\/day 0\.23 · hit 17%/);
 });
 
 test("annotateLines: preserves the author's blurb and appends the mechanical value", () => {

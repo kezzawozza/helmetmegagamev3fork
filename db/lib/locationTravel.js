@@ -153,7 +153,7 @@ function exertEdgeSentence({ edge, names } = {}) {
 // The die, and what it did. Runs inside the crossing's own transaction, after
 // the claim above has already won the race. Fatigue is granted at N+1 so a
 // push at the tail of a turn still costs the whole next one — the same clock
-// a day's Labor runs on (docs/tags.yaml, Exhausted); the ankle keeps its own
+// a day's mining runs on (docs/tags.yaml, Exhausted); the ankle keeps its own
 // three turns from now. Winded is granted at N and gone when the turn closes:
 // it is only the mark of having pushed on today, with nothing to carry over
 // (Bascinet, 2026-09-13). A held Tired is consumed by the step up to Exhausted

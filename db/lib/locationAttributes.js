@@ -32,10 +32,10 @@ const ATTRIBUTES = {
     describe: () => "**Godflesh**: you can cut it out of the water here.",
   },
 
-  // The Godard Factory floor: labor refines Godflesh into Squeeze instead of paying ⬢, no LocationYield row needed.
+  // The Godard Factory floor: the Refine button turns Godflesh into Squeeze instead of paying ⬢, no LocationMining row needed.
   refinery: {
     type: "boolean",
-    describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze.",
+    describe: () => "**Refinery**: you can refine Godflesh into Squeeze here.",
   },
 
   // A placeholder stand-in for the Farms rework (db/lib/soilery.js): gates the Sow/Reap buttons.

@@ -255,9 +255,9 @@ const TURN_PASSES = [
   "catatonicDeath",
   "bird",
   // The horse's feed. Immediately BEFORE hunger, and the order is
-  // load-bearing: auto-labor has already paid the day's income, and the animal
-  // eats before the rider does — a character down to their last ⬢ feeds the
-  // horse and goes Hungry. See db/lib/horseUpkeepPass.js.
+  // load-bearing: the animal eats before the rider does — a character down to
+  // their last ⬢ feeds the horse and goes Hungry. See
+  // db/lib/horseUpkeepPass.js.
   "horseUpkeep",
   "hunger",
   // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After

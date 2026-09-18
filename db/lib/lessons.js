@@ -82,7 +82,7 @@ const LESSON_CATALOG_SELECT = {
   group: { select: { slug: true, requiredTagId: true } },
   // Named conflicts (Tag.conflictsWith). Without this column a lesson is the
   // way round every conflict pair in the catalog: Soft Hands cannot BUY
-  // Laboring, but could always have been taught it.
+  // Prospecting, but could always have been taught it.
   conflictsWith: { select: { id: true } },
 };
 
@@ -132,7 +132,7 @@ function teachesFree(character) {
 // or above, with the learner holding its parent tier and any gate, and with
 // nothing the learner already holds named as a conflict. Same gates as buying
 // it — a lesson can't skip a prerequisite the store won't, and it can't skip a
-// conflict either. Soft Hands has never done a day's labor, and no amount of
+// conflict either. Soft Hands has never done a day's work, and no amount of
 // being taught changes that.
 //
 // Split in two so neither side's picker has to read the OTHER sheet: Learn
@@ -214,7 +214,7 @@ async function openTurnAndWindow(db) {
 // acceptLesson knows not to file one.
 //
 // A Teaching holder's Move slot is never read: teaching costs them nothing and
-// they may be laboring, travelling or running a Gambit at the same time. Their
+// they may be mining, travelling or running a Gambit at the same time. Their
 // only limit is TEACHING_CAPACITY students a turn, counted off the offers
 // themselves rather than off an Action id, because there is no Action.
 //

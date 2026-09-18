@@ -1,5 +1,5 @@
 // Every YAML master into the database, in the one order that works: tags
-// before roles, desires, documents, labor drops last, then a structure mirror
+// before roles, desires, documents, mining drops last, then a structure mirror
 // pass to pick up whatever any of that touched (narrowcast channels and
 // Deadchat included — the mirror provisions both now). Same sequence as
 // wipeGameData's re-sync.
@@ -45,7 +45,7 @@ async function main() {
       const s = await syncDocumentsFromYaml(prisma);
       return `+${s.created}/~${s.updated}` + (s.pruned.length ? `, pruned ${s.pruned.join(", ")}` : "");
     }],
-    ["labor drops", async () => {
+    ["mining drops", async () => {
       const s = await syncMiningDropsFromYaml(prisma);
       return `${s.total} options`;
     }],

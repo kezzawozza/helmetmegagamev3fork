@@ -6,7 +6,7 @@ const { prisma, syncMiningDropsFromYaml } = require("../../index");
 
 async function main() {
   const summary = await syncMiningDropsFromYaml(prisma);
-  console.log(`labor drop options: ${summary.total}`);
+  console.log(`mining drop options: ${summary.total}`);
 }
 
 main()

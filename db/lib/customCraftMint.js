@@ -78,7 +78,7 @@ async function mintCustomCraft(
     concealsIdentity: baseTag.concealsIdentity,
     forcesConceal: baseTag.forcesConceal,
     concealSprite: baseTag.concealSprite,
-    laborBonus: baseTag.laborBonus ?? undefined,
+    miningBonus: baseTag.miningBonus ?? undefined,
     carryBonus: baseTag.carryBonus,
     removable: baseTag.removable,
     consumable: baseTag.consumable,

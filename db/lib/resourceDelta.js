@@ -1,4 +1,4 @@
-// A Labor roll is stored as a canonical "min-max" range on Action.resourceRollExpression — resolved once at submit time (db/lib/laborAccess.js), rolled once at confirm (bot/src/lib/moveConfirm.js) or at the auto-labor pass. StagedEffect stages a numeric delta directly; Action columns are read for display only.
+// A mining roll is stored as a canonical "min-max" range on Action.resourceRollExpression — resolved and rolled once, at the press (db/lib/mining.js, web/app/(app)/character/actions/mine.js). StagedEffect stages a numeric delta directly; Action columns are read for display only.
 
 const RANGE_EXPR_RE = /^(\d+)-(\d+)$/;
 

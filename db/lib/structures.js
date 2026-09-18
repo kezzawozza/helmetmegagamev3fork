@@ -14,7 +14,7 @@ function placementOf(tag) {
     fieldwork: p.fieldwork === true,
     examine: typeof p.examine === "string" ? p.examine : null,
     defenseNote: typeof p.defenseNote === "string" ? p.defenseNote : null,
-    laborBonus: p.laborBonus ?? null,
+    miningBonus: p.miningBonus ?? null,
     locations: Array.isArray(p.locations) ? p.locations : [],
     yields: p.yields ?? null,
     birdSendsPerDay: p.birdSendsPerDay ?? null,
@@ -88,7 +88,7 @@ function statusWord(status) {
 // never block raising the same type again. Shared so the two filters can never drift apart.
 const PRESENT_STATUSES = ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"];
 
-// Statuses in which a structure actually WORKS (defenseNote/labor bonus apply).
+// Statuses in which a structure actually WORKS (defenseNote/mining bonus apply).
 const WORKING_STATUSES = ["COMPLETE", "DAMAGED"];
 
 // --- The lines a site speaks -------------------------------------------

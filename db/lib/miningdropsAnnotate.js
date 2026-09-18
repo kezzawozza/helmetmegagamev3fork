@@ -180,7 +180,7 @@ function buildRollComment(rows, roll, frame) {
 }
 
 // Comment for a category header — the COMBINED EV for every roll 1-6 with anything
-// at this scope, rolled into one number: the ACTUAL expected value of one Labor here, not per-face numbers side by side. The die is 1d6 uniform, so this is (1/6)*sum over all six faces' combined EV, and an unconfigured face (almost always 2-5) counts as a real zero — listing faces side by side reads as if they add up on their own, they don't without dividing by 6 and counting the unlisted faces too. Hit rate is weighted the same way: share of ALL SIX faces, not just the configured ones.
+// at this scope, rolled into one number: the ACTUAL expected value of one day's mining here, not per-face numbers side by side. The die is 1d6 uniform, so this is (1/6)*sum over all six faces' combined EV, and an unconfigured face (almost always 2-5) counts as a real zero — listing faces side by side reads as if they add up on their own, they don't without dividing by 6 and counting the unlisted faces too. Hit rate is weighted the same way: share of ALL SIX faces, not just the configured ones.
 function buildRollupComment(rows, frame) {
   let totalEv = 0;
   let totalHitFraction = 0;
@@ -195,7 +195,7 @@ function buildRollupComment(rows, frame) {
   if (!anyConfigured) return null;
   const ev = (totalEv / 6).toFixed(2);
   const hitPct = Math.round((totalHitFraction / 6) * 100);
-  return `# ⬢ EV/labor ${ev} · hit ${hitPct}%`;
+  return `# ⬢ EV/day ${ev} · hit ${hitPct}%`;
 }
 
 // The exhaustive set of shapes mechanicalValue() can produce, numbers wildcarded —
