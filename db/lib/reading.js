@@ -12,6 +12,8 @@
 const { examineBlock } = require("./examineVision");
 
 const LITERATE_SLUG = "literate";
+// Squeeze brain damage. Wins over `literate`: the letters are gone.
+const STUPID_SLUG = "stupid";
 
 // What every blocked reader sees, whatever blocked them.
 const CANNOT_READ = "You can't read this.";
@@ -28,7 +30,8 @@ function slugSet(characterTags) {
 // through.
 function readBlock(characterTags = [], where = {}) {
   if (examineBlock(characterTags, where)) return CANNOT_READ;
-  if (!slugSet(characterTags).has(LITERATE_SLUG)) return CANNOT_READ;
+  const slugs = slugSet(characterTags);
+  if (!slugs.has(LITERATE_SLUG) || slugs.has(STUPID_SLUG)) return CANNOT_READ;
   return null;
 }
 

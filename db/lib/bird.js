@@ -37,7 +37,7 @@ const STUPID_SLUG = "stupid";
 
 // Whether written words reach this character: literate and not blind, asked as one question so no caller checks only half. The fuller gate is db/lib/reading.js#readBlock (blind drunk, no spectacles, sun-blind in daylight); this stays because it's what the Bird's own surfaces ask and is pure of turn/Location context — a tag chip uses readBlock, a bird asks this.
 function canReadLetters(tags) {
-  return hasSlug(tags, LITERATE_SLUG) && !hasSlug(tags, BLIND_SLUG);
+  return hasSlug(tags, LITERATE_SLUG) && !hasSlug(tags, BLIND_SLUG) && !hasSlug(tags, STUPID_SLUG);
 }
 
 // Holding the bird isn't enough — working it is a literate act: you address it, and must know which paper in hand is the one to send.

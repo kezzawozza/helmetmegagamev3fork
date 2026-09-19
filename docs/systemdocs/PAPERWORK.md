@@ -74,7 +74,8 @@ so the row count grows with actual writing rather than with stock.
 `db/lib/reading.js#readBlock(tags, { phase, indoors })` is the one gate.
 It composes `examineVision.js#examineBlock` — blind, blind drunk, nearsighted
 with the spectacles in a sack, sun-sensitive outdoors at Dawn — and adds the
-`literate` tag on top.
+`literate` tag on top. `stupid` overrides `literate`: a Stupid character
+cannot read, whatever else is on the sheet.
 
 **One message for every cause: `You can't read this.`** A blind man and an
 illiterate one get identical refusals. Naming which would leak a condition to
