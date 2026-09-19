@@ -97,20 +97,32 @@
   /* A scroll that reaches the end of a column stays in it — the alternative on
      a phone is pull-to-refresh, or the page behind a drawer moving. */
   overscroll-behavior: none;
-  background: var(--sunk-wash);
   border-right: 1px solid var(--border-lo);
   /* NO bottom padding: the tail below is sticky, and a sticky box cannot leave
      its containing block, which ends at this column's CONTENT box. Padding
      here parks the tail that far above the window's edge. The tail supplies
-     its own. */
-  padding: var(--sp-3) 0 0;
+     its own. No top padding either: the head girder sits flush at the top,
+     the way the scene's does. */
+  padding: 0;
 }
 
 [data-chat-next] .chat-aside {
   overflow: hidden;
-  background: var(--sunk-wash);
   border-left: 1px solid var(--border-lo);
-  padding: var(--sp-3);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+/* Both side columns wear the scene's red girder shadow UNDER their head bar,
+   the way the feed wears it under the chat head. Without this the page's own
+   shadow showed through the columns' top padding, ABOVE their heads, so the
+   arches pointed the other way. */
+[data-chat-next] .chat-places,
+[data-chat-next] .chat-aside {
+  background-color: transparent;
+  background-image: linear-gradient(var(--sunk-wash), var(--sunk-wash)), url("/assets/chrome/chatshadow.png");
+  background-repeat: no-repeat, repeat-x;
+  background-position: 0 0, 0 26px;
+  background-size: 100% 100%, auto;
 }
 
 [data-chat-next] .chat-centre {
@@ -135,6 +147,9 @@
    `margin: 0` because the callers render a <p> and an <h2>/<h3>, each of which
    arrives with a margin of its own. */
 [data-chat-next] .bar {
+  /* The body face, not the heading serif: the aside's heads are real h2/h3
+     tags and would otherwise read differently from the places column's. */
+  font-family: var(--font-sans);
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -859,4 +874,15 @@
   color: var(--muted);
   font-size: var(--fs-xs);
   font-style: italic;
+}
+
+/* The head's Add button (ChatNext.js): a labelled button, not a bare glyph,
+   sized to sit inside the 26px girder without growing it. */
+[data-chat-next] .chat-head-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: 1;
 }

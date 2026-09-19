@@ -41,6 +41,8 @@ export default function Composer({
   place,
   self,
   gm = false,
+  // The real GM role, even in player view (./commands.js#commandsFor).
+  gmAccount = false,
   roster = [],
   rows = [],
   // Where a command hands off to the page: a travel pick, a converse dialog,
@@ -89,6 +91,7 @@ export default function Composer({
   const cmd = useComposerCommands({
     placeKind: place?.kind,
     gm,
+    gmAccount,
     draft,
     setDraft,
     textareaRef,

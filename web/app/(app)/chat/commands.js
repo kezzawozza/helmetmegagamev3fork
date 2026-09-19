@@ -192,11 +192,14 @@ export const COMMANDS = [
 //     refused is a control that lied — the same reason the `where` gate
 //     exists at all. A GM who also plays somebody gets the list, and acts as
 //     them.
-export function commandsFor(placeKind, { gm = false, hasCharacter = true } = {}) {
+// `gmAccount` is the real GM role, whichever seat the chat is in: a GM playing
+// somebody in player view keeps /decree and the rest of the GM-only commands.
+// Their server actions check the real role on their own (requireGm).
+export function commandsFor(placeKind, { gm = false, gmAccount = false, hasCharacter = true } = {}) {
   if (!placeKind) return [];
   return COMMANDS.filter((entry) => {
     if (!entry.where.includes(placeKind)) return false;
-    if (entry.gmOnly) return gm;
+    if (entry.gmOnly) return gm || gmAccount;
     if (!gm) return true;
     if (entry.needsCharacter) return false;
     return hasCharacter;

@@ -186,9 +186,18 @@ export default function TranscriptLine({
         data-live={live ? "true" : undefined}
         data-dir={direction ?? undefined}
         data-seq={seq ?? undefined}
+        data-face={avatar ? "true" : undefined}
         id={id ?? undefined}
         tabIndex={tabIndex}
       >
+        {/* The portrait heads a run only; later lines in the run indent under
+            it. The clock shows on a run's first line, and on hover for the rest. */}
+        {avatar && startsRun ? <span className="tline-face">{avatar}</span> : null}
+        {time ? (
+          <time className="tline-clock mono" title={timeTitle ?? undefined} suppressHydrationWarning>
+            {time}
+          </time>
+        ) : null}
         {name != null ? (
           <span
             className="tline-name"

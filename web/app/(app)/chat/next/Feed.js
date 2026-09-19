@@ -9,6 +9,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { Readout } from "@/app/components/ExamineDialog";
 import IconButton from "@/app/components/IconButton";
 import TranscriptLine from "@/app/components/TranscriptLine";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
 import { formatTurnLabel } from "@/lib/turnFormat";
@@ -162,6 +163,21 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       // speaker belongs to no estate, or one nobody can see the face of.
       roleGroup={row.roleGroup ?? null}
       time={timeLabel(row.sentAt)}
+      // The same three props the Here list draws a face with: a hooded row
+      // carries no character id, so it can only ever show the mask or the
+      // question-mark plate (db/lib/archive.js#feedRowShape).
+      avatar={
+        row.name ? (
+          <CharacterAvatar
+            characterId={row.characterId ?? undefined}
+            src={row.avatarPath ?? undefined}
+            unknown={Boolean(row.unknownFace)}
+            name={row.name}
+            version={row.avatarVersion}
+            size={24}
+          />
+        ) : null
+      }
       edited={Boolean(row.editedAt)}
       actions={
         showActions
@@ -292,6 +308,10 @@ export default function Feed({
   // `/remove`'s picker is the same list, so two fetches would be two answers
   // to one question (../usePlaceMembers.js).
   members = { hasMembers: false, data: null, reload: null },
+  // Whether the members picker is open; the Add button that opens it is on
+  // the head the shell draws.
+  adding = false,
+  setAdding = null,
   // A street being watched from somewhere else: read, never written to
   // (db/lib/vantages.js). The guest-list buttons are a thing you do with your
   // hands in the room.
@@ -768,7 +788,13 @@ export default function Feed({
           strip draws nothing when placeMembers() answers with no list. On a
           phone it folds to one row of faces until tapped (MembersStrip.js). */}
       {members.hasMembers && !readOnly && (
-        <MembersStrip placeKey={placeKey} data={members.data} onChanged={members.reload} />
+        <MembersStrip
+          placeKey={placeKey}
+          data={members.data}
+          onChanged={members.reload}
+          picking={adding}
+          setPicking={setAdding}
+        />
       )}
       <ul className="chat-feed" ref={scrollerRef} onScroll={onScroll}>
         {/* The top edge, while a page is on the wire. Nothing when there is

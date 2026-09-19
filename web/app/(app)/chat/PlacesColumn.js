@@ -156,7 +156,9 @@ export default function PlacesColumn({
   // mail rather than a place in the same sense the Bascinet DM is: it is
   // somewhere you ended up, not somewhere on the map, and for a ghost it is
   // the only row in the whole column they can answer.
-  const mail = [...places.filter((p) => p.kind === "dm"), ...places.filter((p) => p.kind === "dead")];
+  const mail = places.filter((p) => p.kind === "dm");
+  // Deadchat is its own section, "Other" — neither mail nor a place on the map.
+  const other = places.filter((p) => p.kind === "dead");
   // Radio section: standing nets, plus the party chat (which is nowhere for the
   // same reason a net is — it travels with the leader, not a Location).
   const nets = places.filter((p) => p.kind === "net");
@@ -227,6 +229,7 @@ export default function PlacesColumn({
       <p className="bar">Places</p>
       <Section title="Mail" places={mail} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="mail" collapsed={collapsed} onToggle={toggle} />
       <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="radio" collapsed={collapsed} onToggle={toggle} />
+      <Section title="Other" places={other} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="other" collapsed={collapsed} onToggle={toggle} />
       {groups.map((group) => {
         // Elsewhere is cut FIRST and the other three exclude it, so a fogged
         // street and its rooms are drawn once, together, under their own

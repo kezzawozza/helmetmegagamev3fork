@@ -10,6 +10,7 @@ import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
+import useNarrow from "./useNarrow";
 
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
 // after a move, never with the page — an exit's state moves under a player
@@ -67,6 +68,8 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
   }, [nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  const narrow = useNarrow();
 
   if (!data) {
     return (
@@ -152,6 +155,9 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
                 e.currentTarget.focus();
                 setTarget(option.id);
               }}
+              // Desktop shortcut: a double click is the pick AND the Go. A zone
+              // crossing still stops at the same confirm the Go button asks.
+              onDoubleClick={narrow || !option.passable ? undefined : () => go(option)}
             >
               <span className="chat-node-name">{option.name}</span>
               <span className="chat-node-zone">{option.zoneName}</span>
@@ -189,6 +195,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
                   e.currentTarget.focus();
                   setTarget(option.id);
                 }}
+                onDoubleClick={narrow ? undefined : () => go(option)}
               >
                 <span className="chat-node-name">{option.name}</span>
                 {/* The stops, where there is room for them — the same sentence

@@ -213,6 +213,9 @@
    overflowing. Longhand, all three values pinned, so nothing here can grow
    or shrink again by accident. */
 .bar {
+  /* The body face, not the heading serif: the aside's heads are real h2/h3
+     tags and would otherwise read differently from the places column's. */
+  font-family: var(--font-sans);
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -925,6 +928,38 @@
   outline: none;
 }
 
+/* A row with a portrait: every line in the run indents by the face's width,
+   and the face hangs in that gutter on the run's first line only. */
+.tline[data-density="feed"][data-face="true"] {
+  padding-left: calc(var(--sp-2) + 28px);
+}
+
+.tline[data-density="feed"][data-run="start"] {
+  margin-top: var(--sp-2);
+}
+
+.tline[data-density="feed"] .tline-face {
+  position: absolute;
+  left: var(--sp-2);
+  top: 2px;
+  line-height: 0;
+}
+
+.tline[data-density="feed"] .tline-clock {
+  margin-right: var(--sp-1);
+  font-size: var(--fs-3xs);
+  color: var(--muted);
+}
+
+.tline[data-density="feed"]:not([data-run="start"]) .tline-clock {
+  visibility: hidden;
+}
+
+.tline[data-density="feed"]:not([data-run="start"]):hover .tline-clock,
+.tline[data-density="feed"]:not([data-run="start"]):focus-within .tline-clock {
+  visibility: visible;
+}
+
 .tline[data-density="feed"] .tline-edited {
   font-size: var(--fs-2xs);
 }
@@ -1616,7 +1651,7 @@
 
 .you-name {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   /* The mockup's 16px, not the aside's usual --fs-md (14px) — a name carries
      more weight than a section label. */
   font-size: var(--fs-xl);

@@ -20,7 +20,7 @@ import { ConverseDialog } from "../PlacePanel";
 import DecreeDialog from "../DecreeDialog";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { lookAt, lookAtRow } from "../actions";
-import { SearchIcon } from "@/app/components/icons";
+import { PlusIcon, SearchIcon } from "@/app/components/icons";
 import IconButton from "@/app/components/IconButton";
 import { retryPending } from "../feedStore";
 import usePlaceMembers from "../usePlaceMembers";
@@ -353,6 +353,9 @@ export default function ChatNext(props) {
   // so the open flag is this component's; the box itself and the rule that
   // forces it back open on a hit that turned out to be gone are the feed's.
   const [searchOpen, setSearchOpen] = useState(false);
+  // The members picker, opened from the head's Add button. Keyed by place, so
+  // walking somewhere else shuts it without an effect.
+  const [addingFor, setAddingFor] = useState(null);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
 
   // A hit somebody clicked. The window around the seq is loaded FIRST — the
@@ -690,13 +693,25 @@ export default function ChatNext(props) {
             crumb={[aside?.zone?.name, aside?.place?.name].filter((n) => n && n !== selected?.name)}
             {...drawers}
             trailing={
-              <IconButton
-                icon={SearchIcon}
-                label="Search"
-                size={narrow ? "lg" : "sm"}
-                aria-expanded={searchOpen}
-                onClick={() => setSearchOpen((was) => !was)}
-              />
+              <>
+                {members.hasMembers && !selected?.vantage && members.data?.ok && members.data.members && (
+                  <button
+                    type="button"
+                    className="btn-secondary chat-head-add"
+                    aria-expanded={addingFor === selected?.placeKey}
+                    onClick={() => setAddingFor((key) => (key === selected?.placeKey ? null : selected?.placeKey))}
+                  >
+                    <PlusIcon width={14} height={14} aria-hidden="true" /> Add
+                  </button>
+                )}
+                <IconButton
+                  icon={SearchIcon}
+                  label="Search"
+                  size={narrow ? "lg" : "sm"}
+                  aria-expanded={searchOpen}
+                  onClick={() => setSearchOpen((was) => !was)}
+                />
+              </>
             }
           />
           {/* The stream is down. HERE rather than in the feed or a column
@@ -725,6 +740,8 @@ export default function ChatNext(props) {
             hasCamera={hasCamera}
             speakers={speakers}
                 members={members}
+                adding={addingFor === selected?.placeKey}
+                setAdding={(open) => setAddingFor(open ? selected?.placeKey : null)}
                 readOnly={Boolean(selected?.vantage)}
                 onRetry={onRetry}
                 publishEdit={publishEdit}
@@ -764,6 +781,7 @@ export default function ChatNext(props) {
                 place={selected}
                 self={self}
                 gm={gm}
+                gmAccount={gm || Boolean(viewAs)}
                 roster={roster}
                 rows={rows}
                 ctx={commandCtx}
@@ -827,7 +845,7 @@ export default function ChatNext(props) {
       {/* `/decree`, GM only. commands.js never offers a player the entry, so
           this gate is belt and braces — but the dialog carries none of its
           own, which is what makes it the one that matters. */}
-      {gm && decreeOn && <DecreeDialog onClose={() => setDecreeOn(false)} />}
+      {(gm || viewAs) && decreeOn && <DecreeDialog onClose={() => setDecreeOn(false)} />}
       {look && <LookReadout state={look} onClose={() => setLook(null)} />}
       {mapOpen && (
         <Modal open title="Map" onClose={() => setMapOpen(false)} panelClassName="modal-panel map-panel">

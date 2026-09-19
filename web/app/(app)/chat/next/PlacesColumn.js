@@ -111,14 +111,14 @@ export default function PlacesColumn({
     count: notified?.get(place.placeKey) ?? 0,
   });
 
-  const { mail, radio, groups, liveKeys } = useMemo(() => {
+  const { mail, radio, other, groups, liveKeys } = useMemo(() => {
     const rows = places.map(decorate);
     const of = (kind) => rows.filter((p) => p.kind === kind);
 
-    // Deadchat is mail in the same sense the Bascinet DM is: somewhere you
-    // ended up rather than somewhere on the map — and for a ghost it is the
-    // only row in this column they can answer.
-    const mailRows = [...of("dm"), ...of("dead")];
+    const mailRows = of("dm");
+    // Deadchat has a section of its own, "Other": it is neither mail nor a
+    // place on the map, and for a ghost it is the one row they can answer.
+    const otherRows = of("dead");
     // The party chat is nowhere for the same reason a net is: it travels with
     // the leader, not with a Location.
     const radioRows = [...of("net"), ...of("party")];
@@ -156,7 +156,7 @@ export default function PlacesColumn({
       for (const s of ["summary", "here", "rooms", "conversations", "elsewhere"]) keys.add(`${k}:${s}`);
     }
 
-    return { mail: mailRows, radio: radioRows, groups: out, liveKeys: keys };
+    return { mail: mailRows, radio: radioRows, other: otherRows, groups: out, liveKeys: keys };
     // `decorate` closes over selected/seen/notified/newest, all of which are in
     // the dep list; it is deliberately not a useCallback, since it is cheap and
     // hoisting it would only move the same dependencies somewhere less obvious.
@@ -175,6 +175,7 @@ export default function PlacesColumn({
 
       <Section title="Mail" places={mail} foldKey="mail" shut={shut("mail")} onToggle={onToggle} onSelect={onSelect} />
       <Section title="Radio" places={radio} foldKey="radio" shut={shut("radio")} onToggle={onToggle} onSelect={onSelect} />
+      <Section title="Other" places={other} foldKey="other" shut={shut("other")} onToggle={onToggle} onSelect={onSelect} />
 
       {groups.map((group) => {
         const key = group.zoneId ?? "loose-zone";

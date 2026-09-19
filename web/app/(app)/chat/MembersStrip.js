@@ -23,7 +23,12 @@ const FACEPILE_MAX = 5;
 // the /remove command's picker. `onChanged` asks for a re-read after a write.
 // The Add button lives in the chat head now (Feed.js), beside Search, so the
 // strip no longer grows the header; `picking` / `setPicking` come from there.
-export default function MembersStrip({ placeKey, data, onChanged, picking, setPicking }) {
+export default function MembersStrip({ placeKey, data, onChanged, picking: pickingProp, setPicking: setPickingProp }) {
+  // Controlled by the head's Add button when the shell passes it; its own
+  // state otherwise, so no caller can leave it without a way to shut.
+  const [pickingOwn, setPickingOwn] = useState(false);
+  const picking = setPickingProp ? Boolean(pickingProp) : pickingOwn;
+  const setPicking = setPickingProp ?? setPickingOwn;
   const { run, pending, error } = useActionRunner();
   // On a phone the strip is one row of faces until tapped open; closes again
   // on a place change since Feed.js keys itself on the place.
@@ -56,6 +61,9 @@ export default function MembersStrip({ placeKey, data, onChanged, picking, setPi
     );
   }
   if (!data.members) return null;
+  // Nobody else here and the picker shut: nothing to draw, and an empty padded
+  // strip would only push the feed down.
+  if (data.members.length === 0 && !picking) return null;
 
   const candidates = data.candidates ?? [];
 

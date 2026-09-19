@@ -34,6 +34,7 @@ import {
 export default function useComposerCommands({
   placeKind,
   gm = false,
+  gmAccount = false,
   hasCharacter = true,
   draft,
   setDraft,
@@ -57,8 +58,8 @@ export default function useComposerCommands({
   // place rather than filtered at use: a /roll offered in the street and
   // refused on Enter is a control that lied.
   const available = useMemo(
-    () => commandsFor(placeKind, { gm, hasCharacter }),
-    [placeKind, gm, hasCharacter],
+    () => commandsFor(placeKind, { gm, gmAccount, hasCharacter }),
+    [placeKind, gm, gmAccount, hasCharacter],
   );
 
   const cmdMatches = useMemo(
