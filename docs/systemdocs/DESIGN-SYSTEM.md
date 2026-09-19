@@ -77,9 +77,28 @@ Three things about the token set are load-bearing and easy to undo by accident:
   own `#c6bfb2` until the body face came down to 12px, at which point the lift
   had more work to do and the value moved to the one the CHAT mockup gives its
   `--bone-hi`. The two mockups disagree on this one colour.
-- **The surface ladder is `--bg` → `--surface` → `--surface-raised`**, a step
-  of about 1.06 each. `.panel` sits on `--surface`; modals, tooltips,
-  sticky table headers and the turn chip sit on `--surface-raised`.
+- **There are two vocabularies, and a container picks one.** A thing that is
+  CUT INTO the page takes a wash — `--sunk-wash` (0.30) or `--sunk-wash-deep`
+  (0.42), translucent black over the ground, so the texture reads through it,
+  darker. `.panel` is the main one, with `.archive`, `.desk-card`, the desk
+  tray and chat's own columns. A thing that genuinely FLOATS takes the raised
+  ladder `--bg` → `--surface` → `--surface-raised`, a step of about 1.06 each:
+  modals, popovers, tooltips, the mention menu, sticky table headers, chips,
+  paper, a filled equip cell, and the two map overlays (opaque on purpose —
+  a translucent control would show terrain through itself).
+
+  `.panel` used to sit on `--surface`, which is *lighter* than `--bg`, and
+  measured **1.028** against the ground a page actually shows. That is what
+  made every container in the app read as drab. Sunk on a fully-lit ground it
+  measures **1.16**. Lightening the panel instead reaches 1.126 but *costs*
+  text contrast — `--muted` falls to 3.79 and `--blackletter` to 2.02, both
+  under their floors, and `--border` vs the panel drops under its 1.4 gate.
+  Darkening gains contrast on every token at once. Do not flip this back.
+
+  Note that `audit:contrast` measures the ladder against bare `--bg`, not
+  against `--bg` plus `.grain` — the ground a reader actually sees. The gate
+  is still worth keeping for the raised family, but a passing ladder is not
+  by itself evidence that a container reads.
   `--field-bg` is *recessed below* the surface, so inputs read as cut into a
   panel rather than as another panel stacked on it. **A panel is told from the
   ground by its 1px rule and its shadow, not by the lightness of its fill** —
@@ -258,8 +277,13 @@ that only references them does not.
   whole page is a blend mush" measures as. `--feed-veil` is retired; do not
   veil the log again.
 
-- **`.grain`** tiles `chatbg.png` under every page at `opacity: 0.35`, the
-  mockup's own figure — texture, not a subject. It sits at `z-index: -1` (not
+- **`.grain`** tiles `chatbg.png` under every page at `opacity: 1` — the same
+  tile at the same strength `.chat-feed` draws it at, so the app and the one
+  page people look at longest stand on the same ground. It was 0.35 (the
+  character mockup's figure) while panels were opaque and lighter than the
+  ground; both halves of that changed together. How sunk a panel reads is set
+  by how lit the ground is, and at 0.35 a panel separates by 1.065 however
+  black it goes — pure black tops out at 1.107. Texture, not a subject. It sits at `z-index: -1` (not
   0) so it paints behind in-flow content rather than as a film over it, is
   `fixed` and `pointer-events: none` so it costs no paint on scroll, and it
   never gets a `backdrop-filter` or a per-frame or full-viewport animation —

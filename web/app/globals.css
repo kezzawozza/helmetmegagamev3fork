@@ -485,8 +485,10 @@ h3 {
    z-index: -1, not 0. A fixed positioned layer at z-index 0 paints ABOVE the
    in-flow content below it, which was harmless at the old 0.025 turbulence and
    would put a visible film over every page at 0.35. Negative pulls the layer
-   behind the content and above the canvas. Panels are opaque --surface, so the
-   texture shows in the gutters, exactly as the mockup draws it. */
+   behind the content and above the canvas. A panel is a translucent wash over
+   this now rather than an opaque fill, so the texture reads THROUGH a panel as
+   well as in the gutters, darker inside it — which is what makes a panel look
+   cut into the ground instead of laid on top of it. */
 .grain {
   position: fixed;
   inset: 0;
@@ -507,14 +509,24 @@ body:has(.chat-shell) .grain {
   display: none;
 }
 
-/* The ground. 0.35 app-wide, the mockup's own figure (REDESIGN.md §3); the
-   chat log takes it stronger, and that is phase 4's job, not this rule's. The
+/* The ground, and ONE ground: the same tile at the same strength the chat log
+   draws it at, so the app and the page people stare at longest finally stand
+   on the same thing. The
    tile is 512x512 and is drawn at 1:1 — sprites scale at integer multiples
    only. There is no vignette over this any more: the mockup draws none, and
    the radial gradient this app used to lay on top was the only saturated
    thing on the page eating itself back to grey. */
 .grain {
-  opacity: 0.35;
+  /* FULL STRENGTH, and it has to be. This is the same tile `.chat-feed` draws
+     at 1.0, so at 0.35 the rest of the app stood on a different, paler ground
+     than the one page everybody looks at longest. More than a mismatch: a
+     panel is sunk into this ground now, and how far it reads as sunk is set
+     by how lit the ground is. At 0.35 a panel separates by 1.065 no matter
+     how black it goes — pure black tops out at 1.107. At 1.0 the same panel
+     measures 1.16, which is chat's own figure.
+     If this ever wants dialling back, it is this one number, and the
+     separation figures above move with it. */
+  opacity: 1;
   background-image: url("/assets/chrome/chatbg.png");
   background-repeat: repeat;
   background-size: 512px 512px;
@@ -537,8 +549,23 @@ body:has(.chat-shell) .grain {
    a `padding` here would silently beat the p-* the call sites pass rather than
    losing to it. */
 .panel {
+  /* A PANEL IS CUT INTO THE GROUND, not stacked on it (§2, the ladder note).
+     It sat on --surface, which is lighter than --bg, and measured 1.028
+     against the ground a page actually shows — the grain-lit #13100a, not the
+     bare --bg the audit compares against. 1.028 is no separation at all, and
+     it is why every container in this app read as drab.
+
+     Sunk, on a ground carrying its full texture, the same figure is 1.16:
+     the number the chat feed already gets beside its own washed columns.
+     Lightening the panel instead was tried on paper and is strictly worse —
+     it costs text contrast, dropping --muted to 3.79 and --blackletter to
+     2.02, both under their floors. Darkening gains it.
+
+     --surface has NOT moved. It still means "raised", and the things that
+     genuinely float still take it: modals, popovers, tooltips, sticky table
+     heads, chips, paper, a filled cell. Two vocabularies, both real. */
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-radius: var(--r);
   padding: 8px;
 }
@@ -1557,7 +1584,7 @@ input[type="radio"]:disabled {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
 }
 
 .archive-day {
@@ -1583,7 +1610,7 @@ input[type="radio"]:disabled {
   align-items: baseline;
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-left: 3px solid var(--border);
   font-size: var(--fs-2xs);
   letter-spacing: 0.06em;
@@ -4230,7 +4257,7 @@ body:has(.map-shell) .app-shell {
 /* The desk card is a .panel-shaped surface without adopting .panel's role as
    a page-flow card — it fills the column. */
 .desk-card {
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border: 1px solid var(--border);
   border-radius: 0;
   padding: 1rem;
@@ -4822,7 +4849,7 @@ label.chip {
   top: 0;
   z-index: 1;
   padding: var(--sp-2) var(--sp-3);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-bottom: 1px solid var(--border);
   font-size: var(--fs-2xs);
   letter-spacing: 0.08em;
@@ -4952,7 +4979,7 @@ label.chip {
   flex-direction: column;
   gap: var(--sp-2);
   padding: var(--sp-3);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-bottom: 1px solid var(--border);
 }
 
@@ -5042,7 +5069,7 @@ label.chip {
    bottom edge. Capped so it never swallows the desk. */
 .desk-tray {
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
 }
 
 .desk-tray-bar {
@@ -5250,7 +5277,7 @@ label.chip {
   gap: 0.375rem;
   padding: 0.625rem 1rem 0.75rem;
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
 }
 
 /* The box itself: a textarea that grows with the draft (ConversationPane's
@@ -6630,6 +6657,9 @@ label.chip {
   position: absolute;
   top: var(--sp-2);
   left: var(--sp-2);
+  /* Opaque, and NOT the sunk wash the page containers take: this floats
+     over the map canvas, so a translucent ground would show terrain through
+     the control. Same reasoning as a tooltip. */
   background: var(--surface);
 }
 
@@ -6643,6 +6673,9 @@ label.chip {
   padding: 2px var(--sp-2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
+  /* Opaque, and NOT the sunk wash the page containers take: this floats
+     over the map canvas, so a translucent ground would show terrain through
+     the control. Same reasoning as a tooltip. */
   background: var(--surface);
 }
 
