@@ -713,14 +713,14 @@ like everything else.
   place — there is no "before" to have crossed from — and it draws for a
   system row exactly as it does for a spoken one, since a turn boundary is a
   fact about the scene, not about who is talking.
-- **No section in the places column folds.** It used to (`sectionFold.js`,
-  deleted): a folded section stayed shut across visits, and one bug in that
-  scheme — `.chat-bar`'s `flex-shrink: 0` fixing only half the shorthand
-  `.panel-header` set — meant folding a section long enough to stop the
-  column overflowing sent every row in it sliding to the floor of the
-  screen. The mockup has no fold at all, so shard 1 deleted the whole
-  mechanism rather than patching around it: a long column stays long now,
-  and nothing in it is ever hidden by accident.
+- **A zone group and a section inside it can both fold.** Shard 1 deleted
+  the old `sectionFold.js` outright, because folding used to break the
+  column: `.bar`'s `flex-shrink: 0` fixed only half the shorthand
+  `.panel-header` set, so folding a section long enough to stop the column
+  overflowing sent every row sliding to the floor of the screen. That bug is
+  fixed at the root now — `.bar` pins `flex: 0 0 auto` longhand (`chat.css`)
+  — so fold came back, session-only (a plain `useState` Set in
+  `PlacesColumn.js`, not persisted the way the deleted scheme was).
 - **A crumb** — Zone · Location — sits beside the open place's name, in the
   feed's own `.bar` (below), not above it as a separate line any more.
 - **Touch targets hold a floor of 44px** under a coarse pointer.
@@ -960,9 +960,9 @@ a 48px head and a one-line composer:
   `docs/zones.yaml`, so the web column and the Discord category list read in
   the same order rather than one of them alphabetically.
 
-  No section folds any more (above) — every section heading is a plain `<p
-  className="sect">`, the mockup's own class, drawn whether or not the
-  section is empty (an empty one draws nothing at all, unchanged).
+  A zone group and a section inside it can both fold shut (above) —
+  session-only, a plain `useState` Set in `PlacesColumn.js`, not persisted
+  across visits. An empty section still draws nothing at all, fold or not.
 - **The column's own bar and its section names.** The places column opens with
   `.bar` reading Places, so all three columns start on the same line — it
   used to open straight onto its first section heading, which left two bars

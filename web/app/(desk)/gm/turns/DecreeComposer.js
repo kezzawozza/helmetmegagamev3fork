@@ -64,7 +64,7 @@ export default function DecreeComposer({ zones, onClose }) {
     const where = picked.length === zones.length ? "every zone" : `${picked.length} zone${picked.length === 1 ? "" : "s"}`;
     const ok = await confirm({
       title: "Send this decree?",
-      message: `It goes out to ${where} now — the feed and Discord both — and there is no taking it back.`,
+      message: `Sent to ${where}. No taking it back.`,
       confirmLabel: "Send it",
     });
     if (!ok) return;
@@ -106,11 +106,8 @@ export default function DecreeComposer({ zones, onClose }) {
             data-autofocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="What the notice is called"
+            placeholder="Notice title…"
           />
-          <span className="text-xs text-muted">
-            Printed in the blackletter over the notice, so keep it short — a few words.
-          </span>
         </label>
 
         <label className="field">
@@ -124,13 +121,8 @@ export default function DecreeComposer({ zones, onClose }) {
             rows={8}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="What is proclaimed. A blank line starts a new paragraph."
+            placeholder="Write the decree here…"
           />
-          {bodyOver ? (
-            <span className="text-xs text-danger">
-              Over the {DECREE_BODY_MAX}-character cap Discord takes in one embed — trim it before sending.
-            </span>
-          ) : null}
         </label>
 
         <CheckPicker

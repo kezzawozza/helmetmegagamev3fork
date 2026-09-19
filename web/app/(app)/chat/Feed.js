@@ -170,16 +170,11 @@ const SystemRow = memo(function SystemRow({ row, zone = null }) {
 // place open. Drawn once, where the list was when you opened it, and left
 // there while you read — it is a bookmark, not a cursor.
 // The top of the list, when there is more of the scene than one page of it.
-//
-// Deliberately not a button. Reading further back happens on the scroll (see
-// reachBack), so this only ever REPORTS what is on the wire. A place can run
-// out because it is young, or because a turn wipe put the rest below the line
-// (db/lib/feedWipe.js) — the floored case says nothing rather than nudge the
-// reader toward the archive.
-function BacklogEdge({ loading, exhausted, floored }) {
+// Deliberately not a button: reading further back happens on the scroll
+// (see reachBack), so this only ever reports that a page is loading.
+function BacklogEdge({ loading }) {
   if (loading) return <li className="chat-backlog-edge">Reading further back…</li>;
-  if (!exhausted || floored) return null;
-  return <li className="chat-backlog-edge">This is the beginning.</li>;
+  return null;
 }
 
 function NewLine() {
@@ -1938,11 +1933,7 @@ export default function Feed({
           )
         ) : (
           <ul className="list-none p-0">
-            <BacklogEdge
-              loading={backlog.loading}
-              exhausted={backlog.exhausted}
-              floored={backlog.floored}
-            />
+            <BacklogEdge loading={backlog.loading} />
             {withRuns.map(
               ({ row, realName, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine, dayBreak }) => {
               const key = row.clientId ?? row.seq;
@@ -2024,7 +2015,7 @@ export default function Feed({
       )}
       </div>
 
-      {!readOnly && gm && place && !place.canSpeak && place.kind !== "dead" ? (
+      {!readOnly && gm && place && !place.canSpeak ? (
         <GmSystemComposer
           key={placeKey}
           placeKey={placeKey}
@@ -2191,6 +2182,7 @@ export default function Feed({
               <button
                 type="button"
                 className="btn chat-composer-send-btn"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={command ? runCurrent : submit}
                 disabled={
                   command
@@ -2256,10 +2248,6 @@ export default function Feed({
             <p className="chat-quiet italic">
               Go into a room, the zone summary channel, or a conversation to speak.
             </p>
-          ) : place.kind === "dead" && gm ? (
-            // A living GM reading the dead. They are not a ghost, so don't
-            // call them one; they answer the dead through /dm or the desk.
-            <p className="chat-quiet italic">GMs read Deadchat and don&apos;t speak in it.</p>
           ) : (
             // Everywhere else a character may read but not speak. The street
             // is not here any more — it has its own line above — so what is
@@ -2374,6 +2362,7 @@ function GmSystemComposer({ placeKey, placeKind, placeName, hasCharacter, people
             icon={SendIcon}
             label={cmd.verb ?? "Send"}
             className="icon-btn chat-composer-send"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => (command ? cmd.runCurrent() : void submit())}
             disabled={
               command

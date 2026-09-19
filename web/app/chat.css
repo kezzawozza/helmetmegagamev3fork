@@ -77,7 +77,7 @@
   overflow-y: auto;
   /* A scroll that reaches the end of a column stays in it — on a phone the
      alternative is pull-to-refresh, or the page behind a drawer moving. */
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   border-right: 1px solid var(--border);
   /* NO bottom padding, and that is load-bearing: the tail below is sticky, and
      a sticky box cannot leave its containing block — which ends at this
@@ -122,7 +122,7 @@
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 
 /* The GM zone picker at the foot of the right column. It wears the desks'
@@ -155,7 +155,7 @@
   margin-inline: -6px;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 
 /* The centre is itself a column: the phone's tab strip, then the scene. */
@@ -248,6 +248,39 @@
   text-shadow: 0 1px 0 var(--border-lo);
 }
 
+/* A zone group and a section (.sect, below) both fold now — this is the
+   shared control recipe, layered onto each one's own look rather than
+   replacing it, the way .chat-details-fold does for Things/Desires. */
+.chat-fold {
+  appearance: none;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  text-align: left;
+}
+
+.zone-div.chat-fold {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+
+.chat-fold svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  transition: transform 120ms ease-out;
+}
+
+.chat-fold svg[data-open="true"] {
+  transform: rotate(180deg);
+}
+
 /* The first group opens right under Radio, which already has a section's worth
    of space below it. */
 .chat-zone-group:first-of-type .zone-div {
@@ -265,16 +298,20 @@
 }
 
 /* The quiet label over one of the PLACES column's sections — the mockup's
-   `.sect`. It is a plain heading now, not a fold button: PlacesColumn.js
-   used to make every one of these a fold control, and folding a section is
-   the bug this shard removes (CHAT.md, "the places column used to break
-   when a section folded"). The mockup has no fold at all. */
+   `.sect`, now doubling as its fold control (`.chat-fold` above supplies the
+   button reset and the chevron). The bug that used to make folding here
+   dangerous — `.bar`'s free space getting swallowed once the column stopped
+   overflowing — is fixed at `.bar` itself now (`flex: 0 0 auto` longhand). */
 .sect {
   margin: 7px var(--sp-2) 2px;
   color: var(--muted);
   font-size: var(--fs-2xs);
   letter-spacing: 0.09em;
   text-transform: uppercase;
+}
+
+.sect:hover {
+  color: var(--text);
 }
 
 /* A closed-by-default drawer's own fold control (Things, Desires) — the one
@@ -576,7 +613,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   padding: var(--sp-3) var(--sp-4);
   background-color: var(--bg);
   background-image:
@@ -2051,7 +2088,7 @@
   max-height: none;
   height: 100dvh;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   border-top: 0;
   border-bottom: 0;
   border-radius: 0;

@@ -191,7 +191,7 @@ export default function CavingDesk({
               value={gmNotes}
               disabled={pending || readOnly}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="What actually happened here. GM-facing — send it to the player with Stage as message."
+              placeholder="What happened here…"
             />
           </label>
           {!readOnly && (

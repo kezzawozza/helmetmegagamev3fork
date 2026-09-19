@@ -364,7 +364,7 @@ export default function MoveDesk({
             disabled={disabled}
             maxLength={RESULT_BOX_MAX_LENGTH}
             onChange={(e) => setEdit("resultMessage", e.target.value)}
-            placeholder="What actually happened here. GM-facing — tell the players with staged messages below."
+            placeholder="What happened here…"
           />
         </label>
         <button

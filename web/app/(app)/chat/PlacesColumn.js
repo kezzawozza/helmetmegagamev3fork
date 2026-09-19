@@ -1,9 +1,9 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
-import { BellRingIcon, CheckIcon, MailIcon, SendIcon } from "@/app/components/icons";
+import { BellRingIcon, CheckIcon, ChevronDownIcon, MailIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 
 // The left column of Chat: everywhere this character may read, in the
@@ -24,11 +24,14 @@ import { isUnread } from "./seenStore";
 // is the GM and ghost seats, which watch every zone at once, that had a flat
 // run of every Location in the game under one "Location" heading.
 //
-// No section folds. It used to: a folded section stayed shut across visits,
-// and hiding a section was the reason the column could break — see chat.css's
-// `.bar` for the actual bug. The mockup has no fold either, so this is
-// deletion, not a stopgap: a long column stays long, the way the mockup's
-// does, and nothing here is ever hidden by accident.
+// A zone group and a section inside it can both fold shut — the whole of
+// Town, or just its Locations. This is session-only state (a plain
+// useState below), not persisted the way the old, deleted `sectionFold.js`
+// used to: a reload opens everything again. The bug that folding used to
+// trigger (`.bar`'s free space swallowed by a flex-grow shorthand once the
+// column stopped overflowing) is fixed at the CSS root now — `.bar` pins
+// `flex: 0 0 auto` longhand (chat.css) — so folding no longer breaks the
+// column underneath it.
 //
 // On a phone (under 720px) the SAME column is the ≡ drawer over the scene
 // (Chat.js), with a foot for the app's own links since the bottom bar is
@@ -91,26 +94,34 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, count = 0, onSe
   );
 });
 
-// A plain heading, the mockup's `.sect` — no fold, nothing hidden. Empty
-// sections draw nothing, same as before.
-function Section({ title, places, selected, seen, notified, newest, onSelect }) {
+// The mockup's `.sect` heading, now a fold control. `sectionKey` is unique
+// across the whole column (zone id + title, since "Summary"/"Here"/etc.
+// repeat per zone) — `collapsed`/`onToggle` are the parent's shared Set, so
+// one piece of state covers every section rather than one useState each.
+// Empty sections still draw nothing, fold or not.
+function Section({ title, places, selected, seen, notified, newest, onSelect, sectionKey, collapsed, onToggle }) {
   if (places.length === 0) return null;
+  const open = !collapsed.has(sectionKey);
   const unreadOf = (place) =>
     place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place));
   const countOf = (place) => notified?.get(place.placeKey) ?? 0;
   return (
     <div className="chat-section">
-      <p className="sect">{title}</p>
-      {places.map((place) => (
-        <PlaceRow
-          key={place.placeKey}
-          place={place}
-          active={place.placeKey === selected}
-          unread={unreadOf(place)}
-          count={countOf(place)}
-          onSelect={onSelect}
-        />
-      ))}
+      <button type="button" className="sect chat-fold" aria-expanded={open} onClick={() => onToggle(sectionKey)}>
+        <ChevronDownIcon data-open={open ? "true" : undefined} />
+        {title}
+      </button>
+      {open &&
+        places.map((place) => (
+          <PlaceRow
+            key={place.placeKey}
+            place={place}
+            active={place.placeKey === selected}
+            unread={unreadOf(place)}
+            count={countOf(place)}
+            onSelect={onSelect}
+          />
+        ))}
     </div>
   );
 }
@@ -193,6 +204,19 @@ export default function PlacesColumn({
   // is exactly the same list under the truer of the two words.
   const hereTitle = (list) => (list.length === 1 ? "Here" : "Locations");
 
+  // Folded zone groups and sections, both in one Set keyed by string — a
+  // group's key is its zone id alone, a section's is `${zoneId}:${title}`
+  // (section titles repeat per zone, so the zone id disambiguates). Not
+  // persisted; a reload opens everything again (see the header comment).
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const toggle = (key) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   return (
     <nav className="chat-places" aria-label="Places">
       {/* The column's own bar, the way the feed and the right column have one
@@ -201,8 +225,8 @@ export default function PlacesColumn({
           three columns with two bars between them and a gap where the third
           should be. */}
       <p className="bar">Places</p>
-      <Section title="Mail" places={mail} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
-      <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
+      <Section title="Mail" places={mail} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="mail" collapsed={collapsed} onToggle={toggle} />
+      <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="radio" collapsed={collapsed} onToggle={toggle} />
       {groups.map((group) => {
         // Elsewhere is cut FIRST and the other three exclude it, so a fogged
         // street and its rooms are drawn once, together, under their own
@@ -213,60 +237,88 @@ export default function PlacesColumn({
         const here = group.places.filter((p) => p.kind === "loc" && !p.vantage);
         const rooms = group.places.filter((p) => p.kind === "room" && !p.vantage);
         const conversations = group.places.filter((p) => p.kind === "conv" && !p.vantage);
+        const groupKey = group.zoneId ?? "elsewhere-zone";
+        const groupOpen = !collapsed.has(groupKey);
         return (
-          <div className="chat-zone-group" key={group.zoneId ?? "elsewhere-zone"}>
+          <div className="chat-zone-group" key={groupKey}>
             {divided && group.zoneName && (
-              <p className="zone-div" role="separator" aria-label={group.zoneName}>
+              <button
+                type="button"
+                className="zone-div chat-fold"
+                aria-expanded={groupOpen}
+                aria-label={group.zoneName}
+                onClick={() => toggle(groupKey)}
+              >
+                <ChevronDownIcon data-open={groupOpen ? "true" : undefined} />
                 {group.zoneName}
-              </p>
+              </button>
             )}
-            <Section
-              title="Summary"
-              places={summary}
-              selected={selected}
-              seen={seen}
-              notified={notified}
-              newest={newest}
-              onSelect={onSelect}
-            />
-            <Section
-              title={hereTitle(here)}
-              places={here}
-              selected={selected}
-              seen={seen}
-              notified={notified}
-              newest={newest}
-              onSelect={onSelect}
-            />
-            <Section
-              title="Rooms"
-              places={rooms}
-              selected={selected}
-              seen={seen}
-              notified={notified}
-              newest={newest}
-              onSelect={onSelect}
-            />
-            <Section
-              title="Conversations"
-              places={conversations}
-              selected={selected}
-              seen={seen}
-              notified={notified}
-              newest={newest}
-              onSelect={onSelect}
-            />
-            {/* Everywhere you have been this turn and can still watch. It
-                empties itself when you leave the zone or the day turns. */}
-            <Section
-              title="Elsewhere"
-              places={elsewhere}
-              selected={selected}
-              seen={seen}
-              notified={notified}
-              newest={newest}
-              onSelect={onSelect}
-            />
+            {groupOpen && (
+              <>
+                <Section
+                  title="Summary"
+                  places={summary}
+                  selected={selected}
+                  seen={seen}
+                  notified={notified}
+                  newest={newest}
+                  onSelect={onSelect}
+                  sectionKey={`${groupKey}:summary`}
+                  collapsed={collapsed}
+                  onToggle={toggle}
+                />
+                <Section
+                  title={hereTitle(here)}
+                  places={here}
+                  selected={selected}
+                  seen={seen}
+                  notified={notified}
+                  newest={newest}
+                  onSelect={onSelect}
+                  sectionKey={`${groupKey}:here`}
+                  collapsed={collapsed}
+                  onToggle={toggle}
+                />
+                <Section
+                  title="Rooms"
+                  places={rooms}
+                  selected={selected}
+                  seen={seen}
+                  notified={notified}
+                  newest={newest}
+                  onSelect={onSelect}
+                  sectionKey={`${groupKey}:rooms`}
+                  collapsed={collapsed}
+                  onToggle={toggle}
+                />
+                <Section
+                  title="Conversations"
+                  places={conversations}
+                  selected={selected}
+                  seen={seen}
+                  notified={notified}
+                  newest={newest}
+                  onSelect={onSelect}
+                  sectionKey={`${groupKey}:conversations`}
+                  collapsed={collapsed}
+                  onToggle={toggle}
+                />
+                {/* Everywhere you have been this turn and can still watch. It
+                    empties itself when you leave the zone or the day turns. */}
+                <Section
+                  title="Elsewhere"
+                  places={elsewhere}
+                  selected={selected}
+                  seen={seen}
+                  notified={notified}
+                  newest={newest}
+                  onSelect={onSelect}
+                  sectionKey={`${groupKey}:elsewhere`}
+                  collapsed={collapsed}
+                  onToggle={toggle}
+                />
+              </>
+            )}
           </div>
         );
       })}

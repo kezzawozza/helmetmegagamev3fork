@@ -192,7 +192,7 @@ function JournalComposerBody({ entry, roster, currentTurnNumber, onClose }) {
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               onKeyDown={onKeyDown}
-              placeholder="Write here. Type @ to mention a character."
+              placeholder="Write here…"
               required
             />
             {menuOpen && (

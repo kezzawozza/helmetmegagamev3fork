@@ -58,12 +58,12 @@ const DEADCHAT_DENY =
   PERM_CREATE_PUBLIC_THREADS |
   PERM_CREATE_PRIVATE_THREADS;
 
-// A GM READS Deadchat and does not speak in it, matching the rule everywhere else on the desk: a GM
-// reads every place they watch and speaks in none (db/lib/feedAccess.js#gmPlacesFor). SEND is denied
-// rather than merely ungranted, so a GM who also happens to have a dead character cannot type here
-// as themselves and be resolved as a ghost — one act, one answer.
-const GM_ALLOW = PERM_VIEW_CHANNEL | PERM_READ_HISTORY;
-const GM_DENY = PERM_SEND_MESSAGES | PERM_ATTACH_FILES;
+// A GM may post in Deadchat — as Bascinet, via the system composer
+// (web/app/(app)/chat/Feed.js#gmSystemPost), not as a hooded ghost of their
+// own dead character. ATTACH_FILES stays denied; nothing needs a GM
+// uploading into the one room with no moderator watching it live.
+const GM_ALLOW = PERM_VIEW_CHANNEL | PERM_READ_HISTORY | PERM_SEND_MESSAGES;
+const GM_DENY = PERM_ATTACH_FILES;
 
 async function deadchatChannelId(prisma) {
   const config = await prisma.gameConfig.findUnique({
