@@ -309,7 +309,24 @@ Each ends with something that runs.
    two numbers `useAsideFolded.js` and `useNarrow.js` use. A disagreement of
    one pixel between them is a band of window holding a track for a column
    that is not there.
-8. **Cutover** — flip `ChatView.js`, delete the old files in one commit.
+8. **Cutover** — `ChatView.js` draws the rebuilt chat now. `?old=1` still
+   reaches the one it replaced, for as long as those files are here.
+
+   **The deletion is held back, on purpose, and this is the one place the
+   plan did not survive contact.** The plan assumed `chat-next.css` would be
+   a whole stylesheet and `chat.css` would go with the components. It is not:
+   the rebuilt tree draws a dozen of the old chat's own components — the
+   place card, travel nodes, the party rack, the things and desires drawers,
+   the members strip, the search box, the ✉ menu — and every one of them is
+   styled by rules that live, unscoped, in `chat.css`. Taking the stylesheet
+   out with the components would ship a page that works and looks like
+   nothing.
+
+   So what is left is a STYLESHEET merge, not a delete: fold the rules those
+   components need into `chat-next.css` against the vocabulary, then drop
+   `chat.css` and `../Chat.js`, `../Feed.js`, `../ChatAside.js`,
+   `../GmAside.js`, `../DmPane.js` and `../PlacesColumn.js` together. That is
+   its own piece of work and it is the last of this.
 
 ## Persistent folds — the one new behaviour
 

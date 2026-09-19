@@ -13,7 +13,10 @@ import ChatNext from "./next/ChatNext";
 // props are the same names <Chat> and <RequestActionsProvider> always took;
 // only the place they are spelled out moved.
 export default function ChatView({ kind, chat, providers, roster, mentionDirectory = [] }) {
-  const next = useSearchParams().get("next") === "1";
+  // THE CUTOVER. The rebuilt chat is what /chat draws now
+  // (docs/systemdocs/CHAT-REBUILD.md); `?old=1` still reaches the one it
+  // replaced, for as long as that file is here to reach.
+  const old = useSearchParams().get("old") === "1";
   if (kind === "empty" || kind === "nowhere") {
     return (
       <div className="chat-body chat-body--empty">
@@ -23,11 +26,7 @@ export default function ChatView({ kind, chat, providers, roster, mentionDirecto
       </div>
     );
   }
-  // THE CUTOVER IS THIS LINE. While the rebuild is in flight it is opt-in per
-  // request (`/chat?next=1`) so the two can be compared side by side on the
-  // same data; when it reaches parity this becomes `<ChatNext {...chat} />`
-  // and ../Chat.js and its files are deleted in one commit.
-  const scene = next ? <ChatNext {...chat} /> : <Chat {...chat} />;
+  const scene = old ? <Chat {...chat} /> : <ChatNext {...chat} />;
   if (!providers) return scene;
   return (
     <CharacterMentionsProvider characters={roster} directory={mentionDirectory}>
