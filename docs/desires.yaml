@@ -326,21 +326,16 @@ desires:
   # entries below are social or narrative — a GM has to judge those by
   # reading the scene, not by searching a log — and correctly have no
   # `verify:` at all.
-  # `description:` (optional, on any entry below): the rule for what a claim
-  # has to be, written as two lines that start "Counts:" and "Doesn't count:".
-  # It shows in the catalog, in the Claim dialog and on the GM review desk.
-  # Give one to any Desire a player could stretch — "save a life" was being
-  # claimed for a warning. Name something the game can show (a tag, a seat, a
-  # public room), not what a character felt. See DESIRES.md §10.
+  # No entry carries a `description:` — Desires don't need one (removed 2026-09-18).
   # === 4a. Ungated ==========================================================
   con-a-noble:
     name: Con a member of royalty or a courtier out of resources or an item.
-    tier: 3
+    tier: 2
     families: [theft, scheming]
 
   win-an-argument:
     name: Win an argument
-    tier: 2
+    tier: 1
     families: [social]
     cooldownTurns: 4
 
@@ -360,7 +355,7 @@ desires:
   drink-ravenheart-red:
     name: Drink Ravenheart Red
     verify: "Ravenheart Red"
-    tier: 2
+    tier: 1
     families: [alcohol]
     cooldownTurns: 3
 
@@ -387,36 +382,36 @@ desires:
   take-a-drug:
     name: Take a recreational drug — not alcohol
     verify: "drug"
-    tier: 2
+    tier: 1
     families: [drugs]
     cooldownTurns: 3
 
   try-a-new-drug:
     name: Use a drug or tonic you have never used before.
     verify: "drug"
-    tier: 2
+    tier: 1
     families: [drugs]
     cooldownTurns: 3
 
   overdose:
     name: Overdose on a recreational drug, to near death
     verify: "drug"
-    tier: 3
+    tier: 2
     families: [drugs, mortality]
 
   get-a-manor:
     name: Get a new manor
-    tier: 4
+    tier: 3
     families: [wealth, status]
 
   get-a-house:
     name: Get a new house
-    tier: 3
+    tier: 2
     families: [wealth]
 
   get-a-pet:
     name: Get a new pet
-    tier: 2
+    tier: 1
     families: [wealth]
 
   # The two Prospecting goals (MINING.md). Gated on the skill rather than the
@@ -440,7 +435,7 @@ desires:
   obtain-the-arkenstone:
     name: Obtain the Arkenstone
     verify: "Arkenstone"
-    tier: 4
+    tier: 2
     families: [wealth]
     oncePerLife: true
     requires:
@@ -448,7 +443,7 @@ desires:
 
   embarrass-rival:
     name: Embarrass your rival publicly
-    tier: 4
+    tier: 1
     families: [social, cruelty]
 
   kiss-someone:
@@ -464,7 +459,7 @@ desires:
 
   murder-rival:
     name: Individually murder your rival
-    tier: 4
+    tier: 3
     families: [feud, violence]
     oncePerLife: true
 
@@ -473,7 +468,7 @@ desires:
   # nothing counts a balance and nothing fires automatically.
   buy-your-freedom:
     name: Buy your freedom
-    tier: 3
+    tier: 1
     families: [status, wealth]
     oncePerLife: true
     requires:
@@ -488,27 +483,28 @@ desires:
 
   win-5-gambling:
     name: Win 5 ¢ gambling
-    tier: 2
+    tier: 1
     families: [gambling]
 
   win-10-gambling:
     name: Win 10 ¢ gambling
-    tier: 3
+    tier: 1
     families: [gambling]
 
   win-25-gambling-one-game:
     name: Win 25 ¢ gambling in one game
-    tier: 4
+    tier: 2
     families: [gambling]
 
   win-50-gambling-one-game:
     name: Win 50 ¢ gambling in one game
-    tier: 5
+    tier: 3
     families: [gambling]
 
   win-a-fortune-gambling:
     name: Win a gun, manor, or similarly very valuable item gambling
-    tier: 7
+    tier: 4
+    oncePerLife: true
     families: [gambling, wealth]
 
   get-a-hug:
@@ -542,23 +538,23 @@ desires:
   lavish-meal:
     name: Have a lavish meal
     verify: "Lavish Meal"
-    tier: 2
+    tier: 1
     families: [food]
     cooldownTurns: 3
 
   rival-in-jail:
     name: Get your rival thrown in jail
-    tier: 4
+    tier: 2
     families: [scheming, feud]
 
   hold-100:
     name: Have 100 ¢ in your inventory at once
-    tier: 4
+    tier: 2
     families: [wealth]
 
   get-someone-indebted:
     name: Have someone become indebted to you.
-    tier: 2
+    tier: 1
     families: [scheming, wealth]
 
   make-a-friend:
@@ -575,7 +571,7 @@ desires:
 
   get-married:
     name: Get married
-    tier: 5
+    tier: 3
     families: [romance]
     oncePerLife: true
 
@@ -591,27 +587,30 @@ desires:
 
   win-a-duel:
     name: Win a duel
-    tier: 4
+    tier: 2
     families: [violence, bravery]
 
   save-someones-life:
     name: Save someone's life from Dying or a killing blow
-    description: |-
-      Counts: They held the Dying tag and you cured it, or someone was killing them right then and you stopped it. You ended the attack, took the blow, or got them out of it.
-      Doesn't count: A warning, a tip-off or advice. Treating a small wound. A danger that had not started yet. Someone who was winning the fight anyway. A scene staged just to claim this.
     tier: 3
     families: [bravery, charity]
     cooldownTurns: 5
 
+  save-an-outside-leaders-life:
+    name: Save the life of a Leader of a faction you did not start in
+    tier: 5
+    families: [bravery, charity]
+    oncePerLife: true
+
   win-a-tournament:
     name: Win a tournament
-    tier: 5
+    tier: 3
     families: [violence, bravery, vanity]
 
   get-jewelry:
     name: Buy some jewelry
     verify: "Jewelry"
-    tier: 2
+    tier: 1
     families: [vanity, wealth]
 
   obtain-vengeance:
@@ -629,7 +628,7 @@ desires:
 
   charitable-act-devoted:
     name: Perform a charitable act
-    tier: 2
+    tier: 1
     cooldownTurns: 4
     families: [charity]
     requires:
@@ -638,7 +637,7 @@ desires:
   drink-sake:
     name: Drink sake
     verify: "Sake"
-    tier: 3
+    tier: 1
     families: [alcohol]
     cooldownTurns: 3
 
@@ -689,7 +688,7 @@ desires:
 
   better-person:
     name: Help someone become a better person.
-    tier: 2
+    tier: 1
     families: [faith, charity]
     requires:
       anyTags: [prudish]
@@ -725,14 +724,15 @@ desires:
 
   befriend-animal:
     name: Befriend a wild animal
-    tier: 3
+    tier: 2
     families: [social, adventure]
     requires:
       anyTags: [animal-friend]
 
   meet-theb-etter:
     name: Meet Theb Etter
-    tier: 7
+    tier: 4
+    oncePerLife: true
     families: [faith, adventure]
     # F-13: the proper noun "Theb Etter" is unverified against any other doc
     # — carried through as the planner wrote it.
@@ -741,7 +741,7 @@ desires:
 
   dance-with-someone:
     name: Dance with someone
-    tier: 2
+    tier: 1
     families: [social, craft]
     requires:
       anyTags: [dancer]
@@ -749,7 +749,7 @@ desires:
 
   dance-with-someone-important:
     name: Dance with someone important or beautiful
-    tier: 3
+    tier: 1
     families: [social, vanity]
     requires:
       anyTags: [dancer]
@@ -757,35 +757,35 @@ desires:
 
   get-captured:
     name: Get captured
-    tier: 3
+    tier: 1
     families: [adventure]
     requires:
       anyTags: [escape-artist]
 
   escape-the-dungeons:
     name: Escape the dungeons
-    tier: 5
+    tier: 2
     families: [adventure, bravery]
     requires:
       anyTags: [escape-artist]
 
   escape-being-bound:
     name: Escape being bound
-    tier: 3
+    tier: 1
     families: [adventure, bravery]
     requires:
       anyTags: [escape-artist]
 
   outwit-opponent:
     name: Outwit an opponent
-    tier: 4
+    tier: 2
     families: [scheming]
     requires:
       anyTags: [game-master, intelligent, tactician]
 
   gods-favour:
     name: Earn your god's favour
-    tier: 2
+    tier: 1
     families: [faith]
     requires:
       anyTags: [old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
@@ -793,14 +793,14 @@ desires:
 
   win-mortally-injured:
     name: Win a fight while mortally injured
-    tier: 5
+    tier: 3
     families: [violence, bravery, mortality]
     requires:
       anyTags: [relentless]
 
   pet-a-rat:
     name: Pet someone else's rat
-    tier: 2
+    tier: 1
     families: [social]
     requires:
       anyTags: [tunnel-rat]
@@ -808,28 +808,29 @@ desires:
 
   top-of-a-building:
     name: Reach the top of a building
-    tier: 2
+    tier: 1
     families: [adventure]
     requires:
       anyTags: [climbing]
 
   top-of-the-mountains:
     name: Reach the top of the mountains
-    tier: 4
+    tier: 2
     families: [adventure]
     requires:
       anyTags: [climbing]
 
   beat-plate-armour:
     name: Win a fight against someone in plate armor.
-    tier: 7
+    tier: 4
+    oncePerLife: true
     families: [violence, bravery]
     requires:
       anyTags: [melee-flamboyant]
 
   feed-the-lifeweb:
     name: Feed someone to the Lifeweb, killing them
-    tier: 4
+    tier: 3
     families: [mortality, cruelty]
     requires:
       anyTags: [mortus]
@@ -839,7 +840,7 @@ desires:
   drink-to-unconscious:
     name: Drink until you blackout.
     verify: "Alcohol"
-    tier: 2
+    tier: 1
     families: [alcohol]
     requires:
       anyTags: [alcoholic]
@@ -866,19 +867,19 @@ desires:
   own-a-death-mask:
     name: Own a Death Mask
     verify: "Death Mask"
-    tier: 3
+    tier: 1
     families: [status, mortality]
 
   eat-dangerous:
     name: Eat something poisonous
-    tier: 4
+    tier: 2
     families: [food, bravery]
     requires:
       anyTags: [iron-constitution]
 
   receive-a-title:
     name: Receive a title from the Baron
-    tier: 3
+    tier: 1
     families: [status]
     requires:
       anyTags: [courtier, old-blood]
@@ -893,21 +894,21 @@ desires:
 
   gain-court-position:
     name: Gain a position in court
-    tier: 3
+    tier: 1
     families: [status]
     requires:
       anyTags: [courtier]
 
   win-against-odds:
     name: Win a battle against overwhelming odds
-    tier: 4
+    tier: 3
     families: [bravery, violence]
     requires:
       anyTags: [brave]
 
   bury-a-body:
     name: Bury a body or engrave a name
-    tier: 2
+    tier: 1
     families: [mortality]
     requires:
       anyTags: [mortus]
@@ -923,7 +924,7 @@ desires:
 
   steal-fate-item:
     name: Steal a role-specific item — one with the name of its role in it.
-    tier: 5
+    tier: 3
     families: [theft]
     requires:
       anyTags: [kleptomaniac]
@@ -938,14 +939,15 @@ desires:
 
   steal-the-barons-key:
     name: Steal the Baron's key
-    tier: 7
+    tier: 5
+    oncePerLife: true
     families: [theft, scheming]
     requires:
       anyTags: [kleptomaniac]
 
   worship-shrine-thoth:
     name: Worship at the Shrine to Thoth in the Keep
-    tier: 2
+    tier: 1
     families: [faith]
     requires:
       anyTags: [old-ways-thoth]
@@ -964,7 +966,7 @@ desires:
 
   feed-web-willing:
     name: Donate someone's blood to the Lifeweb
-    tier: 2
+    tier: 1
     families: [mortality]
     requires:
       anyTags: [mortus]
@@ -972,7 +974,7 @@ desires:
 
   feed-web-noble:
     name: Feed a noble to the Web
-    tier: 5
+    tier: 3
     families: [mortality, cruelty]
     requires:
       anyTags: [mortus]
@@ -981,7 +983,7 @@ desires:
   # === 4c. Role-gated =======================================================
   imprison-someone:
     name: Imprison someone
-    tier: 2
+    tier: 1
     families: [duty]
     requires:
       anyRoles: [cerberus, sheriff]
@@ -990,28 +992,28 @@ desires:
 
   arrest-a-criminal:
     name: Arrest a criminal
-    tier: 2
+    tier: 1
     families: [duty]
     requires:
       anyRoles: [cerberus, sheriff]
 
   execute-someone:
     name: Execute someone
-    tier: 3
+    tier: 2
     families: [duty, violence]
     requires:
       anyRoles: [inquisitor, practicus, preacher]
 
   interrogate-with-info:
     name: Interrogate someone and gain information
-    tier: 2
+    tier: 1
     families: [duty, cruelty]
     requires:
       anyRoles: [inquisitor, practicus, preacher]
 
   get-a-house-bum:
     name: Get a house
-    tier: 4
+    tier: 2
     families: [wealth]
     requires:
       anyRoles: [bum]
@@ -1020,7 +1022,7 @@ desires:
   sell-stolen-jewelry:
     name: Sell stolen jewelry to the Merchant
     verify: "Jewelry"
-    tier: 4
+    tier: 2
     families: [theft]
     requires:
       anyRoles: [servant]
@@ -1034,21 +1036,22 @@ desires:
 
   teach-literacy:
     name: Teach someone literacy
-    tier: 3
+    tier: 1
     families: [craft, charity]
     requires:
       anyRoles: [scholastic]
 
   spare-organs:
     name: Have a spare of every human organ
-    tier: 7
+    tier: 4
+    oncePerLife: true
     families: [medical]
     requires:
       anyRoles: [esculap, serpent]
 
   discover-medicine:
     name: Discover a new medicine
-    tier: 4
+    tier: 2
     families: [medical]
     requires:
       anyRoles: [esculap, serpent]
@@ -1056,7 +1059,7 @@ desires:
   install-cybernetic:
     name: Install a cybernetic part on a living person.
     verify: "Cybernetic"
-    tier: 4
+    tier: 2
     families: [medical]
     requires:
       anyRoles: [esculap, serpent]
@@ -1064,21 +1067,22 @@ desires:
   test-drugs:
     name: Test drugs on someone
     verify: "drug"
-    tier: 3
+    tier: 2
     families: [medical, cruelty]
     requires:
       anyRoles: [esculap, serpent]
 
   be-crowned-baron-bum:
     name: Be crowned Baron
-    tier: 7
+    tier: 5
+    oncePerLife: true
     families: [status]
     requires:
       anyRoles: [bum]
 
   angry-mob:
     name: Organise an angry mob
-    tier: 4
+    tier: 2
     families: [status, faith]
     requires:
       anyRoles: [preacher]
@@ -1092,16 +1096,13 @@ desires:
 
   three-days-no-disappearance:
     name: Have no one disappear from town for three consecutive days.
-    tier: 4
+    tier: 2
     families: [duty]
     requires:
       anyRoles: [sheriff]
 
   deliver-a-message:
     name: Deliver a written message someone gave you to carry
-    description: |-
-      Counts: Somebody else gave you a letter or note to carry, and you put it in the hands of the person it was for.
-      Doesn't count: A note you wrote yourself. A message passed by word of mouth. A throwaway note handed over just to claim this.
     tier: 1
     families: [duty]
     requires:
@@ -1109,7 +1110,7 @@ desires:
 
   protection-racket:
     name: Have someone pay you to not turn them in to the guards.
-    tier: 3
+    tier: 1
     families: [theft, cruelty]
     requires:
       anyRoles: [pusher]
@@ -1124,7 +1125,7 @@ desires:
 
   promoted-to-cerberus:
     name: Be promoted to Cerberus
-    tier: 4
+    tier: 2
     families: [status, duty]
     requires:
       anyRoles: [squire]
@@ -1132,14 +1133,15 @@ desires:
 
   promoted-to-censor-squire:
     name: Be promoted to Censor
-    tier: 7
+    tier: 4
+    oncePerLife: true
     families: [status, duty]
     requires:
       anyRoles: [squire]
 
   promoted-to-censor-cerberus:
     name: Be promoted to Censor
-    tier: 3
+    tier: 2
     families: [status, duty]
     requires:
       anyRoles: [cerberus]
@@ -1147,14 +1149,14 @@ desires:
 
   coronate-a-baron:
     name: Coronate a new Baron
-    tier: 5
+    tier: 3
     families: [status, faith]
     requires:
       anyRoles: [bishop]
 
   return-silver-cross:
     name: Return the stolen silver cross to the reliquary
-    tier: 5
+    tier: 2
     families: [faith, duty]
     requires:
       anyRoles: [incarn]
@@ -1163,7 +1165,7 @@ desires:
   cup-of-tea:
     name: Enjoy a cup of tea
     verify: "Tea"
-    tier: 2
+    tier: 1
     families: [food]
     requires:
       anyRoles: [incarn, arbiter]
@@ -1171,16 +1173,13 @@ desires:
 
   sibling-in-trouble:
     name: Get your sibling in trouble
-    tier: 3
+    tier: 1
     families: [scheming]
     requires:
       anyRoles: [heir, successor]
 
   save-the-barons-life:
     name: Save the Baron's life from Dying or a killing blow
-    description: |-
-      Counts: The Baron was Dying or being killed right then. You cured the Dying, or you stopped the killing: you ended the attack, took the blow, or got him out of it.
-      Doesn't count: A warning, a tip-off or a plot you heard about and reported. Treating a small wound. A danger that had not started yet.
     tier: 3
     families: [bravery, duty]
     requires:
@@ -1188,7 +1187,7 @@ desires:
 
   become-regent:
     name: Become regent in the interregnum
-    tier: 5
+    tier: 4
     oncePerLife: true
     families: [status]
     requires:
@@ -1196,7 +1195,7 @@ desires:
 
   amass-200:
     name: Amass a stockpile of 200 ¢
-    tier: 5
+    tier: 3
     families: [wealth]
     requires:
       anyRoles: [meister, headman, brigand-leader, innkeeper]
@@ -1212,7 +1211,7 @@ desires:
 
   perform-for-5:
     name: Perform for at least 5 people
-    tier: 2
+    tier: 1
     # The ladder at the top of this file: a Desire that costs nothing but
     # other people's attention takes the inverted cooldown, not the tier.
     cooldownTurns: 4
@@ -1224,7 +1223,7 @@ desires:
 
   perform-for-20:
     name: Perform for at least 20 people
-    tier: 5
+    tier: 2
     oncePerLife: true
     families: [craft, social]
     requires:
@@ -1251,7 +1250,7 @@ desires:
 
   shake-hands-with-the-ordinator:
     name: Shake hands with the Tribunal Ordinator
-    tier: 4
+    tier: 2
     oncePerLife: true
     families: [duty, status]
     requires:
@@ -1259,7 +1258,7 @@ desires:
 
   process-a-criminal:
     name: Process a criminal
-    tier: 2
+    tier: 1
     families: [duty]
     requires:
       anyRoles: [arbiter]
@@ -1280,21 +1279,21 @@ desires:
 
   cash-in-loan-interest:
     name: Cash in interest on a loan
-    tier: 2
+    tier: 1
     families: [wealth]
     requires:
       anyRoles: [merchant]
 
   beat-up-a-debtor:
     name: Beat up a debtor
-    tier: 3
+    tier: 1
     families: [violence, cruelty]
     requires:
       anyRoles: [docker]
 
   servant-thanked-by-noble:
     name: Be sincerely thanked by a noble
-    tier: 2
+    tier: 1
     families: [social, status]
     requires:
       anyRoles: [servant]
@@ -1302,28 +1301,28 @@ desires:
 
   servant-public-recognition:
     name: Receive public recognition from the Baron
-    tier: 4
+    tier: 1
     families: [status, vanity]
     requires:
       anyRoles: [servant]
 
   servant-promotion:
     name: Receive a promotion
-    tier: 4
+    tier: 1
     families: [status]
     requires:
       anyRoles: [servant]
 
   baron-graga-pit:
     name: Feed someone to the Graga pit
-    tier: 4
+    tier: 3
     families: [cruelty, mortality]
     requires:
       anyRoles: [baron]
 
   censor-turret-multikill:
     name: Have the turret kill at least 2 enemies without friendly fire.
-    tier: 3
+    tier: 2
     families: [violence, duty]
     requires:
       anyRoles: [censor]
@@ -1337,7 +1336,7 @@ desires:
 
   mercenary-sign-contract:
     name: Sign a contract with someone to hire you.
-    tier: 2
+    tier: 1
     families: [wealth, duty]
     requires:
       anyRoles: [mercenary]
@@ -1366,21 +1365,22 @@ desires:
 
   pusher-baron-addicted:
     name: Get the Baron addicted to drugs
-    tier: 7
+    tier: 4
+    oncePerLife: true
     families: [drugs, scheming]
     requires:
       anyRoles: [pusher]
 
   pusher-new-source:
     name: Acquire a new source of drugs
-    tier: 3
+    tier: 1
     families: [drugs, wealth]
     requires:
       anyRoles: [pusher]
 
   pusher-new-drug:
     name: Create a new kind of drug not seen before.
-    tier: 3
+    tier: 2
     families: [drugs, craft]
     requires:
       anyRoles: [pusher]
@@ -1388,7 +1388,7 @@ desires:
   # User gave no tier for this one.
   minstrel-joke-at-baron:
     name: Make a joke at the Baron's expense
-    tier: 2
+    tier: 1
     families: [social, craft]
     requires:
       anyRoles: [minstrel]
@@ -1397,7 +1397,7 @@ desires:
     cooldownTurns: 4
   torture-someone:
     name: Torture someone for a reason.
-    tier: 3
+    tier: 2
     families: [cruelty, violence]
     requires:
       anyTags: [cruel]
@@ -1413,14 +1413,14 @@ desires:
 
   beat-up-a-bum:
     name: Beat up a bum
-    tier: 2
+    tier: 1
     families: [cruelty, violence]
     requires:
       anyTags: [cruel]
 
   burn-a-heretic:
     name: Burn a heretic
-    tier: 5
+    tier: 2
     families: [faith, cruelty]
     requires:
       anyTags: [fundamentalist]
@@ -1432,7 +1432,7 @@ desires:
   # own tooltip.
   confess-your-sins:
     name: Successfully confess something
-    tier: 2
+    tier: 1
     families: [faith]
     requires:
       anyTags: [post-christian, pilgrim, fundamentalist]
@@ -1440,7 +1440,7 @@ desires:
 
   attend-a-sermon:
     name: Attend a sermon
-    tier: 2
+    tier: 1
     families: [faith]
     requires:
       anyTags: [pilgrim]
@@ -1448,7 +1448,7 @@ desires:
 
   cast-a-spell:
     name: Cast a spell
-    tier: 5
+    tier: 3
     families: [esoterica]
     requires:
       anyTags: [esoteric]
@@ -1457,7 +1457,7 @@ desires:
 
   find-an-artifact:
     name: Find a powerful ancient artifact
-    tier: 5
+    tier: 3
     families: [esoterica, adventure]
     requires:
       anyTags: [esoteric, adventurer]
@@ -1475,7 +1475,7 @@ desires:
 
   forbidden-knowledge:
     name: Uncover forbidden knowledge
-    tier: 3
+    tier: 1
     families: [esoterica]
     requires:
       anyTags: [esoteric]
@@ -1494,7 +1494,7 @@ desires:
 
   slay-a-great-beast:
     name: Slay a legendary beast
-    tier: 5
+    tier: 3
     families: [bravery, violence, adventure]
     requires:
       anyTags: [adventurer]
@@ -1518,21 +1518,21 @@ desires:
 
   start-a-large-brawl:
     name: Start a large brawl
-    tier: 4
+    tier: 2
     families: [violence, social]
     requires:
       anyTags: [hot-headed]
 
   punish-a-slight:
     name: Punish someone for slighting you
-    tier: 3
+    tier: 1
     families: [violence, feud]
     requires:
       anyTags: [hot-headed]
 
   upgrade-your-body:
     name: Upgrade your body
-    tier: 3
+    tier: 2
     families: [medical]
     requires:
       anyTags: [mad-doctor]
@@ -1546,10 +1546,7 @@ desires:
 
   prediction-comes-true:
     name: Predict a specific event in public, then see it happen
-    description: |-
-      Counts: You said it in a public room before it happened, and it named something specific: who, what, and roughly when. It then happened without you causing it.
-      Doesn't count: A vague omen such as "something bad is coming". Several predictions made to cover every outcome. Something you made happen yourself. A prediction said in private.
-    tier: 4
+    tier: 2
     families: [esoterica, social]
     requires:
       anyTags: [superstitious]
@@ -1579,14 +1576,14 @@ desires:
 
   berated-for-desperation:
     name: Be verbally insulted for your desperation.
-    tier: 2
+    tier: 1
     families: [social]
     requires:
       anyTags: [desperate]
 
   fake-illness-treated:
     name: Come up with a fake illness and be treated for it
-    tier: 3
+    tier: 1
     families: [medical, scheming]
     requires:
       anyTags: [hypochondriac]
@@ -1607,7 +1604,7 @@ desires:
 
   take-a-bribe:
     name: Take a bribe
-    tier: 2
+    tier: 1
     families: [theft]
     requires:
       anyTags: [corrupt]
@@ -1623,42 +1620,42 @@ desires:
 
   feed-the-baron:
     name: Feed the Baron
-    tier: 2
+    tier: 1
     families: [food, status]
     requires:
       anyTags: [glutton]
 
   eat-something-bizarre:
     name: Eat something bizarre
-    tier: 3
+    tier: 1
     families: [food, adventure]
     requires:
       anyTags: [glutton]
 
   partake-in-a-feast:
     name: Partake in a feast of 4 people or more
-    tier: 3
+    tier: 1
     families: [food, social]
     requires:
       anyTags: [glutton]
 
   come-close-to-death:
     name: Come close to death
-    tier: 4
+    tier: 1
     families: [mortality]
     requires:
       anyTags: [death-wish]
 
   grievous-wound-healed:
     name: Take a grievous wound and have it healed
-    tier: 3
+    tier: 1
     families: [mortality, medical]
     requires:
       anyTags: [death-wish]
 
   come-back-from-dying:
     name: Come back from Dying
-    tier: 5
+    tier: 3
     families: [mortality]
     requires:
       anyTags: [death-wish]
@@ -1693,7 +1690,7 @@ desires:
 
   wrestle-a-giant:
     name: Wrestle a giant
-    tier: 4
+    tier: 3
     oncePerLife: true
     families: [violence, bravery]
     requires:
@@ -1701,7 +1698,7 @@ desires:
 
   survive-a-turret-shot:
     name: Survive being hit with a turret.
-    tier: 5
+    tier: 4
     oncePerLife: true
     families: [mortality, stupidity]
     requires:
@@ -1743,7 +1740,7 @@ desires:
 
   pocket-60:
     name: Hold 60 ¢ that was never yours
-    tier: 4
+    tier: 1
     oncePerLife: true
     families: [theft]
     requires:
@@ -1753,7 +1750,7 @@ desires:
   # Brave (T: brave)
   stand-your-ground-alone:
     name: Stand your ground alone
-    tier: 3
+    tier: 1
     families: [bravery]
     requires:
       anyTags: [brave]
@@ -1775,17 +1772,14 @@ desires:
 
   lead-four-home:
     name: "Lead at least 3 people through a fight and lose none of them"
-    tier: 4
+    tier: 2
     families: [bravery, duty]
     requires:
       anyTags: [tactician]
 
   call-it-out-loud:
     name: Say out loud what an enemy will do, before they do it
-    description: |-
-      Counts: In a fight, before the enemy acted, you said one specific action they would take, and they took it.
-      Doesn't count: Naming several options. Calling something they always do. Calling it after they had moved. Calling an action you forced on them.
-    tier: 3
+    tier: 1
     families: [social, scheming]
     requires:
       anyTags: [tactician]
@@ -1800,14 +1794,14 @@ desires:
 
   let-someone-else-hang:
     name: Have someone punished for something you did
-    tier: 3
+    tier: 1
     families: [scheming, betrayal]
     requires:
       anyTags: [schemer]
 
   pry-out-a-secret:
     name: Have a stranger or superior reveal a secret to you.
-    tier: 3
+    tier: 1
     families: [scheming, social]
     requires:
       anyTags: [schemer]
@@ -1822,49 +1816,49 @@ desires:
 
   dem-humiliate:
     name: "Humiliate somebody privately"
-    tier: 2
+    tier: 1
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
 
   dem-offered-kiss:
     name: Take a kiss that was offered
-    tier: 3
+    tier: 1
     families: [demoness, romance]
     requires:
       anyTags: [demoness]
 
   dem-thanked-for-blood:
     name: "Drink somebody's blood (who you haven't yet broken)"
-    tier: 3
+    tier: 1
     families: [demoness, mortality]
     requires:
       anyTags: [demoness]
 
   dem-a-room-in-panic:
     name: Put a room into Panic without laying a hand on anyone
-    tier: 4
+    tier: 2
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
 
   dem-noble-lover:
     name: Take a lover with Nobility
-    tier: 3
+    tier: 1
     families: [demoness, romance]
     requires:
       anyTags: [demoness]
 
   dem-wanted-anyway:
     name: Be seen in your True Form and be wanted anyway
-    tier: 4
+    tier: 2
     families: [demoness, vanity]
     requires:
       anyTags: [demoness]
 
   dem-break-the-heir:
     name: Break the Heir
-    tier: 5
+    tier: 4
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
@@ -1872,35 +1866,37 @@ desires:
 
   dem-a-face-to-a-funeral:
     name: Wear a borrowed face to its owner's funeral
-    tier: 7
+    tier: 4
+    oncePerLife: true
     families: [demoness, scheming]
     requires:
       anyTags: [demoness]
 
   dem-a-priest-on-his-knees:
     name: Have a man of the Church on his knees for you
-    tier: 5
+    tier: 3
     families: [demoness, faith]
     requires:
       anyTags: [demoness]
 
   dem-lovers-at-each-other:
     name: "Make two people who love you try to kill each other"
-    tier: 5
+    tier: 3
     families: [demoness, scheming]
     requires:
       anyTags: [demoness]
 
   dem-eat-someone-whole:
     name: Eat somebody, whole
-    tier: 5
+    tier: 3
     families: [demoness, mortality]
     requires:
       anyTags: [demoness]
 
   dem-apex:
     name: Give it all up for the Apex Form
-    tier: 7
+    tier: 5
+    oncePerLife: true
     families: [demoness, mortality]
     requires:
       anyTags: [demoness]
@@ -1920,10 +1916,7 @@ desires:
 
   stop-a-war:
     name: Help end a war
-    description: |-
-      Counts: It was already a war the GMs recognise, it ended in a truce or a peace, and you did real work toward it: you carried terms, brokered the talks, or stood between the two sides.
-      Doesn't count: A fight or a feud between a few people. Talk that changed nothing. A war that ended for other reasons.
-    tier: 5
+    tier: 4
     families: [bravery, duty]
     oncePerLife: true
     requires:
@@ -1932,14 +1925,14 @@ desires:
   # --- Role-flavoured: the Metalsmith ---------------------------------------
   craft-plate-armor:
     name: Craft plate armor
-    tier: 3
+    tier: 2
     families: [craft]
     requires:
       anyRoles: [metalsmith]
 
   brand-with-hot-iron:
     name: Brand somebody with a hot iron
-    tier: 2
+    tier: 1
     families: [craft, cruelty]
     requires:
       anyRoles: [metalsmith]
@@ -1966,14 +1959,14 @@ desires:
 
   crucify-a-heretic:
     name: Crucify a heretic
-    tier: 2
+    tier: 1
     families: [faith, cruelty]
     requires:
       anyTags: [fundamentalist]
 
   barons-commission:
     name: Complete a commission for the Baron
-    tier: 4
+    tier: 2
     families: [craft, status, duty]
     requires:
       anyRoles: [metalsmith]
@@ -1983,24 +1976,21 @@ desires:
   # is what it actually meant, and the Hunter kit hands that to any Commoner.
   scare-off-a-trespasser:
     name: Scare somebody away from your territory
-    tier: 2
+    tier: 1
     families: [duty]
     requires:
       anyTags: [forester]
 
   warn-the-town:
     name: Warn the town of a threat you saw heading its way
-    description: |-
-      Counts: You saw the threat yourself (a monster, a raiding band, a hostile group) and told people in Town before it arrived.
-      Doesn't count: A rumor, a guess or a bad feeling. A threat you never saw. A warning given after it had already arrived.
-    tier: 2
+    tier: 1
     families: [duty]
     requires:
       anyTags: [forester]
 
   renovate-the-inn:
     name: "Renovate the inn with a skilled builder's help"
-    tier: 3
+    tier: 2
     families: [craft, wealth]
     requires:
       anyRoles: [innkeeper]
@@ -2024,7 +2014,7 @@ desires:
 
   host-an-event:
     name: Host an event at the inn
-    tier: 2
+    tier: 1
     families: [social]
     requires:
       anyRoles: [innkeeper]
@@ -2040,21 +2030,21 @@ desires:
   # Open to the Brigand Leader too — nothing here is beneath them.
   loot-a-captive:
     name: Loot something valuable from a captive.
-    tier: 2
+    tier: 1
     families: [theft]
     requires:
       anyRoles: [brigand, brigand-leader]
 
   get-on-a-wanted-flier:
     name: Get your name on a Wanted flier
-    tier: 3
+    tier: 1
     families: [status, theft]
     requires:
       anyRoles: [brigand, brigand-leader]
 
   escape-the-cerberon:
     name: Be chased by the Cerberon or the Sheriff, and escape
-    tier: 3
+    tier: 2
     families: [adventure, theft]
     requires:
       anyRoles: [brigand, brigand-leader]
@@ -2070,14 +2060,14 @@ desires:
 
   a-job-in-town:
     name: Get a job in Town
-    tier: 2
+    tier: 1
     families: [wealth, status]
     requires:
       anyRoles: [migrant]
 
   a-job-in-the-keep:
     name: Get a job in the Keep
-    tier: 3
+    tier: 1
     families: [wealth, status]
     requires:
       anyRoles: [migrant]
@@ -2111,14 +2101,14 @@ desires:
     cooldownTurns: 5
   dem-humiliate-publicly:
     name: "Humiliate somebody publicly"
-    tier: 3
+    tier: 1
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
 
   dem-torture:
     name: "Torture someone"
-    tier: 4
+    tier: 2
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
@@ -2133,7 +2123,7 @@ desires:
 
   dem-break-a-heart:
     name: "Break someone's heart (who you haven't yet broken)"
-    tier: 4
+    tier: 2
     families: [demoness, romance]
     requires:
       anyTags: [demoness]
@@ -2147,7 +2137,7 @@ desires:
 
   dem-refuse-publicly:
     name: "Refuse somebody publicly"
-    tier: 2
+    tier: 1
     families: [demoness, social]
     requires:
       anyTags: [demoness]
@@ -2155,7 +2145,7 @@ desires:
 
   dem-infidelity:
     name: "Make someone commit infidelity"
-    tier: 3
+    tier: 1
     families: [demoness, romance, scheming]
     requires:
       anyTags: [demoness]
@@ -2180,7 +2170,7 @@ desires:
   # and is not the role, and a Bishop who cannot want a confession is absurd.
   hear-a-confession:
     name: Have someone confess to you
-    tier: 2
+    tier: 1
     families: [faith, social]
     requires:
       anyTags: [chaplain]
@@ -2188,7 +2178,7 @@ desires:
 
   sprinkle-holy-water:
     name: Sprinkle holy water on the unholy
-    tier: 2
+    tier: 1
     families: [faith]
     requires:
       anyTags: [blessing]
@@ -2196,7 +2186,7 @@ desires:
 
   crucify-someone:
     name: Crucify someone
-    tier: 2
+    tier: 1
     families: [faith, violence]
     requires:
       anyRoles: [bishop]
@@ -2205,7 +2195,7 @@ desires:
   # character holds one role, so an AND would gate this to nobody.
   baron-praises-god:
     name: Get the Baron to praise God in the cathedral
-    tier: 3
+    tier: 1
     families: [faith, status]
     requires:
       anyRoles: [bishop, chaplain]
@@ -2221,7 +2211,7 @@ desires:
 
   adventure-with-a-dwarf:
     name: Go on an adventure with a dwarf character
-    tier: 4
+    tier: 2
     families: [adventure, social]
     requires:
       anyTags: [giant]
@@ -2229,7 +2219,7 @@ desires:
 
   adventure-with-a-giant:
     name: Go on an adventure with a giant character
-    tier: 4
+    tier: 2
     families: [adventure, social]
     requires:
       anyTags: [dwarf]
@@ -2245,7 +2235,7 @@ desires:
 
   track-a-missing-person:
     name: Track down a missing person
-    tier: 3
+    tier: 1
     families: [duty, adventure]
     requires:
       anyTags: [tracking]
@@ -2261,7 +2251,7 @@ desires:
 
   drinking-buddies:
     name: Become drinking buddies with a fellow alcoholic
-    tier: 2
+    tier: 1
     families: [alcohol, social]
     requires:
       anyTags: [alcoholic]
@@ -2269,7 +2259,7 @@ desires:
 
   headbutt-unconscious:
     name: Headbutt someone unconscious
-    tier: 2
+    tier: 1
     families: [violence]
     requires:
       anyTags: [thick-skull]
@@ -2277,7 +2267,7 @@ desires:
 
   flee-a-fight:
     name: Run away unharmed from a fight people expected you to fight in.
-    tier: 3
+    tier: 1
     families: [duty, violence]
     requires:
       anyTags: [craven]
@@ -2293,7 +2283,7 @@ desires:
 
   survive-martyrdom:
     name: Survive being martyred
-    tier: 5
+    tier: 4
     families: [faith, mortality]
     requires:
       anyTags: [saint]
@@ -2312,14 +2302,14 @@ desires:
   # the real gate is upstream of `requires` and neither entry restates it.
   eat-human-flesh:
     name: Eat human meat.
-    tier: 2
+    tier: 1
     families: [cruelty, food]
     requires:
       anyTags: [cruel]
 
   feast-on-human-flesh:
     name: Try human flesh for the first time.
-    tier: 4
+    tier: 2
     families: [food, cruelty]
     requires:
       anyTags: [glutton]
@@ -2329,7 +2319,7 @@ desires:
   # AND the trade, so either tag alone is not enough.
   butcher-a-human:
     name: Butcher a human
-    tier: 3
+    tier: 2
     families: [cruelty, violence]
     requires:
       allTags: [cruel, butcher]
@@ -2337,7 +2327,7 @@ desires:
 
   kill-a-giant-with-a-sling:
     name: Kill a giant with a sling
-    tier: 5
+    tier: 4
     families: [violence, bravery]
     requires:
       anyTags: [sling]
@@ -2345,7 +2335,7 @@ desires:
 
   metal-ride:
     name: Get your hands on a sweet metal ride
-    tier: 5
+    tier: 3
     families: [wealth]
     requires:
       anyRoles: [pusher]
@@ -2353,7 +2343,7 @@ desires:
 
   steal-the-silver-cross:
     name: Steal the silver cross
-    tier: 5
+    tier: 4
     families: [theft, faith]
     requires:
       anyTags: [kleptomaniac]
@@ -2361,7 +2351,7 @@ desires:
 
   take-over-a-position:
     name: "Disguise yourself with someones clothes, and take over their position"
-    tier: 3
+    tier: 2
     families: [scheming, theft]
     requires:
       anyRoles: [bum]
@@ -2369,7 +2359,7 @@ desires:
 
   miasma-in-a-crowd:
     name: Use miasma in a crowded area
-    tier: 2
+    tier: 1
     families: [cruelty]
     requires:
       anyTags: [unhygienic]
@@ -2397,21 +2387,21 @@ desires:
   # a cube.
   drink-moonshine:
     name: Drink moonshine
-    tier: 2
+    tier: 1
     families: [alcohol]
     # Not the bare tier: the cooldown ladder for a Desire whose cost is real
     # but small, and this one costs your eyes a notch at a time.
     cooldownTurns: 3
   sample-every-alcohol:
     name: Sample one of every alcohol in Ravenheart (Alcohol, Sake, Moonshine, Ravenheart Red)
-    tier: 5
+    tier: 2
     families: [alcohol]
     oncePerLife: true
     requires:
       anyTags: [alcoholic]
   get-a-manor-near-the-keep:
     name: Get a manor near the keep
-    tier: 4
+    tier: 2
     families: [wealth, status]
     requires:
       anyRoles: [banneret]
@@ -2430,7 +2420,7 @@ desires:
       anyRoles: [banneret]
   throw-someone-in-the-boiling-vats:
     name: Let loose your anger by throwing someone in the boiling vats
-    tier: 4
+    tier: 2
     families: [cruelty, violence]
     requires:
       allTags: [cruel]
@@ -2470,7 +2460,7 @@ desires:
       anyRoles: [refugee]
   look-at-the-pretty-statues:
     name: Go into the Keep and look at the pretty statues
-    tier: 3
+    tier: 1
     families: [stupidity]
     requires:
       anyTags: [stupid]
@@ -2510,22 +2500,19 @@ desires:
   # Bascinet's wording throughout.
   thanati-minor-objective:
     name: Complete a minor objective
-    tier: 3
+    tier: 1
     families: [thanati]
     requires:
       anyTags: [thanati]
   thanati-major-objective:
     name: Complete a major objective
-    tier: 5
+    tier: 3
     families: [thanati]
     cooldownTurns: 3
     requires:
       anyTags: [thanati]
   thanati-save-the-leader:
     name: Save the cult leader's life from Dying or a killing blow
-    description: |-
-      Counts: The cult leader was Dying or being killed right then. You cured the Dying, or you stopped the killing: you ended the attack, took the blow, or got them out of it.
-      Doesn't count: A warning, a tip-off or a plot uncovered in advance. Treating a small wound. A danger that had not started yet.
     tier: 4
     families: [thanati]
     oncePerLife: true
@@ -2549,19 +2536,19 @@ desires:
       anyTags: [thanati]
   thanati-force-feed-flesh:
     name: Forcefully feed a living non-Thanati the Flesh of Tzchernobog
-    tier: 2
+    tier: 1
     families: [thanati, cruelty]
     requires:
       anyTags: [thanati]
   thanati-dynamite-kill:
     name: Kill someone with a stick or bundle of dynamite
-    tier: 3
+    tier: 2
     families: [thanati, violence]
     requires:
       anyTags: [thanati]
   thanati-wrong-execution:
     name: Witness the inquisition incorrectly execute someone who isn't a Thanati
-    tier: 4
+    tier: 2
     families: [thanati]
     requires:
       anyTags: [thanati]

@@ -44,10 +44,31 @@ its `endedTurnNumber` **cleared**, which is what releases the slot (§2).
 are independent: each cools down on its own clock, and the **bottom** one is
 the slot an Addiction binds (§3).
 
-**Tier doubles as the Tag Point award and the per-desire cooldown length.**
-A tier-3 Desire is worth 3 points and, once fulfilled, can't be picked again
-for 3 turns. The whitelist is `{1, 2, 3, 4, 5, 7}` — tier 6 is deliberately
-absent, don't invent it (`db/lib/syncDesires.js#TIER_WHITELIST`).
+**Tier doubles as the Tag Point award and the default per-desire cooldown
+length.** A tier-3 Desire is worth 3 points and, unless its `cooldownTurns` says
+otherwise, can't be picked again for 3 turns. Since the 2026-09-18 rescale the
+scale is short and most of the catalog sits at the bottom:
+
+| Tier | Meaning | Count |
+|---|---|---|
+| 1 | Most Desires: a routine act, a purchase, a single scene, something that happens to you | 161 |
+| 2 | The hard ones: effortful, risky, several steps, a real cost | 72 |
+| 3 | Really good: a goal a character remembers | 35 |
+| 4 | Top tier. **Every one is once-per-game**, and a repeatable Desire never goes above 3, so a goal you can claim again and again never pays the top rate | 17 |
+| 5 | The very biggest once-per-game goals: Be crowned Baron (both routes), the Apex Form, Steal the Baron's key, Save the life of a Leader of a faction you did not start in | 5 |
+
+The whitelist is `{1, 2, 3, 4, 5}` (`db/lib/syncDesires.js#TIER_WHITELIST`, and
+the same set for a tag's tier lock in `db/lib/desireShapes.js`). Tiers 6 and 7
+are retired: the sync refuses them, though claims already made keep the point
+value they were paid at, and the analytics histograms still list those tiers
+for that history. **A tier no longer implies once-per-game** — the old tier 7
+did, and its 11 entries now carry `oncePerLife: true` by hand.
+
+Two things ride on the number that were not the point of the rescale. **Mood
+relief** is `DESIRE_RELIEF_PER_POINT` a point (`MOOD.md`), so a claim now
+settles the nerves less. And **Nobility** (`tiers: [1]`) still blocks 1-point
+Desires, which is now most of the catalog: a noble is left with the 2-point and
+better goals, each of which pays more.
 
 ## 2. The tier ladder + cooldowns
 
@@ -106,13 +127,10 @@ pass:
   slot's "last claim" readout. That is the one lever the revoke/undo paths
   pull: a rejected claim costs the player their points but does not also cost
   them two turns of the slot.
-- **Tier 7 — ONCE EVER.** `db:sync-desires` defaults `oncePerLife: true` for
-  every tier-7 entry automatically; it's never written by hand in the YAML
-  for a tier-7 row. `oncePerLife` can also be set by hand at any other tier,
-  for the handful of entries where repeating the thing is absurd on its face
-  (a second first-ever coronation, learning to read twice) — and, as the one
-  documented opt-out, `oncePerLife: false` on a tier-7 entry turns the
-  default *off* for that entry.
+- **Once ever.** `oncePerLife: true` in the YAML, and only that (the sync no
+  longer infers it from any tier). All 17 tier-4 and 5 tier-5 Desires carry it, and so do 31
+  lower ones where repeating the thing is absurd on its face (a second
+  first-ever coronation, learning to read twice). 53 in all.
 
 **Why these are stateless turn-number comparisons, not a turn pass.** Every
 gate above reads as `openTurnNumber` vs. a stamped `endedTurnNumber`, computed
@@ -640,27 +658,13 @@ desires:
       combine: or                 # optional, default "and"; ORs anyTags with
                                   #   anyRoles (both must be non-empty)
     cooldownTurns: 5              # optional, overrides tier as cooldown length
-    oncePerLife: true             # optional; forced true at tier 7 unless set false
+    oncePerLife: true             # optional; the only way to make a Desire once-per-game
     verify: "Alcohol"              # optional, see below
-    description: |-               # optional; the "counts / doesn't count" rule, see below
-      Counts: ...
-      Doesn't count: ...
 ```
 
-**`description:` is the rule for what a claim has to be.** A name alone leaves
-the edges to whoever is claiming — "Save someone's life" was being claimed for
-a warning or a tip-off. So a vague Desire gets a `Counts:` line and a
-`Doesn't count:` line, each starting with exactly those words. It is shown
-in three places: under the row in the catalog, in the Claim dialog above the
-reason box (so a player reads it at the moment they commit), and on the review
-desk as **What counts** above the reason (`web/app/components/DesireRule.js`).
-It is free text — the sync copies it as it is, nothing validates the labels — and
-the desk reads the template's *current* wording, not a copy frozen at claim
-time. Eight entries carry one so far: the three "save … life" Desires,
-`warn-the-town`, `deliver-a-message`, `stop-a-war`, `prediction-comes-true`
-and `call-it-out-loud`. Write a rule that names something the game can show — a
-tag held (Dying), a seat somebody holds, a public room — rather than what a
-character felt or meant.
+**Desires carry no `description:`.** The field still syncs and
+`web/app/components/DesireRule.js` still draws one if it is set, but every
+entry's was removed on 2026-09-18 — Desires don't need them. Don't add them back.
 
 **`verify:` is one search string**, synced to `DesireTemplate.verifyQuery`,
 that prefills the review desk's audit-log filter (§6a) when a GM opens that

@@ -255,6 +255,7 @@ export async function claimsByTurn() {
   // 6 is never used, so it's left out of the stack keys entirely (no reason
   // to reserve a permanently-empty band in a stacked chart the way the
   // tier-histogram above deliberately shows one).
+  // 6 and 7 are retired tiers, kept here because claims made before the rescale carry those point values.
   const tierKeys = [1, 2, 3, 4, 5, 7];
   const byTurn = new Map();
   for (const r of rows) {
@@ -367,7 +368,7 @@ export async function rejectedClaimsByTurn() {
     .map(([turn, v]) => ({ x: turn, positive: v.fulfilled, negative: v.cancelled }));
 }
 
-// Which `onceEver` templates (tier-7 default) have been claimed game-wide,
+// Which `onceEver` templates (`oncePerLife: true`) have been claimed game-wide,
 // and how many times — a count, not a boolean, since transparency matters
 // more here than a single "exhausted" flag.
 export async function oncePerLifeExhaustion() {

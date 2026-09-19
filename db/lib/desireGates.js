@@ -211,7 +211,7 @@ function lockedReasonForTemplate(template, pairs, scope = { slotIndex: null, des
 }
 
 // "1–4" for a run with no gap on the tier ladder, "1, 2, 5" otherwise.
-const TIER_LADDER = [1, 2, 3, 4, 5, 7];
+const TIER_LADDER = [1, 2, 3, 4, 5];
 function formatTiers(tiers) {
   const steps = tiers.map((t) => TIER_LADDER.indexOf(t));
   const unbroken = steps.every((s, i) => s >= 0 && (i === 0 || s === steps[i - 1] + 1));

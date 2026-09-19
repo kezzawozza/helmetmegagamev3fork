@@ -15,7 +15,10 @@ const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { entriesOf } = require("./yamlEntries");
 
-const TIER_WHITELIST = new Set([1, 2, 3, 4, 5, 7]);
+// 1 is most Desires, 2 the hard ones, 3 the really good ones, 4 the top tier and 5 the very biggest (every 4 and 5
+// is once-per-game). 6 and 7 are retired: tier 7 used to mark a Desire once-per-game, and that is now
+// always the explicit `oncePerLife: true`.
+const TIER_WHITELIST = new Set([1, 2, 3, 4, 5]);
 
 function requireDocsPath(...segments) {
   const p = docsPath(...segments);
@@ -151,11 +154,8 @@ async function syncDesiresFromYaml(prisma) {
   // --- Pass 1: upsert scalars. -----------------------------------------
   const idBySlug = new Map();
   for (const [index, entry] of desireEntries.entries()) {
-    // onceEver defaults true at tier 7 unless the YAML explicitly says
-    // oncePerLife (either way — this maps oncePerLife: true at ANY tier to
-    // onceEver: true, and oncePerLife: false at tier 7 opts out of the
-    // default). engineering-plan.md §3c / task-3 brief.
-    const onceEver = entry.oncePerLife != null ? entry.oncePerLife === true : entry.tier === 7;
+    // Once-per-game is only ever `oncePerLife: true`. Tier 7 used to imply it, and that is gone with the tier.
+    const onceEver = entry.oncePerLife === true;
     const scalars = {
       name: entry.name,
       description: entry.description ?? null,

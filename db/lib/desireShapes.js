@@ -8,7 +8,7 @@
 // only alongside `tiers` or `all`) and an optional `slot: bottom`, which
 // narrows the clause to the character's last Desire slot.
 
-const TIER_WHITELIST = new Set([1, 2, 3, 4, 5, 7]);
+const TIER_WHITELIST = new Set([1, 2, 3, 4, 5]);
 const SLOT_SCOPES = new Set(["bottom"]);
 
 function isNonEmptyArray(value) {
