@@ -16,6 +16,7 @@ import { useNotified } from "../notifiedStore";
 import { useOpenPlace, setOpenPlace } from "../openPlace";
 import PlacesColumn from "./PlacesColumn";
 import Feed from "./Feed";
+import Composer from "./Composer";
 
 // THE REBUILD'S SHELL (docs/systemdocs/CHAT-REBUILD.md).
 //
@@ -43,6 +44,7 @@ export default function ChatNext(props) {
     ghost = false,
     hasCamera = false,
     speakers = null,
+    roster = [],
   } = props;
 
   // Seed the store DURING render, not in an effect, and exactly once. The
@@ -179,6 +181,7 @@ export default function ChatNext(props) {
             speakers={speakers}
             newAt={selected ? (seen?.get?.(selected.placeKey) ?? null) : null}
           />
+          <Composer place={selected} self={self} gm={gm} roster={roster} />
         </div>
 
         <div className="chat-rail" aria-hidden="true" />

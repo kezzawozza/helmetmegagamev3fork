@@ -664,3 +664,156 @@
   color: var(--danger);
   font-size: var(--fs-xs);
 }
+
+/* ── The composer ────────────────────────────────────────────────────────── */
+
+[data-chat-next] .chat-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  flex-shrink: 0;
+}
+
+/* The say row and the foot under it, as one flex item the bar above can
+   place. */
+[data-chat-next] .chat-say-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  flex: 1;
+  min-width: 0;
+}
+
+/* The voice picker beside the well, level with its BOTTOM edge so the two stay
+   aligned as the box grows to six lines. */
+[data-chat-next] .chat-say-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+[data-chat-next] .chat-mode-select {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  width: 5.25rem;
+}
+
+/* WELL (vocabulary §1), and the composer's is the canonical one: the mockup's
+   say box is a hole, not a raised panel.
+
+   NEVER give this `overflow`. The / and @ menus are positioned against it and
+   hang off the TOP — clipping them is how the command list becomes invisible
+   the moment it has more than one entry. */
+[data-chat-next] .chat-composer-box {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+[data-chat-next] .chat-composer-box:focus-within {
+  border-color: var(--accent);
+}
+
+/* The one row inside: your hands, the words, the send. flex-end so the
+   controls stay level with the LAST line as the box grows. */
+[data-chat-next] .chat-composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+[data-chat-next] .say {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  resize: none;
+  color: var(--speech);
+  font: inherit;
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+}
+
+[data-chat-next] .say:focus-visible {
+  outline: none;
+}
+
+/* Frameless at rest, like the ⋯ on a feed row: the frame comes back under the
+   pointer and the ring under the keyboard. A glyph, not a fill — the fill
+   belongs on the phone, where it is the thing a thumb aims at. */
+[data-chat-next] .chat-composer-send,
+[data-chat-next] .chat-composer-tools .icon-btn {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+[data-chat-next] .chat-composer-send:not(:disabled) {
+  color: var(--accent-text);
+}
+
+[data-chat-next] .chat-composer-send:hover:not(:disabled),
+[data-chat-next] .chat-composer-tools .icon-btn:hover {
+  color: var(--text);
+  background: var(--row-hover);
+  border-color: var(--accent-text);
+}
+
+[data-chat-next] .chat-composer-send:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+[data-chat-next] .chat-composer-tools,
+[data-chat-next] .chat-tool-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* ONE TEXT ROW, ALWAYS, whether or not anything is in it. Everything this row
+   draws is conditional — a countdown, a counter, a refusal, a command's answer
+   — so without a reserved height the composer GREW the moment one appeared and
+   shoved the whole feed up. The most obvious way to see it was picking Shout,
+   whose /shout carries a maxLength and so always has a counter.
+
+   1lh rather than a pixel count: one line box of this element's own font, so
+   it follows the type scale instead of going stale the next time it moves. The
+   row is RESERVED, not filled — nothing is written here to take up space. */
+[data-chat-next] .chat-composer-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 1lh;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+[data-chat-next] .chat-composer-error {
+  color: var(--danger);
+}
+
+[data-chat-next] .chat-composer-count[data-over="true"] {
+  color: var(--danger);
+}
+
+/* What a place refuses, and why — a street is not speech, a vantage is
+   somewhere you are watching rather than standing. Subtext, because it is the
+   room talking rather than a refusal aimed at you. */
+[data-chat-next] .chat-quiet-line {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+}

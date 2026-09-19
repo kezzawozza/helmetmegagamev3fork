@@ -184,8 +184,26 @@ Each ends with something that runs.
    its own piece of work. Until then the rebuilt feed renders seeded history
    and pages backwards through it — everything except lines arriving while you
    watch.
-4. **Composer** — modes, the 12 slash commands, `/` and `@` menus, chip
-   arguments, tools row, in-box send, drafts, slowmode, limits.
+4. **Composer** — `next/Composer.js`. Say / Shout / OOC off the same `where`
+   gate the slash list takes, the `/` and `@` menus, the tools row, the in-box
+   send, per-place drafts, the slowmode countdown with its 429 retry, autosize,
+   the per-command counter, and the refusal line for a place that is not
+   speech. Verified end to end: a line sends optimistically, the box clears,
+   and it is still there after a reload; picking Shout moves the feed **0px**.
+
+   `useComposerCommands` and `commands.js` are KEPT and driven, not rebuilt —
+   speech is already a command, so Say/Shout/OOC drive command mode rather
+   than adding a second send path, and the cap, the clearing and the
+   hand-back-on-refusal stay written once.
+
+   Carried from the CSS pass: the command strip does **not** draw for a voice
+   picked from the dropdown beside it, because the dropdown already reads
+   "Shout" and repeating it cost a whole row of the scene.
+
+   **Still owed:** chip arguments (a command that wants a person or a
+   destination), the "somebody is typing" line (the ping goes out; the readout
+   does not), the GM system composer, and `lettersMenu` — the ✉ tools menu is
+   built but nothing feeds it yet.
 5. **Aside** — You frame plus all eight blocks: Turn, Here, Waiting, Place,
    Party, Room, Travel, Desires, and the Things drawer.
 6. **GM aside + DM pane.**
