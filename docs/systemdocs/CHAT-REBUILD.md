@@ -113,10 +113,16 @@ Read it before adding any surface to chat. A thing that fits no rule there is a
 decision to make in that doc first, in one line, before it is built. That is the
 whole guard against improvising these 149 surfaces a second time.
 
-Still open in this phase: bucketing each of the 149 orphan classes against those
-rules, and the three lists that fall out of it — surfaces no rule covers,
-surfaces whose current value contradicts a rule, and classes doing one job under
-two names.
+All 149 orphan classes are bucketed against it. That turned up **five surfaces
+the mockup's own language had no name for** — the rail between columns, the
+sprite plate around the You well, a clickable content card, a sticky bar, and
+the fact that GROUND is painted twice — so the vocabulary gained rules for them
+rather than the rebuild improvising a second time.
+
+It also turned up **nine rules already broken** and **six pairs doing one job
+under two names**, both listed in that doc's §8 and §9. The clearest: the three
+sticky bars in chat today use three different backgrounds (`--surface-raised`,
+`--surface`, `--bg`), which is what a missing rule looks like from the outside.
 
 
 ## Phases
