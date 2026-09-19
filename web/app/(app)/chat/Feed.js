@@ -2069,7 +2069,13 @@ export default function Feed({
                     to be a floating accent-tinted pill above the textarea,
                     which read as a bubble stuck to the composer rather than
                     as a state the box was in. */}
-                {command && <CommandStrip entry={command.entry} onExit={exitCommand} />}
+                {/* ...but NOT for a voice picked from the dropdown beside it.
+                    The dropdown already reads "Shout", so the strip repeated
+                    the word and spent a whole row of the scene saying it: the
+                    composer grew 27px the moment you chose Shout, and the feed
+                    shrank by the same. A typed `/move` or `/look` has no such
+                    label anywhere, so it still gets the strip. */}
+                {command && !speechMode && <CommandStrip entry={command.entry} onExit={exitCommand} />}
                 {/* ONE row inside the box: what voice you are in, your hands,
                     the words, and the send. All four used to be separate boxes
                     standing in a line — a dropdown, a recess, and a solid
