@@ -21,9 +21,7 @@ import {
   manifestOf,
   manifestsFor,
   trainState,
-  vaultObols,
   TREASURY,
-  CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
   presentedIdentity,
   forcedNameFrom,
@@ -126,7 +124,8 @@ async function FreshDepot() {
           quantity: true,
           tagId: true,
           equipped: true,
-          tag: { select: { slug: true, forcedName: true, name: true, sellablePrice: true, ...CONCEALMENT_TAG_FIELDS } },
+          // The whole tag, so the drop box can draw each item as a TagChip.
+          tag: TAG_SELECT,
         },
       },
     },
@@ -143,7 +142,7 @@ async function FreshDepot() {
   const openTurn = await getOpenTurn();
   const account = character?.bankAccount ?? null;
 
-  const [wareTags, pricedTags, obolTag, ledgerRows, mySales, allStagedSales, vaultCoin] = await Promise.all([
+  const [wareTags, pricedTags, obolTag, ledgerRows, mySales, allStagedSales] = await Promise.all([
     // `resources` itself carries a depotPrice (docs/tags.yaml), so it is
     // excluded here — the hand-built `resourceWare` row below is its one
     // listing, not a second one drawn off the catalog.
@@ -177,7 +176,6 @@ async function FreshDepot() {
     // The Licence sees every account's staged selling — that is what running
     // the station buys. Settled rows stay each seller's own business.
     licensed ? prisma.depotSale.findMany({ where: { settledAt: null }, orderBy: { createdAt: "desc" }, take: 200 }) : [],
-    vaultObols(prisma),
   ]);
 
   // AuditLog carries a turnId but no relation to Turn, so the numbers come
@@ -249,7 +247,7 @@ async function FreshDepot() {
   // included: an unopened crate is worth what it says on the side.
   const sellable = (character?.tags ?? [])
     .filter((ct) => ct.tag.sellablePrice != null && ct.quantity > 0)
-    .map((ct) => ({ tagId: ct.tagId, name: ct.tag.name, quantity: ct.quantity, unitPrice: ct.tag.sellablePrice }));
+    .map((ct) => ({ tagId: ct.tagId, name: ct.tag.name, quantity: ct.quantity, unitPrice: ct.tag.sellablePrice, tag: ct.tag }));
 
   const greeting = character
     ? presentedIdentity(character, {
@@ -301,7 +299,6 @@ async function FreshDepot() {
               backed: account.class === TREASURY,
             }
           : null,
-        vaultObols: vaultCoin,
         licensed,
         keycard,
         superadmin,

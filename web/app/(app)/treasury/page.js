@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import PageShell from "@/app/components/PageShell";
 import TreasuryDesk from "./TreasuryDesk";
-import { prisma, loadDepot, vaultObols, TREASURY } from "@lifeweb/db";
+import { prisma, loadDepot, vaultObols, loadTreasuryTransactions, TREASURY } from "@lifeweb/db";
 import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -22,7 +22,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 // answered by a DM. The sell tax is quieter and much harder to dodge: it comes
 // off every sale at the counter before anybody is paid, and it lands in the
 // Vault as coin. See docs/systemdocs/DEPOT.md §8.
-export default async function TreasuryPage() {
+export default async function TreasuryPage({ searchParams }) {
   const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
@@ -31,7 +31,10 @@ export default async function TreasuryPage() {
   if (!gate.ok && !superadmin) redirect("/character");
   const holder = gate.ok;
 
-  const [depot, accounts, coin, staged] = await Promise.all([
+  const params = await searchParams;
+  const selectedId = typeof params?.account === "string" ? params.account : null;
+
+  const [depot, accounts, coin, staged, transactions] = await Promise.all([
     loadDepot(prisma),
     prisma.bankAccount.findMany({
       orderBy: { balanceObols: "desc" },
@@ -46,7 +49,11 @@ export default async function TreasuryPage() {
     }),
     vaultObols(prisma),
     prisma.depotSale.findMany({ where: { settledAt: null }, select: { unitPrice: true, quantity: true } }),
+    loadTreasuryTransactions(prisma, { accountId: selectedId }),
   ]);
+
+  // A stale or hand-typed id falls back to the whole list rather than an empty one.
+  if (selectedId && !accounts.some((a) => a.id === selectedId)) redirect("/treasury");
 
   const claims = accounts
     .filter((a) => a.class === TREASURY)
@@ -61,6 +68,8 @@ export default async function TreasuryPage() {
         claims={claims}
         stagedValue={stagedValue}
         readOnly={!holder}
+        selectedId={selectedId}
+        transactions={transactions.map((t) => ({ ...t, at: t.at ? new Date(t.at).toISOString() : null }))}
         accounts={accounts.map((a) => ({
           id: a.id,
           fingerprint: a.fingerprint,

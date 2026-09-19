@@ -220,8 +220,10 @@ buyer's stamp in front of it:
 [SHIPMENT ID RV-4471-K] · ADA VOSS · AV-2017: Coal x 4 | Bandage x 6 | ML-23
 ```
 
-Ordering **anonymously** is a tick at the counter, and replaces the stamp with
-`ANONYMOUS`. Only the `DepotOrder` row then remembers whose it was.
+The **crate label** is picked at the counter: the buyer's name (the stamp
+above), **No label** (the stamp reads `ANONYMOUS`), or **Custom**, up to 20
+characters in `DepotOrder.label`, printed alone with no fingerprint. Either way
+only the `DepotOrder` row then remembers whose it was.
 
 Unless something in it ships sealed, in which case the whole crate reads:
 
@@ -384,7 +386,23 @@ get the dial; `web/app/(app)/treasury/actions.js` re-checks the real gate.
 It shows every account — fingerprint, holder, role, class, balance — the Vault's
 coin against the sum of the TREASURY claims, and what is staged to sell. The one
 control is the **sell tax rate**, 0–100%, written to `Depot.sellTaxRate` with an
-audit row.
+audit row. Click an account, or follow `?account=<id>`, to see only that
+account's history.
+
+**The Transactions list** (`db/lib/treasuryLedger.js`) is built at read time from
+three places: deposits, withdrawals and opening balances off `EconomyEntry`,
+orders off `DepotOrder`, and settled sales off `DepotSale`. It shows only the
+**General manifest's** side of the bank. An order with even one Black Market or
+Merchant line is left out whole, as are sales into the Merchant's books and the
+Company's credit line. That is judged line by line, never by
+`DepotOrder.manifestId`, which records only the last ware carted. An order
+stamped `ANONYMOUS` or with a Custom label shows under that stamp with no
+fingerprint, and never in its account's own view. The account table names every
+fingerprint, so showing it there would unmask the buyer.
+
+The ATMs tab no longer shows a player the Vault's total, and its Withdraw
+dialog caps at the balance rather than the Vault for the same reason. A
+withdrawal the Vault can't cover is refused server-side.
 
 The number worth reading first is the **backing**. Under the line, somebody is
 going to walk up to the ATM and be told no through no fault of their own. Set

@@ -6,6 +6,7 @@ import { depotDrop, depotSaleDestination } from "@/app/(app)/depot/actions";
 import { TableScroll } from "./DataTable";
 import Select from "./Select";
 import RequestDialog from "./RequestDialog";
+import TagChip from "./TagChip";
 import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 
 // What you have put in the drop box, and where the money is going.
@@ -224,10 +225,7 @@ export default function DepotSellingTab({
           <ul className="depot-list mt-3">
             {sellable.map((item) => (
               <li key={item.tagId}>
-                <span>
-                  {item.name}{" "}
-                  <span className="mono text-muted">×{item.quantity}</span>
-                </span>
+                <TagChip tag={item.tag} quantity={item.quantity} />
                 <button
                   type="button"
                   className="btn-quiet"
