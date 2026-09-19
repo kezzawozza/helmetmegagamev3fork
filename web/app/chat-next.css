@@ -585,19 +585,29 @@
 
 /* The tail's own stacking. `margin-top: auto` pushes it to the bottom of a
    short column; `bottom: 0` pins it once the column overflows. */
+/* One line: the GM / Player switch on the left, the bell and mark-all-read
+   on the right. It used to stack them, which spent three rows on two controls. */
 [data-chat-next] .chat-places-tail {
   bottom: 0;
   margin-top: auto;
-  padding: var(--sp-2) var(--sp-2) var(--sp-3);
+  padding: var(--sp-2);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--sp-2);
+}
+
+[data-chat-next] .chat-view-as,
+[data-chat-next] .chat-places-foot {
+  padding: 0;
 }
 
 [data-chat-next] .chat-places-foot {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
+  margin-left: auto;
 }
 
 /* ── The scene's own parts ───────────────────────────────────────────────── */
