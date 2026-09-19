@@ -109,10 +109,13 @@ export default function Select({
     const roomBelow = vh - t.bottom - MARGIN;
     const roomAbove = t.top - MARGIN;
     const below = roomBelow >= 160 || roomBelow >= roomAbove;
-    const left = Math.min(Math.max(MARGIN, t.left), Math.max(MARGIN, vw - t.width - MARGIN));
+    // At least the trigger's width, but wide enough for the longest option: a
+    // small trigger used to make a popup too narrow to read.
+    const width = Math.min(Math.max(t.width, el.scrollWidth, el.offsetWidth), vw - MARGIN * 2);
+    const left = Math.min(Math.max(MARGIN, t.left), Math.max(MARGIN, vw - width - MARGIN));
     setPos({
       left,
-      width: t.width,
+      width,
       top: below ? t.bottom + GAP : undefined,
       bottom: below ? undefined : vh - t.top + GAP,
       maxHeight: Math.max(120, (below ? roomBelow : roomAbove) - GAP),

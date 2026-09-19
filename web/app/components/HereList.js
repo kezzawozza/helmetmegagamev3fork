@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
@@ -61,24 +62,27 @@ import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 // Everything else about a row — whether it shows at all, whether it is greyed,
 // and the sentence saying why — comes from the registry, not from here.
 const HOOD_KEYS = { prefix: "character:", hoodPrefix: "hood:" };
+// `group` orders the menu into kind-of-act bands, drawn with a rule between
+// them: help, then the things done TO somebody. `self: false` rows never appear
+// on your own row — nobody kisses, searches or harms themselves.
 const PEOPLE_ACTIONS = [
-  { mode: "heal", label: "Heal", preset: "patientId", ...HOOD_KEYS },
-  { mode: "miracle", label: "Perform Miracle", preset: "patientId", ...HOOD_KEYS },
-  { mode: "transfer", label: "Transfer", preset: "toKey", ...HOOD_KEYS },
-  { mode: "loot", label: "Loot", preset: "targetId", ...HOOD_KEYS },
-  { mode: "bind", label: "Bind", preset: "targetId", ...HOOD_KEYS },
-  { mode: "free", label: "Free", preset: "targetId", ...HOOD_KEYS },
-  { mode: "harm", label: "Harm", preset: "targetId", ...HOOD_KEYS },
   // Kiss keeps its row for a hood even though kissBlock() will refuse a covered
   // face: the refusal is the gate, and the menu is not the place to re-implement
   // it (web/lib/peoplePools.js says the same about kissTargets).
-  { mode: "kiss", label: "Kiss", preset: "targetId", ...HOOD_KEYS },
-  { mode: "search", label: "Search", preset: "targetId", ...HOOD_KEYS },
+  { mode: "kiss", label: "Kiss", preset: "targetId", group: 1, self: false, ...HOOD_KEYS },
+  { mode: "heal", label: "Heal", preset: "patientId", group: 1, ...HOOD_KEYS },
+  { mode: "miracle", label: "Perform Miracle", preset: "patientId", group: 1, ...HOOD_KEYS },
+  { mode: "transfer", label: "Transfer", preset: "toKey", group: 1, ...HOOD_KEYS },
+  { mode: "search", label: "Search", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
+  { mode: "loot", label: "Loot", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
+  { mode: "bind", label: "Bind", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
+  { mode: "free", label: "Free", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
+  { mode: "harm", label: "Harm", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
 ];
 
 // `person` is normalised by the two lists below to { ref, name, hooded }:
 // a character id for somebody named, a hood token for somebody in one.
-function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
+function PersonMenu({ person, isSelf = false, onLook = null, onClose, onConverse, addPlace, onAddMember }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
   const pools = actions?.pools ?? null;
@@ -98,51 +102,80 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   // the registry doesn't know stays on the menu, so nothing can vanish by
   // accident — the filter only ever removes a row somebody wrote a rule for.
   const entries = PEOPLE_ACTIONS.filter((entry) => {
+    if (isSelf && entry.self === false) return false;
     if (person.hooded && !(entry.hoodPrefix && person.ref)) return false;
     const action = actionFor(entry.mode);
     return action?.show ? Boolean(pools?.[action.show]) : true;
   });
 
+  // Bands, in order: look and talk, help, acts done to somebody, then the door.
+  const bands = [[], [], [], []];
+  if (onLook) {
+    bands[0].push(
+      <ActionButton
+        key="look"
+        variant="menu"
+        label="Look at"
+        onClick={() => {
+          onClose();
+          onLook();
+        }}
+      />,
+    );
+  }
+  if (onConverse && !isSelf) {
+    bands[0].push(
+      <ActionButton
+        key="converse"
+        variant="menu"
+        label="Converse"
+        onClick={() => {
+          onClose();
+          // Opened ON this person, already ticked.
+          onConverse({ ref: person.ref, name: person.name });
+        }}
+      />,
+    );
+  }
+  for (const entry of entries) {
+    // The label stays the menu's own — these are spelled-out verbs, not the
+    // rack's glyph captions. Everything else is the registry's.
+    const action = actionFor(entry.mode);
+    bands[entry.group].push(
+      <ActionButton
+        key={entry.mode}
+        variant="menu"
+        label={entry.label}
+        help={ACTION_HELP[entry.mode] ?? null}
+        disabled={action?.gate ? !pools?.[action.gate] : false}
+        reason={action ? reasonFor(action, pools) : null}
+        onClick={() => pick(entry)}
+      />,
+    );
+  }
+  // Only offered where there is a door to open; the server re-checks that this character may work it.
+  if (addPlace && onAddMember && person.ref && !isSelf) {
+    bands[3].push(
+      <ActionButton
+        key="add"
+        variant="menu"
+        label={`Add to ${addPlace.name}`}
+        onClick={() => {
+          onClose();
+          onAddMember(person.ref);
+        }}
+      />,
+    );
+  }
+
+  const shown = bands.filter((band) => band.length > 0);
   return (
     <div className="chat-menu" role="menu" aria-label={person.name}>
-      {entries.map((entry) => {
-        // The label stays the menu's own — these are spelled-out verbs, not the
-        // rack's glyph captions. Everything else is the registry's.
-        const action = actionFor(entry.mode);
-        return (
-          <ActionButton
-            key={entry.mode}
-            variant="menu"
-            label={entry.label}
-            help={ACTION_HELP[entry.mode] ?? null}
-            disabled={action?.gate ? !pools?.[action.gate] : false}
-            reason={action ? reasonFor(action, pools) : null}
-            onClick={() => pick(entry)}
-          />
-        );
-      })}
-      {/* Only offered where there is a door to open; the server re-checks that this character may work it. */}
-      {addPlace && onAddMember && person.ref && (
-        <ActionButton
-          variant="menu"
-          label={`Add to ${addPlace.name}`}
-          onClick={() => {
-            onClose();
-            onAddMember(person.ref);
-          }}
-        />
-      )}
-      {onConverse && (
-        <ActionButton
-          variant="menu"
-          label="Converse"
-          onClick={() => {
-            onClose();
-            // Opened ON this person, already ticked.
-            onConverse({ ref: person.ref, name: person.name });
-          }}
-        />
-      )}
+      {shown.map((band, i) => (
+        <div key={i} className="chat-menu-band" role="group">
+          {band}
+        </div>
+      ))}
     </div>
   );
 }
@@ -222,6 +255,13 @@ export default function HereList({
     },
     [close],
   );
+  // What the eye (and the menu's "Look at") does for a named row, or null for none.
+  const router = useRouter();
+  const lookFor = (person) => {
+    if (person.sightingSeq) return () => lookAtSeq(person.sightingSeq);
+    if (person.characterId === selfId) return () => router.push("/character");
+    return null;
+  };
 
   const total = named.length + concealed.length;
 
@@ -263,16 +303,19 @@ export default function HereList({
                 {person.online ? <span className="text-muted"> · online</span> : null}
               </span>
             </button>
-            {/* No eye until you have heard them. Absent rather than greyed — one rule instead of two. */}
-            {person.characterId !== selfId && person.sightingSeq && (
+            {/* No eye until you have heard them. Absent rather than greyed — one rule instead of two.
+                Your own row always has one: with no line of yours to look at, it opens your sheet. */}
+            {lookFor(person) && (
               <span className="chat-person-eye">
-                <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
+                <IconButton icon={EyeIcon} label="Look at" onClick={lookFor(person)} />
               </span>
             )}
           </div>
           {openId === person.characterId && (
             <PersonMenu
               person={{ ref: person.characterId, name: person.name, hooded: false }}
+              isSelf={person.characterId === selfId}
+              onLook={lookFor(person)}
               onClose={close}
               onConverse={onConverse}
               addPlace={addPlace}
@@ -313,6 +356,7 @@ export default function HereList({
           {openId === `hooded-${index}` && (
             <PersonMenu
               person={{ ref: person.token ?? null, name: person.alias, hooded: true }}
+              onLook={person.sightingSeq ? () => lookAtSeq(person.sightingSeq) : null}
               onClose={close}
               onConverse={onConverse}
               addPlace={addPlace}

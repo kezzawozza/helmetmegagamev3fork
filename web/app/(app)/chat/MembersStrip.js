@@ -21,8 +21,9 @@ const FACEPILE_MAX = 5;
 
 // `data` is placeMembers()' answer, loaded once by Feed.js and shared with
 // the /remove command's picker. `onChanged` asks for a re-read after a write.
-export default function MembersStrip({ placeKey, data, onChanged }) {
-  const [picking, setPicking] = useState(false);
+// The Add button lives in the chat head now (Feed.js), beside Search, so the
+// strip no longer grows the header; `picking` / `setPicking` come from there.
+export default function MembersStrip({ placeKey, data, onChanged, picking, setPicking }) {
   const { run, pending, error } = useActionRunner();
   // On a phone the strip is one row of faces until tapped open; closes again
   // on a place change since Feed.js keys itself on the place.
@@ -33,7 +34,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
   const done = useCallback(() => {
     setPicking(false);
     onChanged?.();
-  }, [onChanged]);
+  }, [onChanged, setPicking]);
 
   const onAdd = useCallback(
     (ref) => run(() => addMember(placeKey, ref), undefined, { onOk: done }),
@@ -86,9 +87,6 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
             {rest > 0 ? `+${rest}` : data.members.length === 0 ? "Nobody else" : `${data.members.length} in here`}
           </span>
         </button>
-        <button type="button" className="btn-secondary" disabled={pending} onClick={() => setPicking(true)}>
-          + Add
-        </button>
       </div>
     );
   }
@@ -117,15 +115,6 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
             />
           </span>
         ))}
-        <button
-          type="button"
-          className="btn-secondary"
-          aria-expanded={picking}
-          disabled={pending}
-          onClick={() => setPicking((open) => !open)}
-        >
-          + Add
-        </button>
       </div>
 
       {picking && (

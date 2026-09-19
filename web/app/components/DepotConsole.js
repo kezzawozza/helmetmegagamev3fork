@@ -4,7 +4,6 @@ import { useState } from "react";
 import DepotAtmsTab from "./DepotAtmsTab";
 import DepotSellingTab from "./DepotSellingTab";
 import DepotBuyingTab from "./DepotBuyingTab";
-import DepotManifestsTab from "./DepotManifestsTab";
 import DepotPriceListTab from "./DepotPriceListTab";
 import DepotLedgerTab from "./DepotLedgerTab";
 
@@ -24,7 +23,6 @@ const TABS = [
   { key: "atms", label: "ATMs" },
   { key: "selling", label: "Selling" },
   { key: "buying", label: "Buying" },
-  { key: "manifests", label: "Manifests" },
   { key: "prices", label: "Price list" },
   { key: "ledger", label: "Ledger" },
 ];
@@ -51,7 +49,6 @@ export default function DepotConsole(props) {
     atms: DepotAtmsTab,
     selling: DepotSellingTab,
     buying: DepotBuyingTab,
-    manifests: DepotManifestsTab,
     prices: DepotPriceListTab,
     ledger: DepotLedgerTab,
   }[tab];
@@ -67,6 +64,10 @@ export default function DepotConsole(props) {
         </div>
         <div className="depot-cockpit-stats">
           <TrainStat train={props.train} />
+          <span className="depot-stat">
+            <span className="depot-stat-label">Sell tax</span>
+            <span className="mono">{props.depot?.sellTaxRate ?? 0}%</span>
+          </span>
         </div>
       </section>
 

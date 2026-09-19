@@ -96,14 +96,14 @@ export default function FeedSearch({ place, onPick, onClose, notice = null }) {
     <div className="chat-search" onKeyDown={onKeyDown}>
       <div className="field">
         <label className="sr-only" htmlFor="chat-search-input">
-          Search what was said
+          Search
         </label>
         <input
           id="chat-search-input"
           ref={inputRef}
           value={query}
           maxLength={80}
-          placeholder="Search what was said…"
+          placeholder="Search…"
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>

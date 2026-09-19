@@ -137,7 +137,7 @@ async function FreshDepot() {
   const superadmin = isSuperadmin(session.discordUserId);
 
   // Nobody is bounced any more. A spectator with no living character reads the
-  // price list and the manifests like anybody else; the page is a shop window.
+  // price list like anybody else; the page is a shop window.
   const depot = await loadDepot(prisma);
   const openTurn = await getOpenTurn();
   const account = character?.bankAccount ?? null;
@@ -225,11 +225,20 @@ async function FreshDepot() {
     tag: null,
   };
 
-  const wares = [resourceWare, ...wareTags.map(shape)];
+  // What this character may actually be offered. A manifest you don't hold is
+  // hidden outright: its wares never reach the browser, on either tab.
+  const openManifests = manifestsFor(heldSlugs).map((m) => m.id);
+  const manifestName = new Map(MANIFESTS.map((m) => [m.id, m.name]));
+
+  const wares = [resourceWare, ...wareTags.map(shape)].filter((w) => openManifests.includes(w.manifest));
   const priceList = [
-    { ...resourceWare, side: "Both" },
-    ...pricedTags.map((tag) => ({
+    { ...resourceWare, side: "Both", manifestName: manifestName.get(resourceWare.manifest) },
+    ...pricedTags
+      // Something the station only buys back is on no manifest, so it stays.
+      .filter((tag) => tag.depotPrice == null || openManifests.includes(manifestOf(tag)))
+      .map((tag) => ({
       ...shape(tag),
+      manifestName: tag.depotPrice != null ? manifestName.get(manifestOf(tag)) : "",
       side:
         tag.depotPrice != null && tag.sellablePrice != null
           ? "Both"
@@ -239,9 +248,6 @@ async function FreshDepot() {
     })),
   ];
 
-  // What this character may actually be offered, and what every manifest is,
-  // so the Manifests tab can show the doors that are shut as well as the open ones.
-  const openManifests = manifestsFor(heldSlugs).map((m) => m.id);
 
   // Anything sellable in your own hands, for the drop box's picker. A crate
   // included: an unopened crate is worth what it says on the side.
@@ -286,6 +292,7 @@ async function FreshDepot() {
           debtObols: depot.debtObols,
           creditCapObols: depot.creditCapObols,
           turretArmed: depot.turretArmed,
+          sellTaxRate: depot.sellTaxRate ?? 0,
         },
         greetingName: greeting,
         turnNumber: openTurn?.number ?? null,
@@ -311,7 +318,6 @@ async function FreshDepot() {
         canSellToMerchant: licensed || keycard,
         wares,
         priceList,
-        manifests: MANIFESTS,
         openManifests,
         sellable,
         sales: mySales.map(saleShape),

@@ -1194,6 +1194,7 @@ input[type="radio"]:focus-visible,
   justify-content: space-between;
   gap: var(--sp-2);
   width: 100%;
+  font-size: var(--fs-base);
   text-align: left;
   cursor: pointer;
 }
@@ -1233,6 +1234,7 @@ input[type="radio"]:focus-visible,
    by stacking order, never by a numeric arms race. */
 .select-popup {
   position: fixed;
+  font-size: var(--fs-base);
   z-index: 120;
   overflow-y: auto;
   margin: 0;
@@ -6319,6 +6321,10 @@ label.chip {
 }
 
 .depot-aside { position: sticky; top: var(--sp-4); }
+
+/* Side by side, not stacked: the global `.panel + .panel` gap would drop the
+   aside below the main card's top edge. */
+.depot-split > .panel + .panel { margin-top: 0; }
 
 @media (max-width: 60rem) {
   .depot-aside { position: static; }

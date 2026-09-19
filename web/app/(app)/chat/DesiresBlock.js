@@ -99,13 +99,6 @@ export default function DesiresBlock({ view }) {
             const bound = slotIndex === bottomIndex && addiction;
             return (
               <div key={slotIndex} className="chat-desire-slot">
-                {slot.lastEnded && (
-                  <p className="chat-quiet-line">
-                    <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
-                    {slot.lastEnded.points === 1 ? "" : "s"}
-                    {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""}
-                  </p>
-                )}
                 <p className="chat-quiet-line">
                   Slot {slotIndex + 1} · {slot.lockedUntilTurn != null ? lockedSlotLabel(slot) : "open"}
                 </p>
@@ -119,7 +112,14 @@ export default function DesiresBlock({ view }) {
                     Claim
                   </button>
                 )}
-                {bound && <p className="chat-quiet-line">Addiction: {addiction.name}</p>}
+                {slot.lastEnded && (
+                  <p className="chat-quiet-line chat-desire-note">
+                    <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
+                    {slot.lastEnded.points === 1 ? "" : "s"}
+                    {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""}
+                  </p>
+                )}
+                {bound && <p className="chat-quiet-line chat-desire-note">Addiction: {addiction.name}</p>}
               </div>
             );
           })}

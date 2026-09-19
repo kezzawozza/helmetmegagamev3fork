@@ -16,7 +16,7 @@ import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 // next drop, and nothing else.
 const DESTINATIONS = [
   { value: "SELF", label: "Self" },
-  { value: "TREASURY", label: "Treasury" },
+  { value: "TREASURY", label: "Ravenheart Treasury" },
   { value: "MERCHANT", label: "Merchant" },
 ];
 
@@ -33,6 +33,7 @@ export default function DepotSellingTab({
   defaultDestination = "SELF",
   canSellToMerchant = false,
   licensed = false,
+  depot = null,
   disabled,
 }) {
   const [refresh] = useRefresh();
@@ -220,6 +221,9 @@ export default function DepotSellingTab({
 
       <section className="panel p-5 depot-aside">
         <h2 className="panel-header">Dropbox</h2>
+        <p className="mt-3 text-sm text-muted">
+          Sell tax: <span className="mono">{depot?.sellTaxRate ?? 0}%</span>
+        </p>
         {sellable.length === 0 && <p className="mt-3 text-sm text-muted">{DROPBOX_EMPTY}</p>}
         {sellable.length > 0 && (
           <ul className="depot-list mt-3">

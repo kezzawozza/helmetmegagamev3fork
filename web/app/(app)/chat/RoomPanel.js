@@ -48,7 +48,7 @@ function StashChip({ item, onTake }) {
 function StashChips({ stash, showAll, onToggle, onTake }) {
   const items = stash.items ?? [];
   if (items.length === 0 && !(stash.resources > 0)) {
-    return <p className="chat-quiet-line">Nothing is stored here.</p>;
+    return <p className="chat-quiet-line">Empty</p>;
   }
   const shown = showAll ? items : items.slice(0, VISIBLE_ITEMS);
   const hidden = items.length - shown.length;
@@ -133,26 +133,24 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
 
   return (
     <div className="chat-room">
-      <p className="group-label chat-section-title">This room</p>
+      {/* One heading: the place card above already names the room. */}
+      <p className="group-label chat-section-title">Storage</p>
 
       {/* Three states: in flight, refused (says WHY), or ready. */}
       {here?.ok ? (
-        <>
-          <p className="chat-quiet-line">Storage</p>
-          <StashChips
-            stash={here}
-            showAll={expanded === roomId}
-            onToggle={() => setExpanded((open) => (open === roomId ? null : roomId))}
-            onTake={take}
-          />
-        </>
+        <StashChips
+          stash={here}
+          showAll={expanded === roomId}
+          onToggle={() => setExpanded((open) => (open === roomId ? null : roomId))}
+          onTake={take}
+        />
       ) : here ? (
         <FormError>{here.error ?? "Couldn't see in there."}</FormError>
       ) : (
-        <p className="chat-quiet-line">Storage · looking…</p>
+        <p className="chat-quiet-line">Looking…</p>
       )}
       {here?.ok && (
-        <div className="chat-buttons">
+        <div className="chat-buttons chat-buttons--tight">
           {/* One Transfer dialog, three ways in: Drop/Take seed both ends, Transfer assumes nothing. */}
           <button type="button" className="btn-quiet" onClick={drop}>
             Drop

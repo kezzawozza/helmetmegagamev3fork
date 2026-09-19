@@ -17,6 +17,7 @@ const SEARCH_FIELDS = [(r) => r.name, (r) => r.description];
 const FILTER_DEFS = [
   { key: "group", label: "Kind", value: (r) => r.groupName ?? "" },
   { key: "side", label: "Counter", value: (r) => r.side },
+  { key: "manifest", label: "Manifest", value: (r) => r.manifestName ?? "" },
 ];
 
 export default function DepotPriceListTab({ priceList }) {
@@ -48,6 +49,7 @@ export default function DepotPriceListTab({ priceList }) {
               <SortHeader label="Ware" sortKey="name" sort={table.sort} onSort={table.toggleSort} />
               <SortHeader label="Station sells" sortKey="price" sort={table.sort} onSort={table.toggleSort} />
               <SortHeader label="Station buys" sortKey="sellPrice" sort={table.sort} onSort={table.toggleSort} />
+              <SortHeader label="Manifest" sortKey="manifestName" sort={table.sort} onSort={table.toggleSort} />
               <SortHeader label="Held" sortKey="held" sort={table.sort} onSort={table.toggleSort} />
             </tr>
           </thead>
@@ -61,6 +63,7 @@ export default function DepotPriceListTab({ priceList }) {
                 </td>
                 <td className="mono">{row.price != null ? `${row.price} ¢` : "—"}</td>
                 <td className="mono">{row.sellPrice != null ? `${row.sellPrice} ¢` : "—"}</td>
+                <td className="text-muted">{row.manifestName || "—"}</td>
                 <td className="mono text-muted">{row.held || "—"}</td>
               </tr>
             ))}

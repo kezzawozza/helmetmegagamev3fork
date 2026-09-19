@@ -692,7 +692,7 @@ export default function ChatNext(props) {
             trailing={
               <IconButton
                 icon={SearchIcon}
-                label="Search what was said"
+                label="Search"
                 size={narrow ? "lg" : "sm"}
                 aria-expanded={searchOpen}
                 onClick={() => setSearchOpen((was) => !was)}

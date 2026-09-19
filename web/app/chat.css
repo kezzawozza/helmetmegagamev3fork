@@ -1584,24 +1584,13 @@
    a tag chip's icon has no business being point-sampled. */
 .you-frame {
   margin-bottom: var(--sp-3);
-  /* The mockup's `.you-frame` carries `margin: 6px` on every side, because
-     its `.aside` has NO padding of its own — the frame supplies the
-     column's whole inset. Ours does (`.chat-aside`'s `padding: var(--sp-3)`,
-     12px, shared with every other block below), so applying the mockup's
-     6px straight would double the inset and squeeze the frame to 215px. The
-     plate art is tuned for its own ~240px box — anything narrower stretches
-     the hole cut into the art out from under the `.you-well` div sitting on
-     top of it, which is what read as a bright patch of the art's top-right
-     corner and a stray red fragment at the left edge, with the well itself
-     off-centre inside the riveted border. A negative inline margin here
-     cancels exactly the 6px of DOUBLE inset (12px from `.chat-aside` minus
-     the art's own 6px), landing the frame at the same real width the mockup
-     built it for, symmetrically, with the well square inside it again. */
-  margin-inline: -6px;
+  /* Same width as every other card in the column. It used to cancel 6px of
+     the column's inset with a negative inline margin to match the mockup's
+     plate width, which left it wider than the cards under it. */
   /* The mockup's own numbers (docs/design/mockups/chat/index.html,
      `.you-frame`): the plate's painted border, measured off the art, so the
      well lands inside the riveted edge instead of overlapping it. */
-  padding: 26px 20px 22px;
+  padding: 26px 16px 22px;
   border: 1px solid var(--border-lo);
   background-image: url("/assets/chrome/stats-LFWB.png");
   background-repeat: no-repeat;
@@ -1730,6 +1719,20 @@
      the viewport; without a scroller the entries past the fold are simply
      unreachable. */
   overflow-y: auto;
+}
+
+/* The person menu's bands (HereList.js): look and talk, help, acts done to
+   somebody, the door. A thin rule between each. */
+.chat-menu-band {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-menu-band + .chat-menu-band {
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--border);
 }
 
 /* ThingsDrawer.js's menu, escaped to document.body (portalPlacement.js):
@@ -2008,6 +2011,16 @@
   gap: var(--sp-2);
 }
 
+/* Storage's Drop / Take / Steal / Transfer: four small verbs on one row. */
+.chat-buttons--tight {
+  gap: var(--sp-1);
+}
+
+.chat-buttons--tight > .btn-quiet {
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
 /* ---- The YOU column: the turn card, the status strip, the drawers ---- */
 
 /* A wrapping row of data chips: the turn and its countdown, ⬢ and carry, and
@@ -2097,13 +2110,29 @@
   margin-bottom: var(--sp-3);
 }
 
+/* One line per slot: "Slot 1 · open" on the left, Claim on the right. */
 .chat-desire-slot {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sp-1);
-  padding: var(--sp-2) 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--sp-2);
+  padding: var(--sp-1) 0;
   border-top: 1px solid var(--border);
+}
+
+.chat-desire-slot > .chat-quiet-line {
+  margin: 0;
+}
+
+.chat-desire-slot > .btn-secondary {
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+/* The occasional sub-line (last ended, addiction) takes its own row. */
+.chat-desire-slot > .chat-desire-note {
+  flex-basis: 100%;
 }
 
 /* A closed-by-default drawer (Things, Desires), and the chevron is the only

@@ -15,7 +15,7 @@ import { formatTurnLabel } from "@/lib/turnFormat";
 // db/lib/dmKinds.js keeps — see EDIT_WINDOW_MS below for what one require of
 // @lifeweb/db would drag into the browser bundle.
 import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
-import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
@@ -699,6 +699,8 @@ export default function Feed({
     [usingFallback, fallbackRows, stored],
   );
   const [searchOpen, setSearchOpen] = useState(false);
+  // The members strip's picker, opened from the head's Add button.
+  const [addingMember, setAddingMember] = useState(false);
   // The `at` of a jump whose failure the reader has already waved away, so
   // closing the search box after a miss actually closes it.
   const [dismissedJump, setDismissedJump] = useState(null);
@@ -1860,15 +1862,26 @@ export default function Feed({
         unreadElsewhere={unreadElsewhere}
         hereCount={hereCount}
         trailing={
-          onJump ? (
-            <IconButton
-              icon={SearchIcon}
-              label="Search what was said"
-              size={narrow ? "lg" : "sm"}
-              aria-expanded={showSearch}
-              onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
-            />
-          ) : null
+          <>
+            {hasMembers && !readOnly && membersData?.ok && membersData.members && (
+              <IconButton
+                icon={PlusIcon}
+                label="Add someone"
+                size={narrow ? "lg" : "sm"}
+                aria-expanded={addingMember}
+                onClick={() => setAddingMember((open) => !open)}
+              />
+            )}
+            {onJump && (
+              <IconButton
+                icon={SearchIcon}
+                label="Search"
+                size={narrow ? "lg" : "sm"}
+                aria-expanded={showSearch}
+                onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
+              />
+            )}
+          </>
         }
       />
 
@@ -1876,7 +1889,13 @@ export default function Feed({
           change it. Only those two kinds of place have one — MembersStrip
           draws nothing when placeMembers() answers with no list. */}
       {hasMembers && !readOnly && (
-        <MembersStrip placeKey={placeKey} data={membersData} onChanged={reloadMembers} />
+        <MembersStrip
+          placeKey={placeKey}
+          data={membersData}
+          onChanged={reloadMembers}
+          picking={addingMember}
+          setPicking={setAddingMember}
+        />
       )}
 
       {showSearch && (

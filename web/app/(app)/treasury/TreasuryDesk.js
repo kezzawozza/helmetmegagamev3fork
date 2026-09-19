@@ -49,6 +49,7 @@ export default function TreasuryDesk({
   const [pending, startTransition] = useTransition();
   const [draft, setDraft] = useState(String(rate));
   const [error, setError] = useState(null);
+  const [saved, setSaved] = useState(false);
 
   const table = useTableState({
     rows: accounts,
@@ -74,6 +75,7 @@ export default function TreasuryDesk({
         return;
       }
       setError(null);
+      setSaved(true);
       refresh();
     });
   }
@@ -95,6 +97,10 @@ export default function TreasuryDesk({
           <div>
             <dt>Staged to sell</dt>
             <dd className="mono">{stagedValue} ¢</dd>
+          </div>
+          <div>
+            <dt>Sell tax</dt>
+            <dd className="mono">{rate}%</dd>
           </div>
         </dl>
         {short && (
@@ -118,7 +124,10 @@ export default function TreasuryDesk({
               max={100}
               value={draft}
               disabled={readOnly || pending}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setSaved(false);
+              }}
             />
           </label>
           <button type="button" className="btn" disabled={readOnly || pending} onClick={save}>
@@ -126,6 +135,7 @@ export default function TreasuryDesk({
           </button>
         </div>
         {readOnly && <p className="mt-2 text-sm text-muted">Read-only — you must be at the terminal to change it.</p>}
+        {saved && !error && <p className="mt-3 text-sm text-muted">Tax set</p>}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>
 
