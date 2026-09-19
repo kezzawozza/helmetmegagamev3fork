@@ -17,11 +17,13 @@ import MembersStrip from "../MembersStrip";
 import usePlaceMembers from "../usePlaceMembers";
 import FeedSearch from "../FeedSearch";
 import { useTyping, typingLine } from "../typingStore";
+import { markSeen, peekSeen } from "../seenStore";
 import { photographRow, starRow } from "../actions";
 import {
   useFeed,
   useHistoryState,
   useBacklog,
+  newestSeq,
   backlogOf,
   setBacklog,
   seedRows,
@@ -285,9 +287,7 @@ export default function Feed({
   // speakerKey -> real name, GM seat only (web/lib/gmSpeakers.js). It is what
   // lets a hooded line read as "A young man (Greeblus)".
   speakers = null,
-  // The seq this place was at when it was last read, so the NEW rule lands in
-  // the right gap. Null means everything here has been read.
-  newAt = null,
+
   // The guest list, loaded ONCE by the shell: the strip below draws it and
   // `/remove`'s picker is the same list, so two fetches would be two answers
   // to one question (../usePlaceMembers.js).
@@ -322,6 +322,44 @@ export default function Feed({
   const rows = useFeed(placeKey);
   const confirm = useConfirm();
   const typing = typingLine(useTyping(placeKey));
+
+  // The seen mark AS IT STOOD when this place was opened, which is where the
+  // NEW rule goes. Frozen on purpose: reading the place moves the stored
+  // mark, and a line that chased it down the list as you read would never be
+  // anywhere useful. Captured DURING a render rather than in an effect —
+  // `react-hooks/set-state-in-effect` is an error here, and setting state in
+  // a render to follow a changed prop is the pattern React documents for it.
+  const [opened, setOpened] = useState(() => ({ placeKey, mark: peekSeen(placeKey) }));
+  if (opened.placeKey !== placeKey) setOpened({ placeKey, mark: peekSeen(placeKey) });
+  const newMark = opened.placeKey === placeKey ? opened.mark : null;
+
+  // Where the NEW rule goes: above the first row said since this place was
+  // opened that somebody ELSE said. Your own line never gets one over it —
+  // you were there — so speaking in a room you had read to the end does not
+  // draw a divider above your own sentence.
+  //
+  // A place with no mark at all (never opened in this browser) gets none;
+  // seedSeenIfFresh has already caught a first visit up, so the only rows
+  // this leaves undivided are ones nobody was waiting on.
+  const newAt = useMemo(() => {
+    if (!newMark) return null;
+    let mark;
+    try {
+      mark = BigInt(newMark);
+    } catch {
+      return null;
+    }
+    for (const row of rows) {
+      if (!row.seq || isOwnRow(row, self?.characterId, self?.speakerKey)) continue;
+      try {
+        if (BigInt(row.seq) > mark) return row.seq;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [rows, newMark, self?.characterId, self?.speakerKey]);
+
   // The `at` of a jump whose failure the reader has already waved away, so
   // the notice does not come back every time the scene re-renders.
   const [dismissedJump, setDismissedJump] = useState(null);
@@ -471,6 +509,12 @@ export default function Feed({
   const scrollerRef = useRef(null);
   const anchorRef = useRef(null);
   const [pinned, setPinned] = useState(true);
+  // The same answer, readable from inside the seen effect without making it
+  // re-run on every scroll. Written in an effect, never during a render.
+  const pinnedRef = useRef(true);
+  useEffect(() => {
+    pinnedRef.current = pinned;
+  }, [pinned]);
   // How many rows the scene had when the reader last left the bottom. Null
   // while they are still down there. The "N new" count is DERIVED from it
   // rather than counted up in the effect below — incrementing state from an
@@ -614,6 +658,29 @@ export default function Feed({
     // Listing it would re-run the whole thing on every scroll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines.length]);
+
+  // WHAT CLEARS THE UNREAD MARK. It runs on opening a place AND on every
+  // line that lands in it — while the tab is in front of you and you are at
+  // the bottom of the list, which is what "read" means.
+  //
+  // It used to hang off the scroll handler alone in the old chat, which meant
+  // a scene short enough to fit on screen never marked anything: the place
+  // you had just spoken in went unread the moment you left it and stayed that
+  // way. markSeen writes localStorage and notifies its own store, so it is
+  // not a setState and an effect is exactly where it belongs.
+  useEffect(() => {
+    if (!placeKey) return undefined;
+    const catchUp = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!pinnedRef.current) return;
+      markSeen(placeKey, newestSeq(placeKey));
+    };
+    catchUp();
+    // Lines that landed while the tab was in the background are read the
+    // moment it comes back to the front.
+    document.addEventListener("visibilitychange", catchUp);
+    return () => document.removeEventListener("visibilitychange", catchUp);
+  }, [placeKey, rows]);
 
   // A search hit. The row is already in the store when this runs — the shell
   // loads the window around the seq before handing the jump down — so this is

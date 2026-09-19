@@ -14,6 +14,9 @@ import useComposerCommands from "../useComposerCommands";
 import useComposerAutosize from "../useComposerAutosize";
 import { addPending, applyRow, markPendingFailed, isOwnRow } from "../feedStore";
 import CommandArgs from "../CommandArgs";
+import { chunkMessage } from "@lifeweb/db/lib/chunkText";
+import { MAX_SAY_PIECES, tooManyPieces } from "@lifeweb/db/lib/sayLimits";
+import { capitalizeSentences, fixContractions } from "@lifeweb/db/lib/textCorrection";
 import { readDraft, writeDraft } from "../draftStore";
 
 // THE COMPOSER: what voice you are in, your hands, the words, and the send.
@@ -47,6 +50,9 @@ export default function Composer({
   lettersMenu = [],
   openAction = null,
   onTyping = null,
+  // Whether GameConfig.tupperAutocorrectEnabled is on, so the optimistic row
+  // reads the way the stored one will.
+  autocorrect = false,
   // whosHere() WHOLE, hoods included: a command's person picker needs them,
   // and `roster` above deliberately has none.
   people = null,
@@ -263,13 +269,47 @@ export default function Composer({
     }
     const text = draft.trim();
     if (!text) return;
+    // Over 2000 characters this goes out as several messages
+    // (db/lib/say.js#sayInPieces); past the ceiling it does not go out at
+    // all, and the box says so here rather than letting the server be the
+    // first to mention it. Same sentence the server would have given.
+    const pieces = chunkMessage(text);
+    if (pieces.length > MAX_SAY_PIECES) {
+      setError(tooManyPieces(pieces.length));
+      return;
+    }
     const clientId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     // The line goes up OPTIMISTICALLY and the box clears: waiting for the
     // round trip before either is what makes a chat feel slow.
-    addPending(placeKey, { clientId, content: text, name: self?.name ?? null, sentAt: new Date().toISOString() });
+    addPending(placeKey, {
+      clientId,
+      seq: null,
+      // Shaped the way the SERVER will shape it
+      // (db/lib/archive.js#feedRowShape): a hooded send carries the key and
+      // no id, so the optimistic row and the confirmed one agree about which
+      // lines are yours — which is what isOwnRow, the run grouping and the
+      // action bar all read.
+      characterId: self?.aliased ? null : (self?.characterId ?? null),
+      speakerKey: self?.aliased ? (self?.speakerKey ?? null) : null,
+      roleGroup: self?.aliased ? null : (self?.roleGroup ?? null),
+      name: self?.name ?? null,
+      avatarVersion: self?.aliased ? null : (self?.avatarVersion ?? null),
+      avatarPath: self?.avatarPath ?? null,
+      // What the server will STORE, not what was typed, in the order
+      // db/lib/say.js#transformSpeech runs them — otherwise you watch your
+      // own sentence rewrite itself a second after you send it. The FIRST
+      // piece only on a split send: the server puts the clientId on piece 1
+      // and this row is the twin it replaces, and client and server call the
+      // same chunkMessage on the same string.
+      content: autocorrect ? capitalizeSentences(fixContractions(pieces[0])) : pieces[0],
+      sentAt: new Date().toISOString(),
+    });
     setDraft("");
+    setError(null);
+    // The RAW text goes to the server, which runs the same transforms itself
+    // — sending the transformed copy would run them twice.
     void send(clientId, text);
-  }, [command, runCurrent, draft, placeKey, self?.name, send]);
+  }, [command, runCurrent, draft, placeKey, self, autocorrect, send]);
 
   // THE HOOK TAKES THE KEY FIRST. It owns the `/` list's arrows, Escape out of
   // a command, and Enter when a command is open — so this only ever sees the

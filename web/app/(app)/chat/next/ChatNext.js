@@ -24,10 +24,12 @@ import { SearchIcon } from "@/app/components/icons";
 import IconButton from "@/app/components/IconButton";
 import { retryPending } from "../feedStore";
 import usePlaceMembers from "../usePlaceMembers";
-import { useSeen, markAllSeen } from "../seenStore";
+import { useSeen, markAllSeen, seedSeenIfFresh } from "../seenStore";
+import { seedCachedRows, startRowCache } from "../rowCache";
+import { seedNewestOutbound } from "../dmStore";
 import { useRefresh } from "@/app/components/useRefresh";
 import useFeedStream from "../useFeedStream";
-import { useNotified } from "../notifiedStore";
+import { useNotified, clearNotified } from "../notifiedStore";
 import { useOpenPlace, setOpenPlace } from "../openPlace";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -81,7 +83,10 @@ export default function ChatNext(props) {
     gm = false,
     ghost = false,
     hasCamera = false,
-    speakers = null,
+    // speakerKey -> real name, GM seat only (web/lib/gmSpeakers.js). It is
+    // what lets a hooded line read as "A young man (Greeblus)" without the
+    // row ever carrying the name. Spelled `gmSpeakers` by page.js.
+    gmSpeakers: speakers = null,
     roster = [],
     // The right column's whole bag, built server-side in page.js. Null for a
     // GM with no living character — their column is GmAside's, phase 6.
@@ -101,6 +106,11 @@ export default function ChatNext(props) {
     // The composer's paperwork gates (web/lib/selfPools.js). Hints — every
     // one of the four dialogs re-checks its own.
     letters = null,
+    autocorrect = false,
+    // The newest thing Bascinet said by DM, as epoch ms, for the Messages
+    // row's dot before the pane has opened. The store takes over from the
+    // first stream frame on.
+    dmNewestMs = null,
   } = props;
 
   // Seed the store DURING render, not in an effect, and exactly once. The
@@ -115,9 +125,34 @@ export default function ChatNext(props) {
   // every time they open the page.
   useState(() => {
     try {
+      // What this tab held last time, painted BEFORE the fetches land: the
+      // scene a reader comes back to is the one they left, not a skeleton.
+      seedCachedRows();
+    } catch {
+      // A refused localStorage costs a skeleton, nothing more.
+    }
+    try {
       seedInitial({ places, place: initialPlace, rows: initialRows });
     } catch {
       // A store that refused costs a skeleton, nothing more.
+    }
+    try {
+      seedNewestOutbound(dmNewestMs);
+    } catch {
+      // A missing seed costs a dot, nothing more.
+    }
+    try {
+      // A first visit starts READ rather than with every place lit. Only
+      // where nothing is stored yet — seedSeenIfFresh never moves a mark a
+      // reader has already earned.
+      seedSeenIfFresh([
+        ...places.map((entry) => ({ placeKey: entry.placeKey, seq: entry.newestSeq })),
+        ...(dmNewestMs !== null && dmNewestMs !== undefined
+          ? [{ placeKey: DM_PLACE_KEY, seq: String(dmNewestMs) }]
+          : []),
+      ]);
+    } catch {
+      // Same: a missing seed costs a dot.
     }
     return null;
   });
@@ -141,6 +176,7 @@ export default function ChatNext(props) {
 
   const seen = useSeen();
   const notified = useNotified();
+
   const wanted = useOpenPlace();
 
   // Bascinet's row is not in `initialPlaces` and never will be: the DM is a
@@ -174,6 +210,20 @@ export default function ChatNext(props) {
 
 
   const onSelect = useCallback((placeKey) => setOpenPlace(placeKey), []);
+
+  // What clears a notified count: opening the place, or bringing the tab back
+  // to one already open. Discord clears on read and so does this — a count
+  // you have to dismiss is a second chore. Nothing here sets state;
+  // clearNotified writes localStorage and notifies its own store.
+  useEffect(() => {
+    if (!selectedKey) return undefined;
+    const clear = () => {
+      if (document.visibilityState === "visible") clearNotified(selectedKey);
+    };
+    clear();
+    document.addEventListener("visibilitychange", clear);
+    return () => document.removeEventListener("visibilitychange", clear);
+  }, [selectedKey]);
   // The pseudo-place takes the whole centre: it has no feed to scroll and no
   // composer that could ever say a line into a room (CHAT.md §2b).
   const isDm = selectedKey === DM_PLACE_KEY;
@@ -440,6 +490,9 @@ export default function ChatNext(props) {
   useEffect(() => {
     initPush();
   }, []);
+  // Keeps the stored window in step with the store, coarsely. Sets no state
+  // of its own, which is what lets it live in an effect at all.
+  useEffect(() => startRowCache(), []);
 
   const onMarkAllSeen = useCallback(
     () => markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) }))),
@@ -583,7 +636,6 @@ export default function ChatNext(props) {
             ghost={ghost}
             hasCamera={hasCamera}
             speakers={speakers}
-                newAt={selected ? (seen?.get?.(selected.placeKey) ?? null) : null}
                 members={members}
                 readOnly={Boolean(selected?.vantage)}
                 onRetry={onRetry}
@@ -629,6 +681,7 @@ export default function ChatNext(props) {
                 lettersMenu={lettersMenu}
                 openAction={openAction}
                 onTyping={onTyping}
+                autocorrect={autocorrect}
                 people={aside?.people ?? null}
                 members={members.data?.members ?? []}
                 sayRef={sayRef}
