@@ -51,10 +51,10 @@ scale is short and most of the catalog sits at the bottom:
 
 | Tier | Meaning | Count |
 |---|---|---|
-| 1 | Most Desires: a routine act, a purchase, a single scene, something that happens to you | 161 |
-| 2 | The hard ones: effortful, risky, several steps, a real cost | 72 |
+| 1 | Most Desires: a routine act, a purchase, a single scene, something that happens to you | 159 |
+| 2 | The hard ones: effortful, risky, several steps, a real cost | 71 |
 | 3 | Really good: a goal a character remembers | 35 |
-| 4 | Top tier. **Every one is once-per-game**, and a repeatable Desire never goes above 3, so a goal you can claim again and again never pays the top rate | 17 |
+| 4 | Top tier. **Every one is once-per-game**, and a repeatable Desire never goes above 3, so a goal you can claim again and again never pays the top rate | 19 |
 | 5 | The very biggest once-per-game goals: Be crowned Baron (both routes), the Apex Form, Steal the Baron's key, Save the life of a Leader of a faction you did not start in | 5 |
 
 The whitelist is `{1, 2, 3, 4, 5}` (`db/lib/syncDesires.js#TIER_WHITELIST`, and
@@ -128,7 +128,7 @@ pass:
   pull: a rejected claim costs the player their points but does not also cost
   them two turns of the slot.
 - **Once ever.** `oncePerLife: true` in the YAML, and only that (the sync no
-  longer infers it from any tier). All 17 tier-4 and 5 tier-5 Desires carry it, and so do 31
+  longer infers it from any tier). All 19 tier-4 and 5 tier-5 Desires carry it, and so do 29
   lower ones where repeating the thing is absurd on its face (a second
   first-ever coronation, learning to read twice). 53 in all.
 
