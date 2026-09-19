@@ -27,6 +27,8 @@ const TRAIN_ARRIVED_LINE = {
 // of it. A sealed crate still says whose it is — the seal hides WHAT is in it,
 // which is a different secret from whose it is.
 function stampFor(order) {
+  // A custom label stands alone: a fingerprint beside it would name the buyer.
+  if (order.label) return order.label;
   return order.anonymous ? "ANONYMOUS" : `${order.holderName} · ${order.fingerprint}`;
 }
 

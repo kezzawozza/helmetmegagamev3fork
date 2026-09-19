@@ -1844,6 +1844,7 @@ module.exports = {
   ...require("./lib/depotManifests"),
   ...require("./lib/train"),
   ...require("./lib/bankAccounts"),
+  ...require("./lib/treasuryLedger"),
   ...require("./lib/startingTags"),
   ...require("./lib/locationAttributes"),
   ...require("./lib/formatTagRequirement"),

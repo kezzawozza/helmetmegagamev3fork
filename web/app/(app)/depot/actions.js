@@ -29,6 +29,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { COMPANY, DEPOT_DEBT, record, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
+import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import {
   DESTINATIONS,
   counterState,
@@ -56,6 +57,8 @@ import {
 
 // So a fat-fingered cart can't file for ten thousand vials.
 const MAX_ORDER_LINES = 40;
+// What the Custom crate label may hold. The Buying tab caps its box at the same.
+const CRATE_LABEL_MAX = 20;
 
 async function requireDepotStanding() {
   const session = await auth();
@@ -144,7 +147,7 @@ async function railyardPlaceKey(tx = prisma) {
 // A whole cart in one row. Prices come from the catalog in here; the client's
 // are decoration. The obols leave the account NOW and the goods do not exist
 // yet — they ride the next train in, which is the whole risk of ordering.
-async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
+async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous, label: rawLabel }) {
   const { session, character, held, account } = await requireAccount();
 
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
@@ -222,7 +225,16 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
   }
 
   const openTurn = await getOpenTurn();
-  const anonymous = Boolean(rawAnonymous);
+  // A custom label is its own choice; sent alongside anonymous, the label wins.
+  let label = null;
+  if (rawLabel != null) {
+    if (typeof rawLabel !== "string" || rawLabel.length > CRATE_LABEL_MAX) {
+      throw new UserError(`A label is at most ${CRATE_LABEL_MAX} characters.`);
+    }
+    label = cleanCustomText(rawLabel, CRATE_LABEL_MAX);
+    if (!label) throw new UserError("Write something on the label, or pick another option.");
+  }
+  const anonymous = !label && Boolean(rawAnonymous);
 
   await prisma.$transaction(async (tx) => {
     // bumpBankAccount's conditional clamp enforces the balance; the check
@@ -241,6 +253,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
         fingerprint: account.fingerprint,
         holderName: account.holderName,
         anonymous,
+        label,
         lines,
         totalObols: total,
         manifestId,
@@ -254,7 +267,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
       targetCharacterId: character.id,
       place: await railyardPlaceKey(tx),
       turnId: openTurn?.id ?? null,
-      details: { lines, total, manifestId, anonymous, fingerprint: account.fingerprint },
+      details: { lines, total, manifestId, anonymous, label, fingerprint: account.fingerprint },
     });
   });
 

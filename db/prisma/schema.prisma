@@ -922,6 +922,10 @@ model DepotOrder {
   fingerprint String
   holderName  String
   anonymous   Boolean @default(false)
+  // A buyer-chosen stamp (Custom on the Buying tab), at most 20 characters.
+  // When set it is printed ALONE — no fingerprint, which would give the buyer
+  // away. Null means the name, or ANONYMOUS when `anonymous` is set.
+  label       String?
 
   // `[{ tagId, name, quantity, unitPrice, sealed }]` — the old Depot.manifest
   // shape, unchanged, so db/lib/depotCrates.js and the sealed-shipping rule

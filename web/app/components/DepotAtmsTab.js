@@ -20,7 +20,6 @@ import RequestDialog from "./RequestDialog";
 export default function DepotAtmsTab({
   account,
   heldObols,
-  vaultObols,
   depot,
   creditAvailable,
   licensed,
@@ -88,8 +87,9 @@ export default function DepotAtmsTab({
   const debt = depot.debtObols ?? 0;
   const cap = depot.creditCapObols ?? 0;
   const pct = cap > 0 ? Math.min(100, Math.round((debt / cap) * 100)) : 0;
-  // The Vault is the real ceiling on a withdrawal, not the balance.
-  const withdrawMax = account.backed ? Math.min(balance, vaultObols) : balance;
+  // Capped at the balance, never the Vault: a max below the balance would tell
+  // a player what the Vault holds. A short Vault is refused server-side.
+  const withdrawMax = balance;
 
   return (
     <div className="depot-split">
@@ -104,19 +104,13 @@ export default function DepotAtmsTab({
             <dd className="mono">{balance} ¢</dd>
           </div>
           <div>
+            <dt>Inventory</dt>
+            <dd className="mono">{heldObols} ¢</dd>
+          </div>
+          <div>
             <dt>Fingerprint</dt>
             <dd className="mono">{account.fingerprint}</dd>
           </div>
-          <div>
-            <dt>In your pocket</dt>
-            <dd className="mono">{heldObols} ¢</dd>
-          </div>
-          {account.backed && (
-            <div className={vaultObols < balance ? "text-danger" : undefined}>
-              <dt>In the treasury</dt>
-              <dd className="mono">{vaultObols} ¢</dd>
-            </div>
-          )}
         </dl>
 
         <div className="mt-4 flex gap-2">
@@ -141,6 +135,7 @@ export default function DepotAtmsTab({
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>
 
+      {(licensed || ledger.length > 0) && (
       <section className="panel p-5 depot-aside">
         {licensed && (
           <>
@@ -206,6 +201,7 @@ export default function DepotAtmsTab({
           </>
         )}
       </section>
+      )}
 
       {dialog && (
         <RequestDialog

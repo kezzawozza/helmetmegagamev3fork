@@ -15,6 +15,8 @@ import TagChip from "./TagChip";
 // sees everything. The gate is re-checked server-side on every line of the
 // cart — the Kind filter here is a convenience, not the rule.
 const SEARCH_FIELDS = [(r) => r.name, (r) => r.description];
+// Matches CRATE_LABEL_MAX in app/(app)/depot/actions.js, which is the rule.
+const CRATE_LABEL_MAX = 20;
 const FILTER_DEFS = [
   { key: "manifest", label: "Manifest", value: (r) => r.manifest ?? "" },
   { key: "group", label: "Kind", value: (r) => r.groupName ?? "" },
@@ -24,7 +26,9 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [cart, setCart] = useState(() => new Map());
-  const [anonymous, setAnonymous] = useState(false);
+  // "name" | "anon" | "custom" — what the crate is stamped with.
+  const [labelMode, setLabelMode] = useState("name");
+  const [customLabel, setCustomLabel] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState(null);
 
@@ -69,7 +73,8 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
     startTransition(async () => {
       const result = await depotOrder({
         items: cartLines.map((l) => ({ tagId: l.id, quantity: l.quantity })),
-        anonymous,
+        anonymous: labelMode === "anon",
+        label: labelMode === "custom" ? customLabel : null,
         reason,
       });
       if (!result.ok) {
@@ -181,16 +186,30 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
 
         <label className="field mt-3">
           <span>Crate label</span>
-          <select value={anonymous ? "anon" : "name"} onChange={(e) => setAnonymous(e.target.value === "anon")}>
-            <option value="name">Print my name on it</option>
-            <option value="anon">Leave it off</option>
+          <select value={labelMode} onChange={(e) => setLabelMode(e.target.value)}>
+            <option value="name">{account?.holderName || "My name"}</option>
+            <option value="anon">No label</option>
+            <option value="custom">Custom</option>
           </select>
+        </label>
+        <label className="field mt-2">
+          <input
+            type="text"
+            placeholder="Custom"
+            aria-label="Custom label"
+            maxLength={CRATE_LABEL_MAX}
+            value={customLabel}
+            disabled={labelMode !== "custom"}
+            onChange={(e) => setCustomLabel(e.target.value)}
+          />
         </label>
 
         <button
           type="button"
           className="btn mt-4"
-          disabled={disabled || pending || !cartLines.length || !affordable}
+          disabled={
+            disabled || pending || !cartLines.length || !affordable || (labelMode === "custom" && !customLabel.trim())
+          }
           onClick={() => setConfirming(true)}
         >
           Place order
