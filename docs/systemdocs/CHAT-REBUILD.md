@@ -237,7 +237,27 @@ Each ends with something that runs.
    — `onPlaceChanged`, `travelPick`, `addPlace`/`onAddMember` and the map
    overlay. Each is a piece of the stream or of a surface phase 6 and 7 build,
    and each defaults to null, which every child already handles.
-6. **GM aside + DM pane.**
+6. **GM aside + DM pane** — `next/GmAside.js` and `next/DmPane.js`.
+
+   The GM's column follows the player's, which is the rule it already had
+   (CHAT.md §8): every `.chat-card` with a `.chat-section-title` inside it is
+   a `.block` with an `h3.bar` over it. Same readouts, same words, on the
+   vocabulary's container. `PlaceCard` here gets the same `showTitle={false}`
+   the player's does, for the same reason.
+
+   The TAB STRIP stays, though the player's column dropped its own. It is on
+   the checklist, and it is doing work here the player's was not: a GM's Place
+   tab alone runs to every room in a Location with every room's stash under
+   it, and four of those stacked is a column nobody reaches the bottom of.
+
+   The DM pane is the smallest rebuild of the eight, because it was already
+   the shape the vocabulary asks for — one composer row with the send inside
+   the box, a foot that exists only when it has something to say. What went is
+   the SHELL: it drew its own `.chat-main` and its own `ChatHead`, since it
+   used to replace the whole centre column, and the rebuilt shell owns the
+   girder head for every place. `drawers` went with that head — the phone's
+   controls live on it, and that is phase 7's. Verified end to end: a line
+   sends, the box clears, and it is still there after a reload.
 7. **Phone** — drawers, swipe, tap floors, ⋯ sheet.
 8. **Cutover** — flip `ChatView.js`, delete the old files in one commit.
 

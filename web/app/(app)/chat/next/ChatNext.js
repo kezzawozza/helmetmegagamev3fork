@@ -18,6 +18,8 @@ import PlacesColumn from "./PlacesColumn";
 import Feed from "./Feed";
 import Composer from "./Composer";
 import ChatAside from "./ChatAside";
+import GmAside from "./GmAside";
+import DmPane from "./DmPane";
 
 // THE REBUILD'S SHELL (docs/systemdocs/CHAT-REBUILD.md).
 //
@@ -49,6 +51,12 @@ export default function ChatNext(props) {
     // The right column's whole bag, built server-side in page.js. Null for a
     // GM with no living character — their column is GmAside's, phase 6.
     aside = null,
+    // The GM's "Zones I see" picker. It rides the right column because it is a
+    // control rather than a place, and because that is where the same picker
+    // sits on every GM desk. Never set in the player seat, so `aside` and
+    // `gmZones` can never both exist — which is what makes the two asides an
+    // either/or below rather than a stack of both.
+    gmZones = null,
   } = props;
 
   // Seed the store DURING render, not in an effect, and exactly once. The
@@ -98,6 +106,9 @@ export default function ChatNext(props) {
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
 
   const onSelect = useCallback((placeKey) => setOpenPlace(placeKey), []);
+  // The pseudo-place takes the whole centre: it has no feed to scroll and no
+  // composer that could ever say a line into a room (CHAT.md §2b).
+  const isDm = selectedKey === DM_PLACE_KEY;
 
   // What an unread mark compares against: the newest thing said here that was
   // ABOUT this viewer, not merely the newest thing said. A place used to light
@@ -176,16 +187,22 @@ export default function ChatNext(props) {
             {selected?.zoneName && <span className="crumb">{selected.zoneName}</span>}
             <span className="spacer" />
           </p>
-          <Feed
-            place={selected}
+          {isDm ? (
+            <DmPane self={self} />
+          ) : (
+            <>
+              <Feed
+                place={selected}
             self={self}
             gm={gm}
             ghost={ghost}
             hasCamera={hasCamera}
             speakers={speakers}
-            newAt={selected ? (seen?.get?.(selected.placeKey) ?? null) : null}
-          />
-          <Composer place={selected} self={self} gm={gm} roster={roster} />
+                newAt={selected ? (seen?.get?.(selected.placeKey) ?? null) : null}
+              />
+              <Composer place={selected} self={self} gm={gm} roster={roster} />
+            </>
+          )}
         </div>
 
         <div className="chat-rail" aria-hidden="true" />
@@ -196,6 +213,11 @@ export default function ChatNext(props) {
                 fixtures — the whole reason the Council Room's Intercom used to
                 show up in the Kitchens. */}
             <ChatAside {...aside} selected={selected} />
+          </aside>
+        )}
+        {!aside && gmZones && (
+          <aside className="chat-aside" aria-label="This place">
+            <GmAside selected={selected} gmZones={gmZones} />
           </aside>
         )}
       </div>
