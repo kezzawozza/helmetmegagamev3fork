@@ -1,13 +1,21 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { DM_PLACE_KEY } from "../DmPane";
-import { notableSeq } from "../feedStore";
+import {
+  notableSeq,
+  seedInitial,
+  seedRows,
+  historyLoaded,
+  markHistoryLoading,
+  markHistoryLoaded,
+} from "../feedStore";
 import { useSeen, markAllSeen } from "../seenStore";
 import { useNotified } from "../notifiedStore";
 import { useOpenPlace, setOpenPlace } from "../openPlace";
 import PlacesColumn from "./PlacesColumn";
+import Feed from "./Feed";
 
 // THE REBUILD'S SHELL (docs/systemdocs/CHAT-REBUILD.md).
 //
@@ -26,7 +34,35 @@ import PlacesColumn from "./PlacesColumn";
 // nothing else sets it, so none of that stylesheet can reach the live chat.
 export default function ChatNext(props) {
   // ../Chat.js's own prop names, verbatim — this exists to be swappable with it.
-  const { initialPlaces: places = [], initialPlace = null, self = null } = props;
+  const {
+    initialPlaces: places = [],
+    initialPlace = null,
+    initialRows = [],
+    self = null,
+    gm = false,
+    ghost = false,
+    hasCamera = false,
+    speakers = null,
+  } = props;
+
+  // Seed the store DURING render, not in an effect, and exactly once. The
+  // first paint has to show the scene the server already sent — an effect
+  // would paint one frame of empty first, and on a phone that frame is what a
+  // reader sees every time they open the page. `react-hooks/set-state-in-effect`
+  // is an error here for the same reason.
+  // A useState initialiser rather than a ref poked during render: React runs
+  // it exactly once per mount and `react-hooks/refs` refuses the ref version
+  // outright. An EFFECT would be wrong for a different and worse reason — it
+  // runs after the first paint, so the reader gets a frame of empty scene
+  // every time they open the page.
+  useState(() => {
+    try {
+      seedInitial({ places, place: initialPlace, rows: initialRows });
+    } catch {
+      // A store that refused costs a skeleton, nothing more.
+    }
+    return null;
+  });
 
   const seen = useSeen();
   const notified = useNotified();
@@ -78,6 +114,33 @@ export default function ChatNext(props) {
     [selfCharacterId, selfSpeakerKey],
   );
 
+  // What was said BEFORE the page opened, for a place the reader has just
+  // chosen. seedInitial covers the OPENING place only, and the stream carries
+  // what happens next — so without this, walking into a room for the first
+  // time draws an empty scene until somebody speaks.
+  useEffect(() => {
+    // The pseudo-place has no feed to load; DmPane fetches its own page.
+    if (!selectedKey || selectedKey === DM_PLACE_KEY || historyLoaded(selectedKey)) return;
+    // "loading" first, so the feed draws its skeleton rather than the empty
+    // state while this is out. It is also what stops a second fetch:
+    // historyLoaded() is true for both of the non-idle states.
+    markHistoryLoading(selectedKey);
+    fetch(`/api/feed/history?place=${encodeURIComponent(selectedKey)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        // NOT gated on a cancelled flag. The rows belong to a PLACE, not to a
+        // render, and the store is keyed by place — dropping them because the
+        // reader moved on left that place marked "loading" for the life of the
+        // tab, so walking back into it drew the skeleton forever.
+        if (data?.rows) seedRows(selectedKey, data.rows);
+        markHistoryLoaded(selectedKey);
+      })
+      .catch(() => {
+        // Marked loaded either way, or the skeleton sits there forever.
+        markHistoryLoaded(selectedKey);
+      });
+  }, [selectedKey]);
+
   const onMarkAllSeen = useCallback(
     () => markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) }))),
     [navPlaces, newest],
@@ -104,9 +167,18 @@ export default function ChatNext(props) {
         <div className="chat-centre">
           <p className="bar">
             {selected?.name ?? null}
+            {selected?.zoneName && <span className="crumb">{selected.zoneName}</span>}
             <span className="spacer" />
           </p>
-          <div className="chat-feed" />
+          <Feed
+            place={selected}
+            self={self}
+            gm={gm}
+            ghost={ghost}
+            hasCamera={hasCamera}
+            speakers={speakers}
+            newAt={selected ? (seen?.get?.(selected.placeKey) ?? null) : null}
+          />
         </div>
 
         <div className="chat-rail" aria-hidden="true" />

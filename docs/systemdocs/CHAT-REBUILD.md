@@ -164,8 +164,26 @@ Each ends with something that runs.
    `selected`/`seen`/`notified`/`newest`/`onSelect` through every section — the
    grouping reads each row's state once and hands sections rows that already
    know what they are.
-3. **Feed** — every row variant, sticky scroll, backlog, search, notice cards,
-   the row action bar and its touch twin. Biggest phase; expect it to overrun.
+3. **Feed** — `next/Feed.js`. The scroller: every row variant (driven through
+   `TranscriptLine`'s speech / system / block, which is why a shout, an emote,
+   an ambient line and a decree each look like themselves), run-grouping at
+   7 minutes, the turn daybreak rule, the NEW bookmark, the backlog edge, the
+   skeleton, the empty state, the live-arrival fade, sticky-bottom scroll with
+   a derived "N new" pill, backlog paging with anchor-preserving restore, and
+   the row action bar with its ⋯ touch twin.
+
+   `ChatNext` also gained the per-place history load — `seedInitial` covers the
+   OPENING place only, so without it walking into a room drew an empty scene.
+
+   **Still owed, and carried rather than claimed:** in-feed search, notice
+   cards, the row-action handlers themselves (Change / Delete / Look at /
+   Photograph / Save to Notes / Remove are wired as props and land with phase
+   4's action plumbing), and the LIVE STREAM. The SSE connection, its
+   reconnect/backoff and gap recovery live in `../Chat.js` tangled with that
+   file's layout; splitting them out is the plan's "split with care" and is
+   its own piece of work. Until then the rebuilt feed renders seeded history
+   and pages backwards through it — everything except lines arriving while you
+   watch.
 4. **Composer** — modes, the 12 slash commands, `/` and `@` menus, chip
    arguments, tools row, in-box send, drafts, slowmode, limits.
 5. **Aside** — You frame plus all eight blocks: Turn, Here, Waiting, Place,

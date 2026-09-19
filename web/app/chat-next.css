@@ -496,20 +496,33 @@
   font-family: inherit;
 }
 
-[data-chat-next] .tip-name {
+/* ── PORTALED: the one thing the scope cannot reach ──────────────────────
+   HoverCard renders its panel through createPortal into document.body, with a
+   fixed `tag-tooltip` class — so it lands OUTSIDE [data-chat-next] and every
+   scoped rule above misses it. The name and the description came out run
+   together on one line because of exactly this.
+
+   So these two are UNSCOPED, and they are safe to be: `tip-name`/`tip-desc`
+   are names chat.css does not use, so an unscoped rule here cannot reach the
+   live chat either. That is the whole trick — a portaled surface gets a name
+   nothing else has, rather than a scope it cannot inherit.
+
+   Every FLOAT in the vocabulary is portaled and has this problem: modals,
+   popovers, the / and @ menus. Each needs a name of its own until cutover,
+   when the prefix comes off and the question disappears. */
+.tip-name {
   display: block;
   font-weight: 600;
   margin-bottom: var(--sp-1);
 }
 
-[data-chat-next] .tip-desc {
-  display: block;
-  color: var(--muted);
-  overflow: hidden;
+.tip-desc {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 6;
   line-clamp: 6;
+  overflow: hidden;
+  color: var(--muted);
 }
 
 /* The tail's own stacking. `margin-top: auto` pushes it to the bottom of a
@@ -527,4 +540,127 @@
   display: flex;
   align-items: center;
   gap: var(--sp-1);
+}
+
+/* ── The scene's own parts ───────────────────────────────────────────────── */
+
+/* The scroller needs a positioned parent for the pill to hang off, and the
+   pill is the only thing that needs it — .chat-feed itself must stay
+   unpositioned so nothing inside it traps Modal.js's in-tree overlay. */
+[data-chat-next] .chat-feed-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-chat-next] .chat-feed {
+  list-style: none;
+  margin: 0;
+}
+
+/* A rule wherever the scene crosses into a new turn. The label sits IN the
+   rule rather than above it, so a long scene reads as ruled rather than
+   chaptered. */
+[data-chat-next] .daybreak {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-3xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+[data-chat-next] .daybreak::before,
+[data-chat-next] .daybreak::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Where you had read up to. One rule in the accent, no label: a word here
+   would be read once and then be in the way of every scene after it. */
+[data-chat-next] .chat-new-line {
+  height: 1px;
+  margin: var(--sp-3) 0;
+  background: var(--accent-text);
+  opacity: 0.55;
+}
+
+/* The top edge while a page is on the wire. Nothing when there is nothing
+   left to fetch — a permanent "no more" at the head of every scene says
+   something nobody asked. */
+[data-chat-next] .chat-backlog-edge {
+  padding: var(--sp-2) 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Somebody spoke while the reader was further up. A pill they press, never a
+   jump: moving the scene under somebody mid-sentence is the one thing a live
+   feed must not do.
+
+   FLOAT (vocabulary §6) — it is the one thing in the scene that sits above
+   it, and it earns that by being the only control that appears unasked. */
+[data-chat-next] .chat-pill {
+  position: absolute;
+  left: 50%;
+  bottom: var(--sp-3);
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 3px var(--sp-3);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: var(--e-2);
+  color: var(--text-hi);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-chat-next] .chat-pill:hover {
+  border-color: var(--accent-text);
+}
+
+/* The shape of a scene rather than a spinner, so the column does not jump
+   when the real thing lands. */
+[data-chat-next] .chat-skeleton {
+  padding: var(--sp-3) var(--sp-4);
+}
+
+[data-chat-next] .chat-skeleton-line {
+  padding: 3px 0;
+}
+
+[data-chat-next] .chat-skeleton-bar {
+  display: block;
+  height: 10px;
+  width: 60%;
+  background: var(--row-hover);
+}
+
+[data-chat-next] .chat-skeleton-line:nth-child(2) .chat-skeleton-bar {
+  width: 85%;
+}
+
+[data-chat-next] .chat-skeleton-line:nth-child(3) .chat-skeleton-bar {
+  width: 45%;
+}
+
+/* A send that came back refused. The line STAYS — losing what somebody typed
+   is worse than leaving it on screen marked unsent — so this is what has to
+   say it went nowhere. */
+[data-chat-next] .chat-unsent {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin: 2px 0 0;
+  color: var(--danger);
+  font-size: var(--fs-xs);
 }
