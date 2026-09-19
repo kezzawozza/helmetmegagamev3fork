@@ -112,7 +112,7 @@ const FIELDS = [
     label: "Desire slots",
   },
   {
-    key: "desireSlotLockTurns", type: "int", group: "desires", default: 2, min: 0, max: 20,
+    key: "desireSlotLockTurns", type: "int", group: "desires", default: 1, min: 0, max: 20,
     label: "Desire slot lock",
   },
 

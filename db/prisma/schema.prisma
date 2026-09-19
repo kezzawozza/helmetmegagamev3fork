@@ -531,11 +531,11 @@ model GameConfig {
 
   // Whole turns a Desire slot stays shut after a Desire is claimed into it.
   // A claim on turn N leaves the slot shut on N and open again on
-  // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates). At 2, a
-  // claim on turn N reopens the slot on N + 3. This is the throttle on Desire
-  // INCOME — it was 1 from 2026-09-07 until 2026-09-16, which turned out to
-  // pay Tag Points faster than the economy wanted.
-  desireSlotLockTurns Int @default(2)
+  // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates). At 1, a
+  // claim on turn N reopens the slot on N + 2. This is the throttle on Desire
+  // INCOME — it was 1 from 2026-09-07 until 2026-09-16, then 2 until
+  // 2026-09-19.
+  desireSlotLockTurns Int @default(1)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets

@@ -88,8 +88,8 @@ pass:
   a slot for the turn a claim lands in, so a per-desire cooldown of 1 is
   dominated by a gate that was going to fire anyway. (This tracks
   `desireSlotLockTurns`, which was **2** until 2026-09-07, **1** until
-  2026-09-16, and is **2** again now. At a lock of 2 it is `1` **and** `2` that
-  are inert, and 3 is the smallest value that changes anything.) One entry sits
+  2026-09-16, **2** until 2026-09-19, and is **1** again now. At a lock of 1
+  only `1` is inert, and 2 is the smallest value that changes anything.) One entry sits
   at 2 on purpose — `cause-chaos`, which is a Rage+Xom character's only goal and
   is written down at 2 so nobody tidies it up the ladder. It is dominated by the
   slot lock rather than wrong, so it was left where it is.
@@ -595,7 +595,7 @@ have in play:
 - **`desireSlots`** (default 2) — how many slots a character has. The
   **bottom** one is what an Addiction binds (§3). Lowering this hides a slot
   rather than deleting what was claimed in it. See §1.
-- **`desireSlotLockTurns`** (default 2) — whole turns a slot stays shut after a
+- **`desireSlotLockTurns`** (default 1) — whole turns a slot stays shut after a
   claim lands in it (§2). This is the tuning knob on how fast Tag Points enter
   the game, so it is the first number to reach for if income is running hot or
   cold. `0` disables the lock entirely, which is a debugging setting, not a
