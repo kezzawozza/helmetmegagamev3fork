@@ -12,6 +12,9 @@ import {
   markHistoryLoading,
   markHistoryLoaded,
 } from "../feedStore";
+import NoticeCards from "../NoticeCards";
+import { SearchIcon } from "@/app/components/icons";
+import IconButton from "@/app/components/IconButton";
 import { retryPending } from "../feedStore";
 import { useSeen, markAllSeen } from "../seenStore";
 import { useRefresh } from "@/app/components/useRefresh";
@@ -264,6 +267,42 @@ export default function ChatNext(props) {
   // watching it sit there — and "Try again" re-sends it through the one send
   // path, slowmode hold and all.
   const sayRef = useRef(null);
+
+  // Searching what was said. The BUTTON is on the head this component draws,
+  // so the open flag is this component's; the box itself and the rule that
+  // forces it back open on a hit that turned out to be gone are the feed's.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  // A hit somebody clicked. The window around the seq is loaded FIRST — the
+  // store usually holds the newest hundred, and a hit from three days ago is
+  // not in it — and only then is the place opened and the seq handed down to
+  // scroll to. Rows merge by seq, so a window overlapping what is already
+  // held costs nothing.
+  const [jump, setJump] = useState(null);
+  const onJump = useCallback((placeKey, seq) => {
+    if (!placeKey || !seq) return;
+    const go = () => {
+      setJump({ placeKey, seq: String(seq), at: Date.now() });
+      setOpenPlace(placeKey);
+    };
+    fetch(`/api/feed/history?place=${encodeURIComponent(placeKey)}&around=${encodeURIComponent(seq)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.rows) seedRows(placeKey, data.rows);
+        markHistoryLoaded(placeKey);
+        go();
+      })
+      // The place still opens. A hit whose window would not load is better
+      // answered by the newest hundred than by nothing happening at all.
+      .catch(go);
+  }, []);
+
+  // The noticeboard cards at the top of a street, and the counter that makes
+  // them re-read. The aside's Noticeboard dialog pins to the SAME board, so
+  // the two share a signal or a pin leaves the street showing the old papers.
+  const [boardVersion, setBoardVersion] = useState(0);
+  const bumpBoard = useCallback(() => setBoardVersion((n) => n + 1), []);
   const onRetry = useCallback(
     (clientId) => {
       if (!selectedKey) return;
@@ -388,7 +427,7 @@ export default function ChatNext(props) {
       .filter(Boolean)
       .join(" · ") || "Here";
   const asidePane = aside ? (
-    <ChatAside {...aside} selected={selected} onOpenMap={openMap} />
+    <ChatAside {...aside} selected={selected} onOpenMap={openMap} onPlaceChanged={bumpBoard} />
   ) : gmZones ? (
     <GmAside selected={selected} gmZones={gmZones} />
   ) : null;
@@ -409,6 +448,15 @@ export default function ChatNext(props) {
             name={selected?.name ?? null}
             crumb={[aside?.zone?.name, aside?.place?.name].filter((n) => n && n !== selected?.name)}
             {...drawers}
+            trailing={
+              <IconButton
+                icon={SearchIcon}
+                label="Search what was said"
+                size={narrow ? "lg" : "sm"}
+                aria-expanded={searchOpen}
+                onClick={() => setSearchOpen((was) => !was)}
+              />
+            }
           />
           {/* The stream is down. HERE rather than in the feed or a column
               foot: this row is on screen whichever pane is open, and the
@@ -439,6 +487,19 @@ export default function ChatNext(props) {
                 placesVersion={placesVersion}
                 readOnly={Boolean(selected?.vantage)}
                 onRetry={onRetry}
+                searchOpen={searchOpen}
+                onCloseSearch={closeSearch}
+                jump={jump}
+                onJump={onJump}
+                // Only in the STREET, and only where there is a board to read:
+                // a room, a conversation and the zone summary have none, and
+                // a street you are only WATCHING is not one you can walk up
+                // to and put your hands on (db/lib/vantages.js).
+                notices={
+                  aside?.hasBoard && selected?.kind === "loc" && !selected?.vantage ? (
+                    <NoticeCards version={boardVersion} onChanged={bumpBoard} />
+                  ) : null
+                }
               />
               <Composer place={selected} self={self} gm={gm} roster={roster} sayRef={sayRef} />
             </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
@@ -16,6 +16,7 @@ import { formatTurnLabel } from "@/lib/turnFormat";
 import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
 import MembersStrip from "../MembersStrip";
 import usePlaceMembers from "../usePlaceMembers";
+import FeedSearch from "../FeedSearch";
 import { photographRow, starRow, lookAtRow } from "../actions";
 import {
   useFeed,
@@ -294,6 +295,19 @@ export default function Feed({
   // (db/lib/vantages.js). The guest-list buttons are a thing you do with your
   // hands in the room.
   readOnly = false,
+  // The head's search box: the shell owns whether it is open, because the
+  // button that opens it lives on the bar the shell draws. A jump that lands
+  // on nothing forces it open from here regardless — the box has to come back
+  // and say so rather than shutting on nothing.
+  searchOpen = false,
+  onCloseSearch = null,
+  // A line found by search: which one, and when it was picked, so picking the
+  // same hit twice scrolls twice. The window around it is already in the
+  // store by the time this arrives.
+  jump = null,
+  onJump = null,
+  // The noticeboard nailed to the top of a street. Null everywhere else.
+  notices = null,
   // The composer's own, because a retry re-SENDS and the send queue is its.
   // Null leaves a refused line sitting there marked unsent, which is still
   // better than losing the words.
@@ -303,6 +317,9 @@ export default function Feed({
   const rows = useFeed(placeKey);
   const members = usePlaceMembers(place, placesVersion);
   const confirm = useConfirm();
+  // The `at` of a jump whose failure the reader has already waved away, so
+  // the notice does not come back every time the scene re-renders.
+  const [dismissedJump, setDismissedJump] = useState(null);
 
   // ---- What a row can have done to it ------------------------------------
   //
@@ -608,6 +625,28 @@ export default function Feed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines.length]);
 
+  // A search hit. The row is already in the store when this runs — the shell
+  // loads the window around the seq before handing the jump down — so this is
+  // the scroll and the flash and nothing else. DOM calls, no state: the
+  // highlight is an attribute the CSS animates and then nobody looks at again.
+  useEffect(() => {
+    // Only once the place it names is the place on screen. Setting the open
+    // place and setting this happen together, but the swap arrives a beat
+    // later.
+    if (!jump?.seq || jump.placeKey !== placeKey) return undefined;
+    const el = scrollerRef.current;
+    if (!el) return undefined;
+    const row = el.querySelector(`[data-seq="${CSS.escape(String(jump.seq))}"]`);
+    if (!row) return undefined;
+    // The reader is being taken somewhere on purpose, so the follow-the-bottom
+    // rule stands down until they scroll again.
+    setPinned(false);
+    row.scrollIntoView({ block: "center" });
+    row.setAttribute("data-hit", "true");
+    const timer = setTimeout(() => row.removeAttribute("data-hit"), 2000);
+    return () => clearTimeout(timer);
+  }, [jump, placeKey]);
+
   // What arrived since they left the bottom. A subtraction, not a tally.
   const behind = markAt == null ? 0 : Math.max(0, rowCount - markAt);
 
@@ -629,8 +668,34 @@ export default function Feed({
 
   if (historyState === "loading" && rows.length === 0) return <FeedSkeleton />;
 
+  // The hit the reader asked for is not in this place's rows, so it is gone —
+  // deleted, or wiped at Dawn. The box comes back open to say so, once.
+  const jumpMissed =
+    Boolean(jump?.seq) &&
+    jump.placeKey === placeKey &&
+    jump.at !== dismissedJump &&
+    !rows.some((row) => String(row.seq) === String(jump.seq));
+  const showSearch = Boolean(onJump) && (searchOpen || jumpMissed);
+  const closeSearch = () => {
+    setDismissedJump(jump?.at ?? null);
+    onCloseSearch?.();
+  };
+
   return (
     <div className="chat-feed-wrap">
+      {showSearch && (
+        <FeedSearch
+          place={place}
+          notice={jumpMissed ? "Couldn't find that line." : null}
+          onClose={closeSearch}
+          onPick={(hitPlace, seq) => {
+            // NOT dismissed: if this hit turns out to be gone too, the box has
+            // to come back and say so rather than shutting on nothing.
+            onCloseSearch?.();
+            onJump(hitPlace, seq);
+          }}
+        />
+      )}
       {/* Who is in this conversation or private room, and the two buttons
           that change it. Only those two kinds of place have one, and the
           strip draws nothing when placeMembers() answers with no list. On a
@@ -642,6 +707,10 @@ export default function Feed({
         {/* The top edge, while a page is on the wire. Nothing when there is
             nothing more to fetch — a permanent "no more" line at the head of
             every scene says something nobody asked. */}
+        {/* The board is NAILED TO THE TOP of the street, not filed into it:
+            a notice is a thing on a wall, and a wall does not scroll past. */}
+        {notices && <li className="chat-notices">{notices}</li>}
+
         {backlog.loading && <li className="chat-backlog-edge">Reading further back…</li>}
 
         {lines.map((line) => (
