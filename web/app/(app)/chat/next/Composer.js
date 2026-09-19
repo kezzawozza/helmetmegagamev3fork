@@ -14,6 +14,7 @@ import useComposerCommands from "../useComposerCommands";
 import useComposerAutosize from "../useComposerAutosize";
 import { addPending, applyRow, markPendingFailed, isOwnRow } from "../feedStore";
 import CommandArgs from "../CommandArgs";
+import { textArgOf } from "../commands";
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 import { MAX_SAY_PIECES, tooManyPieces } from "@lifeweb/db/lib/sayLimits";
 import { capitalizeSentences, fixContractions } from "@lifeweb/db/lib/textCorrection";
@@ -53,16 +54,23 @@ export default function Composer({
   // Whether GameConfig.tupperAutocorrectEnabled is on, so the optimistic row
   // reads the way the stored one will.
   autocorrect = false,
+  // Whether there is something over this character's face, and what it reads
+  // as. Only the box says so — /conceal is the one way up or down.
+  concealed = false,
+  alias = null,
+  // The feed's own editor, so ArrowUp on an empty box can open the last
+  // line's rather than being a second way of changing a line.
+  editRef = null,
   // whosHere() WHOLE, hoods included: a command's person picker needs them,
   // and `roster` above deliberately has none.
   people = null,
   // The guest list, for `/remove` — a conversation member need not be
   // standing beside you.
   members = [],
-  // A box the shell holds so the FEED can reach this composer's send. The
-  // "Try again" on a refused line belongs beside the line, and the send it
-  // makes belongs here.
-  sayRef = null,
+  // How the shell is handed this composer's send, so the "Try again" on a
+  // refused line — which belongs beside the line — goes through the one send
+  // path. A setter rather than a ref, for the reason the feed's gives.
+  publishSay = null,
 }) {
   const placeKey = place?.placeKey ?? null;
   // How long this place makes everybody wait after their own last line. It is
@@ -246,8 +254,8 @@ export default function Composer({
   // a second fetch that knows none of them. Written in an EFFECT, never
   // during a render: `react-hooks/refs` refuses the other version.
   useEffect(() => {
-    if (sayRef) sayRef.current = send;
-  }, [sayRef, send]);
+    publishSay?.(send);
+  }, [publishSay, send]);
 
   // A scheduled retry outlives a change of place on purpose — it is still
   // carrying words somebody typed, and the send it will make names the place
@@ -314,8 +322,36 @@ export default function Composer({
   // THE HOOK TAKES THE KEY FIRST. It owns the `/` list's arrows, Escape out of
   // a command, and Enter when a command is open — so this only ever sees the
   // keys it left alone.
+  // ArrowUp on an EMPTY box recalls the last thing you said here, the way a
+  // shell recalls the last command. It opens the ROW's own editor rather than
+  // putting the words back in this box: that editor is what actually saves an
+  // edit, and two ways of changing a line would be two places for the
+  // five-minute window to be checked.
+  //
+  // Only a confirmed row of your own, and only speech — a pending row has no
+  // seq to edit and the world's lines are not yours. The window itself is
+  // checked by the editor, which says so out loud when it has passed.
+  const lastOwnLine = useMemo(() => {
+    if (!self?.characterId && !self?.speakerKey) return null;
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const row = rows[i];
+      if (!row?.seq || row.pending || row.failed) continue;
+      if (row.source === "SYSTEM") continue;
+      if (!isOwnRow(row, self.characterId ?? null, self.speakerKey ?? null)) continue;
+      return { seq: row.seq, sentAt: row.sentAt ?? null };
+    }
+    return null;
+  }, [rows, self?.characterId, self?.speakerKey]);
+
   const onKeyDown = (e) => {
     if (cmd.onKeyDown?.(e)) return;
+    // Only on an EMPTY box, so Up inside a draft still moves the caret
+    // through what is being written.
+    if (e.key === "ArrowUp" && draft.length === 0 && lastOwnLine && editRef?.current) {
+      e.preventDefault();
+      editRef.current(lastOwnLine.seq, lastOwnLine.sentAt);
+      return;
+    }
     if (e.key !== "Enter" || e.shiftKey) return;
     // A phone keyboard's Enter is a newline; there is a send button for that.
     if (coarse) return;
@@ -435,7 +471,21 @@ export default function Composer({
                 value={draft}
                 onChange={onChange}
                 onKeyDown={onKeyDown}
-                aria-label="Say something"
+                aria-label={concealed && alias ? `Say something as ${alias}` : `Say something in ${place.name}`}
+                // Three words, and no place name: the place is named on the
+                // bar directly above the scene, so the box repeating it only
+                // wrapped to two lines on a phone — and a textarea cannot
+                // ellipsis a placeholder, so the second line was simply cut
+                // off. THE HOOD KEEPS ITS OWN LINE: that is not a label for
+                // where you are, it is a warning about which name every row
+                // you send will wear.
+                placeholder={
+                  command
+                    ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it")
+                    : concealed && alias
+                      ? `Say something as ${alias}…`
+                      : "Say something…"
+                }
               />
 
               <button

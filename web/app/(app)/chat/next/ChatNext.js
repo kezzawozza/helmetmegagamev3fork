@@ -45,7 +45,7 @@ import ChatHead from "../ChatHead";
 import useNarrow from "../useNarrow";
 import useAsideFolded from "../useAsideFolded";
 import useSwipeOpen from "../useSwipeOpen";
-import { setChatViewAs } from "../actions";
+import { addMember, setChatViewAs } from "../actions";
 import PlacesColumn from "./PlacesColumn";
 import Feed from "./Feed";
 import Composer from "./Composer";
@@ -72,6 +72,9 @@ import DmPane from "./DmPane";
 // the indicator for six seconds (../typingStore.js), so anything under that
 // is a ping nobody sees the effect of.
 const TYPING_PING_MS = 4000;
+
+// How many places a player's chat warms in the background before it stops.
+const PREFETCH_LIMIT = 12;
 
 export default function ChatNext(props) {
   // ../Chat.js's own prop names, verbatim — this exists to be swappable with it.
@@ -111,6 +114,9 @@ export default function ChatNext(props) {
     // row's dot before the pane has opened. The store takes over from the
     // first stream frame on.
     dmNewestMs = null,
+    // Whether there is anything over this character's face, and what it reads
+    // as. A hint — db/lib/conceal.js asks its own three questions.
+    conceal = null,
   } = props;
 
   // Seed the store DURING render, not in an effect, and exactly once. The
@@ -333,6 +339,15 @@ export default function ChatNext(props) {
   // watching it sit there — and "Try again" re-sends it through the one send
   // path, slowmode hold and all.
   const sayRef = useRef(null);
+  const publishSay = useCallback((fn) => {
+    sayRef.current = fn;
+  }, []);
+  // The other direction: the feed's editor, so ArrowUp on an empty box opens
+  // the last line's rather than being a second way of changing a line.
+  const editRef = useRef(null);
+  const publishEdit = useCallback((fn) => {
+    editRef.current = fn;
+  }, []);
 
   // Searching what was said. The BUTTON is on the head this component draws,
   // so the open flag is this component's; the box itself and the rule that
@@ -494,6 +509,77 @@ export default function ChatNext(props) {
   // of its own, which is what lets it live in an effect at all.
   useEffect(() => startRowCache(), []);
 
+  // PREFETCH. After the first paint, every OTHER place's backlog is fetched
+  // one at a time, so opening a room is instant rather than a skeleton and a
+  // round trip. One at a time on purpose: firing six requests at once would
+  // compete with the thing the reader is actually looking at.
+  //
+  // NOT FOR A GM, AND NOT FOR A GHOST. A player's list is a Location, its
+  // rooms, their conversations and a summary — small enough to walk. A GM's
+  // is every zone, every Location and every Room they may watch, two hundred
+  // and more, each a findMany of a hundred rows plus an avatar pass. Warming
+  // a chat a GM will open one room of is a storm the database pays for and
+  // nobody sees. Even for a player it is CAPPED: past a dozen the warmth is
+  // not worth the requests.
+  useEffect(() => {
+    if (gm || ghost) return undefined;
+    let stopped = false;
+    let timer = null;
+    const queue = live
+      .map((entry) => entry.placeKey)
+      .filter(Boolean)
+      .slice(0, PREFETCH_LIMIT);
+
+    function step() {
+      if (stopped) return;
+      const next = queue.shift();
+      if (!next) return;
+      if (historyLoaded(next)) {
+        timer = setTimeout(step, 0);
+        return;
+      }
+      markHistoryLoading(next);
+      fetch(`/api/feed/history?place=${encodeURIComponent(next)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          // Landed rows are stored whatever happened to the queue. `stopped`
+          // only says "ask for no more" — reading it here left the place
+          // stuck on "loading" and its feed showing the skeleton for good.
+          if (data?.rows) seedRows(next, data.rows);
+          markHistoryLoaded(next);
+        })
+        .catch(() => markHistoryLoaded(next))
+        .finally(() => {
+          if (!stopped) timer = setTimeout(step, 0);
+        });
+    }
+
+    timer = setTimeout(step, 0);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [live, gm, ghost, gapNonce]);
+
+  // Letting somebody into the conversation or private room that is open. The
+  // list is re-read on success, which is what the members strip redraws off.
+  const addPlace =
+    selected && (selected.kind === "conv" || (selected.kind === "room" && selected.roomKind === "PRIVATE"))
+      ? { placeKey: selected.placeKey, name: selected.name }
+      : null;
+  const onAddMember = useCallback(
+    (ref) => {
+      if (!selectedKey || !ref) return Promise.resolve({ ok: false, error: "That place is gone." });
+      return addMember(selectedKey, ref)
+        .then((res) => {
+          bumpPlaces();
+          return res ?? { ok: false, error: "Something went wrong." };
+        })
+        .catch(() => ({ ok: false, error: "Could not reach the server. Nothing was changed." }));
+    },
+    [selectedKey, bumpPlaces],
+  );
+
   const onMarkAllSeen = useCallback(
     () => markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) }))),
     [navPlaces, newest],
@@ -580,6 +666,8 @@ export default function ChatNext(props) {
               onOpenMap={openMap}
               onPlaceChanged={bumpBoard}
               travelPick={travelPick}
+              addPlace={addPlace}
+              onAddMember={onAddMember}
             />
   ) : gmZones ? (
     <GmAside selected={selected} gmZones={gmZones} />
@@ -639,6 +727,7 @@ export default function ChatNext(props) {
                 members={members}
                 readOnly={Boolean(selected?.vantage)}
                 onRetry={onRetry}
+                publishEdit={publishEdit}
                 onLookRow={onLookRow}
                 searchOpen={searchOpen}
                 onCloseSearch={closeSearch}
@@ -682,9 +771,12 @@ export default function ChatNext(props) {
                 openAction={openAction}
                 onTyping={onTyping}
                 autocorrect={autocorrect}
+                concealed={Boolean(conceal?.concealed)}
+                alias={conceal?.alias ?? null}
+                editRef={editRef}
                 people={aside?.people ?? null}
                 members={members.data?.members ?? []}
-                sayRef={sayRef}
+                publishSay={publishSay}
               />
               )}
             </>

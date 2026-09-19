@@ -313,6 +313,11 @@ export default function Feed({
   // `/look <somebody>` and the eye on a row share one dialog rather than
   // drawing two that can never both be open.
   onLookRow = () => {},
+  // How the shell is handed this feed's editor, so ArrowUp on an empty
+  // composer opens the last line's rather than adding a second way of
+  // changing a line. A SETTER rather than a ref: the shell writes its own
+  // ref inside its own closure, which is what keeps this lint-clean.
+  publishEdit = null,
   // The composer's own, because a retry re-SENDS and the send queue is its.
   // Null leaves a refused line sitting there marked unsent, which is still
   // better than losing the words.
@@ -397,6 +402,11 @@ export default function Feed({
     setEditingSeq(seq);
   }, []);
   const onCancelEdit = useCallback(() => setEditingSeq(null), []);
+
+  // In an EFFECT, never during a render.
+  useEffect(() => {
+    publishEdit?.(onEdit);
+  }, [publishEdit, onEdit]);
 
   // Nothing is written into the store here: the edited row comes back down
   // the stream, so the server stays the one that says what the line says.
