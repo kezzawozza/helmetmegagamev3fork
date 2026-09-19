@@ -147,7 +147,6 @@ const CONSUME_RELIEF = Object.freeze({
   "eth-lod": 20,
   // The treats. Sugar does not grow in Ravenheart.
   "sugar-candy": 9,
-  "honeyed-cakes": 9,
   pumpkin: 9,
   // Celebrations. Neither grants a status, so both key by the item.
   "sky-lantern": 9,
@@ -155,13 +154,13 @@ const CONSUME_RELIEF = Object.freeze({
   cigarette: 9,
   // Any proper meal at all, and the floor under every food above.
   "ate-meal": 6,
-  // The Ration Box's bad draws (all `consumesInto: [ate-meal]` too, which is
-  // exactly why consumeReliefFor above has to let the item's own negative
-  // entry win outright rather than being maxed against ate-meal's floor).
-  "moldy-bread": -10,
-  "grasshopper-kebab": -15,
-  "jellied-meats": -10,
-  "budget-cold-soup": -5,
+  // The Ration Box's bad draws (moldy-bread, grasshopper-kebab, jellied-meats,
+  // budget-cold-soup, skinned-cave-rat) are deliberately NOT here any more,
+  // same reason as Maggot Milk above: each now carries its own `cooked.mood`/
+  // `cooked.hunger` and is priced by the raw-food rule
+  // (db/lib/hunger.js#rawFoodMoodTerms) instead. honeyed-cakes left this table
+  // the same way when it became a proper Skilled Cooking Meal, priced by
+  // dishMoodTerms below.
 });
 
 // Which Health groups sink a mood when they land. Illness, mind, minor and
@@ -791,11 +790,12 @@ async function applyArrivalMood(prisma, { characterId, fromLocationId, toLocatio
 }
 
 // What one consume is worth. An item with its OWN entry is authoritative —
-// that number is what the item is, and it wins outright, sign and all. A
-// negative entry (Moldy Bread, Grasshopper Kebab: bad ration-box food, all
-// of them also `consumesInto: [ate-meal]`) has to actually land negative
-// rather than being swallowed by ate-meal's +5 floor. An item with no entry
-// of its own falls back to the largest figure among what it granted — most
+// that number is what the item is, and it wins outright, sign and all. That
+// matters most for a negative entry: it has to actually land negative rather
+// than being swallowed by ate-meal's +5 floor (the Ration Box's bad draws
+// used to need exactly this, before they moved onto `cooked.mood` instead —
+// see the table above). An item with no entry of its own falls back to the
+// largest figure among what it granted — most
 // drinks are keyed on the STATUS they grant (Coffee has no entry; its relief
 // comes from Caffeinated's) rather than the item itself. 0 for a stew.
 // The two that SET the dial instead of moving it. "Instantly Ecstatic" is not

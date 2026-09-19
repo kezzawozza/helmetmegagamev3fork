@@ -7600,6 +7600,12 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [ate-meal]
+    cooked:
+      taste: "acrid"
+      tasteForm: "adjective"
+      mood: -5
+      hunger: 12
+      into: []
 
   grasshopper-kebab:
     catalog: gm
@@ -7616,6 +7622,12 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [ate-meal]
+    cooked:
+      taste: "acrid"
+      tasteForm: "adjective"
+      mood: -5
+      hunger: 12
+      into: []
 
   jellied-meats:
     catalog: gm
@@ -7631,6 +7643,12 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [ate-meal]
+    cooked:
+      taste: "acrid"
+      tasteForm: "adjective"
+      mood: -5
+      hunger: 12
+      into: []
 
   budget-cold-soup:
     catalog: gm
@@ -7647,6 +7665,12 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [ate-meal]
+    cooked:
+      taste: "acrid"
+      tasteForm: "adjective"
+      mood: -5
+      hunger: 12
+      into: []
 
   # Opened, not merely eaten — a random pick among the five bad draws above,
   # plus a chance of nothing at all (the reserved "nothing" word,
@@ -10063,6 +10087,7 @@ tags:
     cooked:
       taste: "meat"
       mood: -40
+      hunger: 18
       into:
         - oneOf: [nauseous, vomiting]
 
@@ -10442,30 +10467,6 @@ tags:
       tasteForm: "adjective"
       mood: 5
       hunger: 12
-    sellable: true
-    sellablePrice: 2
-
-  rations:
-    catalog: all
-    name: Rations
-    category: items
-    group: items-food
-    sprite: monkeycube
-    description: "Straight from a tin, flavoured like death to mask the cans that have spoiled."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [nauseous]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
     sellable: true
     sellablePrice: 2
 
@@ -10904,6 +10905,7 @@ tags:
     cooked:
       taste: "boar loin"
       mood: 16
+      hunger: 15
     sellable: true
     sellablePrice: 4
 
@@ -10928,94 +10930,6 @@ tags:
     sellable: true
     sellablePrice: 3
 
-  goose-fat:
-    catalog: all
-    name: Goose Fat
-    category: items
-    group: items-food
-    sprite: fat
-    description: "Goose fat. A delicacy, good for cooking."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-    cooked:
-      taste: "goose"
-      mood: 20
-    sellable: true
-    sellablePrice: 5
-
-  hard-cheese:
-    catalog: all
-    name: Hard Cheese
-    category: items
-    group: items-food
-    sprite: cheesewheel
-    description: "A hard wheel of cheese. You could cook with it."
-    pointCost: 0
-    depotPrice: 6
-    weight: 3
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # The one exception to the nine: a wheel of cheese is food on its own, and
-    # refusing to let somebody eat one would be silly.
-    consumable: true
-    consumesInto: [ate-meal]
-    cooked:
-      taste: "cheese"
-      mood: 22
-    sellable: true
-    sellablePrice: 5
-
-  river-eel:
-    catalog: all
-    name: River Eel
-    category: items
-    group: items-food
-    description: "An ugly eel. You could cook with it."
-    pointCost: 0
-    weight: 2
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-    cooked:
-      taste: "eel"
-      mood: 10
-    sellable: true
-    sellablePrice: 3
-
-  lamprey:
-    catalog: all
-    name: Lamprey
-    # Bascinet's format, not their words.
-    description: "A lamprey. You could cook with it."
-    category: items
-    group: items-food
-    pointCost: 0
-    weight: 2
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-    cooked:
-      # Bascinet gave "eel" for the river eel and nothing for this one; a
-      # lamprey is close enough to share it until they say otherwise.
-      taste: "eel"
-      mood: 8
-    sellable: true
-    sellablePrice: 3
-
   crayfish:
     catalog: all
     name: Crayfish
@@ -11035,32 +10949,6 @@ tags:
       taste: "crayfish"   # Bascinet has not written this one.
       mood: 12
       hunger: 15
-    sellable: true
-    sellablePrice: 3
-
-  blind-fish:
-    catalog: all
-    name: Blind Fish
-    # Bascinet's format, not their words.
-    description: "A pale, eyeless fish. You could cook with it."
-    category: items
-    group: items-food
-    sprite: fish
-    pointCost: 0
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    # Raw it is a bad idea and no dinner. Cooked it is a fish.
-    consumesInto: [nauseous]
-    cooked:
-      taste: "pale fish"   # Bascinet has not written this one.
-      mood: 8
-      # The override that makes the raw/cooked split real: cooking takes the
-      # nausea off, so `into` is empty rather than absent.
-      into: []
     sellable: true
     sellablePrice: 3
 
@@ -11158,25 +11046,6 @@ tags:
       hunger: 12
     sellable: true
     sellablePrice: 6
-
-  canned-crabmeat:
-    catalog: all
-    name: Canned Crabmeat
-    category: items
-    group: items-food
-    sprite: filledcan
-    description: "A can of food, labeled VOLGOGA CRAB. It smells fishy. The label has a faded drawing of a crab."
-    pointCost: 0
-    depotPrice: 2
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [ate-meal]
-    sellable: true
-    sellablePrice: 1
 
   # Basic, Skilled and Skilled Lavish Cooking (docs/systemdocs/COOKING.md
   # §A1-A9): replaces the old Fine Meal / Lavish Meal pair. Each recipe has
@@ -12218,32 +12087,11 @@ tags:
   # Featherweight travel food (Chris 2026-09-07): a Fine Meal weighs 2 lb and
   # this weighs a quarter of that — the meal you pack ten of for the caves.
   # Same wage-less posture as the other meals: cooks earn from buyers.
-  trail-ration:
-    catalog: all
-    name: Trail Ration
-    category: items
-    group: items-food
-    sprite: sosjerky
-    description: "Stale bread and dried meat."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - ate-meal
-    requirement:
-      turnsCost: 0.25
-      resourceCost: 2
-      skills: [cooking-basic]
-      gambit: false
-
-  # The cook's HIDDEN recipe (Chris 2026-09-07): honey is gm-catalog, so this
-  # appears only for a cook holding a jar — the low-stakes secret beside
-  # White Honey's high-stakes one.
+  # A Skilled Cooking Meal (docs/systemdocs/COOKING.md), same shape as Scones
+  # beside it: a fixed base (bread + honey) plus the standard 0-4 additional-
+  # ingredient slot layer. Honey is gm-catalog, so the base ingredient itself
+  # is still the discovery — no bespoke hidden-recipe handling needed now
+  # that isNonPublicRecipe reads held ingredients generally (COOKING.md §9).
   honeyed-cakes:
     catalog: all
     name: Honeyed Cakes
@@ -12258,15 +12106,21 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 18
+    mealHunger: 10
+    mealTaste: "sweet"
+    mealTasteForm: "adjective"
     consumable: true
-    consumesInto:
-      - ate-meal
+    consumesInto: [ate-meal, dined]
     requirement:
-      turnsCost: 0.25
-      resourceCost: 3
+      turnsCost: 0.1
       skills: [cooking-skilled]
       gambit: false
-      items: [honey]
+      items: [{ customOf: bread }, honey]
+      ingredientSlots: { min: 0, max: 4 }
+      yield: 2
 
   # THE THANATI'S FOOD (docs/systemdocs/THANATI.md). Not a meal — it grants
   # no ate-meal — only Dark Inspiration. Dead Simple, 1 ⬢, three a turn; the
@@ -12295,8 +12149,10 @@ tags:
       skills: [thanati]
       gambit: false
     cooked:
-      taste: "something foul"
+      taste: "acrid"
+      tasteForm: "adjective"
       mood: -35
+      hunger: 6
 
   # --- The three kits -----------------------------------------------------
   # None is gear you wear; all are gear you have to GET TO. Each is

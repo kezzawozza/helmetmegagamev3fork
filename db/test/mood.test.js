@@ -347,7 +347,6 @@ test("a consume is worth its largest single figure, never a sum", () => {
   assert.equal(consumeReliefFor("cave-fungus", ["high"]), 35);
   // A treat is a treat, not a treat plus a meal.
   assert.equal(consumeReliefFor("sugar-candy", ["ate-meal"]), 9);
-  assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 9);
   assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 17);
   assert.equal(consumeReliefFor("sky-lantern", []), 9);
   // Any proper meal at all is the floor under the food.
@@ -364,12 +363,15 @@ test("a cooked meal is priced by dishMoodTerms, not by this table", () => {
   assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 6);
 });
 
-test("a bad Ration Box draw lands negative, not swallowed by ate-meal's +5 floor", () => {
-  // The whole reason consumeReliefFor prefers the item's own entry outright
-  // instead of maxing it against what it granted: all four of these also
-  // consumesInto ate-meal, and a naive Math.max(-10, 5) would read 5.
-  assert.equal(consumeReliefFor("moldy-bread", ["ate-meal"]), -10);
-  assert.equal(consumeReliefFor("grasshopper-kebab", ["ate-meal"]), -15);
-  assert.equal(consumeReliefFor("jellied-meats", ["ate-meal"]), -10);
-  assert.equal(consumeReliefFor("budget-cold-soup", ["ate-meal"]), -5);
+test("the Ration Box's bad draws are no longer in this table", () => {
+  // moldy-bread, grasshopper-kebab, jellied-meats and budget-cold-soup used
+  // to have their own negative entries here so they wouldn't be swallowed by
+  // ate-meal's +5 floor. They carry their own `cooked.mood`/`cooked.hunger`
+  // now and are priced by rawFoodMoodTerms instead (db/lib/hunger.js), so
+  // consumeReliefFor never sees them for a real eat — this just documents
+  // that the fallback path is what a caller gets if it asks anyway.
+  assert.equal(consumeReliefFor("moldy-bread", ["ate-meal"]), 6);
+  assert.equal(consumeReliefFor("grasshopper-kebab", ["ate-meal"]), 6);
+  assert.equal(consumeReliefFor("jellied-meats", ["ate-meal"]), 6);
+  assert.equal(consumeReliefFor("budget-cold-soup", ["ate-meal"]), 6);
 });
