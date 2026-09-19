@@ -3,6 +3,11 @@
 import { Fragment, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/app/components/EmptyState";
+import FormError from "@/app/components/FormError";
+import Modal from "@/app/components/Modal";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { Readout } from "@/app/components/ExamineDialog";
+import LookReadout from "@/app/components/LookReadout";
 import IconButton from "@/app/components/IconButton";
 import TranscriptLine from "@/app/components/TranscriptLine";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
@@ -11,6 +16,7 @@ import { formatTurnLabel } from "@/lib/turnFormat";
 import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
 import MembersStrip from "../MembersStrip";
 import usePlaceMembers from "../usePlaceMembers";
+import { photographRow, starRow, lookAtRow } from "../actions";
 import {
   useFeed,
   useHistoryState,
@@ -52,6 +58,12 @@ const RUN_GAP_MS = 7 * 60 * 1000;
 
 // The two kinds that draw as a bordered block across the log rather than as a
 // line in it: a heading, the words at reading size, a rule top and bottom.
+// The same five minutes db/lib/say.js#EDIT_WINDOW_MS enforces. A NUMBER
+// rather than an import: requiring from @lifeweb/db in a "use client" file
+// drags Prisma and node:fs into the browser bundle. The server is the one
+// that decides; this only decides whether to draw a button.
+const EDIT_WINDOW_MS = 5 * 60_000;
+
 const BLOCK_KINDS = new Set(["intercom", "decree"]);
 const INTERCOM_PREFIX = /^you hear a voice from the intercom:\s*/i;
 
@@ -111,15 +123,16 @@ const SystemRow = memo(function SystemRow({ row, zone = null }) {
 
 // memo'd, and the whole reason the store is keyed by seq: a line arriving
 // re-renders one of these, not the run of a hundred above it.
-const Row = memo(function Row({ line, handlers }) {
+const Row = memo(function Row({ line, handlers, editing = false }) {
   const { row, realName, startsRun, mine, live, guards } = line;
+  const [draft, setDraft] = useState(row.content ?? "");
 
   // WHETHER the bar exists is decided here; whether it is SEEN is decided in
   // CSS, by :hover and :focus-within. It was a useState off mouseenter once,
   // which re-rendered the row on every mouse crossing and — worse — meant a
   // keyboard could never reveal it, because a keyboard fires no mouseenter.
   const anyAction = Object.values(guards).some(Boolean);
-  const showActions = anyAction && !row.pending;
+  const showActions = anyAction && !editing && !row.pending;
   const verbs = ROW_VERBS.filter((v) => v.show(guards));
 
   return (
@@ -188,10 +201,65 @@ const Row = memo(function Row({ line, handlers }) {
         </>
       }
     >
-      <ChatMarkdown content={row.content} />
+      {editing ? (
+        /* The five-minute window, in place. Enter saves and Escape gives up,
+           because that is what the box it replaced does — and the row swaps
+           back in from the stream rather than from here, so the server stays
+           the one that decides what the line now says. */
+        <div className="field">
+          <textarea
+            rows={2}
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                handlers.onCancelEdit();
+                return;
+              }
+              if (e.key !== "Enter" || e.shiftKey) return;
+              e.preventDefault();
+              handlers.onSaveEdit(row.seq, draft);
+            }}
+          />
+          <div className="chat-buttons">
+            <button type="button" className="btn-quiet" onClick={() => handlers.onSaveEdit(row.seq, draft)}>
+              Save
+            </button>
+            <button type="button" className="btn-quiet" onClick={handlers.onCancelEdit}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ChatMarkdown content={row.content} />
+      )}
     </TranscriptLine>
   );
 });
+
+// A print, shown to the photographer — the same courtesy the 📸 reaction pays
+// with an embed. The readout is db/lib/examine.js's, built with the viewer's
+// own sight stripped out: a lens has no medical training, so a surgeon's
+// photograph carries no diagnosis into whoever they hand it to.
+function PhotoReadout({ state, onClose }) {
+  const readout = state?.readout ?? null;
+  return (
+    <Modal open title={readout?.name ?? "Photograph"} onClose={onClose} width="default">
+      <div className="flex flex-col gap-2">
+        {state?.loading && <p className="text-sm text-muted">Winding the film…</p>}
+        {state?.error && <FormError>{state.error}</FormError>}
+        {state?.line && <p className="text-sm">{state.line}</p>}
+        {readout && <Readout readout={readout} />}
+        {/* The one thing that is the PRINT's rather than the subject's: what
+            the thing in your hands is called, the way it will read in an
+            inventory, a stash and a Transfer dialog. */}
+        {state?.photoName && <p className="text-xs text-muted">{state.photoName}</p>}
+      </div>
+    </Modal>
+  );
+}
 
 // Three faded rows while a place's first page is on the wire — the shape of a
 // scene rather than a spinner, so the column does not jump when it lands.
@@ -226,11 +294,170 @@ export default function Feed({
   // (db/lib/vantages.js). The guest-list buttons are a thing you do with your
   // hands in the room.
   readOnly = false,
-  handlers = {},
+  // The composer's own, because a retry re-SENDS and the send queue is its.
+  // Null leaves a refused line sitting there marked unsent, which is still
+  // better than losing the words.
+  onRetry = null,
 }) {
   const placeKey = place?.placeKey ?? null;
   const rows = useFeed(placeKey);
   const members = usePlaceMembers(place, placesVersion);
+  const confirm = useConfirm();
+
+  // ---- What a row can have done to it ------------------------------------
+  //
+  // Owned HERE, not handed down from the shell: every one of these is a verb
+  // against a LINE, and the feed is what holds the lines. The old chat kept
+  // them in the same file as the composer, which is why the composer's answer
+  // line ended up being where a starred line said so.
+  //
+  // Every guard below is re-decided by the SERVER when it is pressed — the
+  // five-minute window, the camera in your hands, whether that person is
+  // still standing beside you. What is drawn is a hint.
+  const [rowError, setRowError] = useState(null);
+  const [answer, setAnswer] = useState(null);
+  const [editingSeq, setEditingSeq] = useState(null);
+  const [look, setLook] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  // The row a tap opened the ⋯ sheet for. A touch screen has no hover, so
+  // this is the one way in on a phone.
+  const [menuRow, setMenuRow] = useState(null);
+
+  // The window, read in an EVENT handler, where reading the clock is both
+  // legal and correct. The refusal is the bot's word for word, so a player
+  // hears one rule on both faces.
+  const withinWindow = (sentAt) => Date.now() - new Date(sentAt ?? 0).getTime() < EDIT_WINDOW_MS;
+  const TOO_LATE = "You can't edit that any more.";
+
+  const onEdit = useCallback((seq, sentAt) => {
+    if (!withinWindow(sentAt)) {
+      setRowError(TOO_LATE);
+      return;
+    }
+    setRowError(null);
+    setEditingSeq(seq);
+  }, []);
+  const onCancelEdit = useCallback(() => setEditingSeq(null), []);
+
+  // Nothing is written into the store here: the edited row comes back down
+  // the stream, so the server stays the one that says what the line says.
+  const onSaveEdit = useCallback(async (seq, content) => {
+    setEditingSeq(null);
+    try {
+      const res = await fetch("/api/feed/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seq, content }),
+      });
+      const data = await res.json().catch(() => null);
+      setRowError(res.ok ? null : (data?.error ?? "That didn't change."));
+    } catch {
+      setRowError("That didn't change.");
+    }
+  }, []);
+
+  // Taking a line back, and a GM taking one down: the same route, and the
+  // route is what decides which of the two this is —
+  // db/lib/say.js#deleteSpeech skips the owner and the window for a GM.
+  const removeLine = useCallback(
+    async (seq, { title, message, confirmLabel }) => {
+      if (!(await confirm({ title, message, confirmLabel }))) return;
+      try {
+        const res = await fetch("/api/feed/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seq }),
+        });
+        const data = await res.json().catch(() => null);
+        setRowError(res.ok ? null : (data?.error ?? "That didn't go."));
+      } catch {
+        setRowError("That didn't go.");
+      }
+    },
+    [confirm],
+  );
+
+  const onDelete = useCallback(
+    (seq, sentAt) => {
+      if (!withinWindow(sentAt)) {
+        setRowError(TOO_LATE);
+        return;
+      }
+      return removeLine(seq, {
+        title: "Delete this line?",
+        message: "It goes from here and from Discord.",
+        confirmLabel: "Delete",
+      });
+    },
+    [removeLine],
+  );
+
+  const onRemove = useCallback(
+    (seq) =>
+      removeLine(seq, {
+        title: "Remove this line?",
+        message: "It goes from here and from Discord.",
+        confirmLabel: "Remove it",
+      }),
+    [removeLine],
+  );
+
+  // Look at, pressed against the ROW rather than the person. The browser
+  // sends a seq and nothing else; the server resolves who said it, whether
+  // they were hooded AT THE TIME, and whether this reader may see the place
+  // (db/lib/examineRow.js). That is what lets the eye sit on a hooded line at
+  // all, and what makes it answer for the hood worn when the words were said
+  // rather than the one being worn now.
+  const onLookAt = useCallback((seq) => {
+    if (!seq) return;
+    setLook({ loading: true });
+    lookAtRow(seq)
+      .then((res) => (res?.ok ? setLook({ readout: res.readout }) : setLook({ error: res?.error ?? "You can't see them." })))
+      .catch(() => setLook({ error: "You can't see them." }));
+  }, []);
+
+  // The camera is not spent (db/lib/photoMint.js) and the print is deduped
+  // per (photographer, row) server-side, so a second press on the same line
+  // gives back the refusal the bot's 📸 does rather than a second Tag row.
+  const onPhotograph = useCallback((seq) => {
+    setPhoto({ loading: true });
+    photographRow(seq)
+      .then((res) =>
+        res?.ok
+          ? setPhoto({ readout: res.readout, photoName: res.photoName, line: res.line })
+          : setPhoto({ error: res?.error ?? "The camera caught nothing." }),
+      )
+      .catch(() => setPhoto({ error: "The camera caught nothing." }));
+  }, []);
+
+  // ⭐ — the web twin of the reaction in Discord, writing the same `Note` row.
+  // The server upsert makes a second press a no-op rather than a second note,
+  // so this needs no pressed state of its own. The answer lands UNDER THE
+  // SCENE rather than on the composer's line, which is where it used to go:
+  // what you starred is a line you are looking at, not the box you have not
+  // typed in.
+  const onStar = useCallback((seq) => {
+    setRowError(null);
+    starRow(seq)
+      .then((res) => (res?.ok ? setAnswer(res.line ?? "Saved to your Notes.") : setRowError(res?.error ?? "That line is gone.")))
+      .catch(() => setRowError("Could not reach the server. Nothing was changed."));
+  }, []);
+
+  const rowHandlers = useMemo(
+    () => ({
+      onEdit,
+      onCancelEdit,
+      onSaveEdit,
+      onDelete,
+      onLookAt,
+      onPhotograph,
+      onStar,
+      onRemove,
+      onOpenMenu: setMenuRow,
+      onRetry,
+    }),
+    [onEdit, onCancelEdit, onSaveEdit, onDelete, onLookAt, onPhotograph, onStar, onRemove, onRetry],
+  );
   const historyState = useHistoryState(placeKey);
   const backlog = useBacklog(placeKey);
 
@@ -424,7 +651,7 @@ export default function Feed({
             {line.system ? (
               <SystemRow row={line.row} zone={place?.zoneName ?? null} />
             ) : (
-              <Row line={line} handlers={handlers} />
+              <Row line={line} handlers={rowHandlers} editing={Boolean(line.row.seq) && line.row.seq === editingSeq} />
             )}
           </Fragment>
         ))}
@@ -444,6 +671,39 @@ export default function Feed({
           {behind} new
         </button>
       )}
+
+      {/* What a row action said back, under the scene rather than under the
+          box: the line you acted on is the thing you are looking at. */}
+      {answer && <p className="chat-quiet-line">{answer}</p>}
+      <FormError>{rowError}</FormError>
+
+      {/* The sheet a TAP opens instead of the hover bar. Same verbs, same
+          guards, same handlers — each closes the sheet first, then does what
+          the bar's button would have done. No title: the verbs are the whole
+          sheet, and a tap outside or Escape closes it. */}
+      {menuRow && (
+        <Modal open onClose={() => setMenuRow(null)}>
+          <div className="chat-sheet-menu" role="menu">
+            {ROW_VERBS.filter((v) => v.show(menuRow)).map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => {
+                  setMenuRow(null);
+                  v.run(rowHandlers, menuRow);
+                }}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {photo && <PhotoReadout state={photo} onClose={() => setPhoto(null)} />}
+      {look && <LookReadout state={look} onClose={() => setLook(null)} />}
     </div>
   );
 }

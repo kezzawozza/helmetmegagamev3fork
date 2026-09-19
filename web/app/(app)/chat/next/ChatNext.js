@@ -12,6 +12,7 @@ import {
   markHistoryLoading,
   markHistoryLoaded,
 } from "../feedStore";
+import { retryPending } from "../feedStore";
 import { useSeen, markAllSeen } from "../seenStore";
 import { useRefresh } from "@/app/components/useRefresh";
 import useFeedStream from "../useFeedStream";
@@ -258,6 +259,20 @@ export default function ChatNext(props) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // The composer's send, reachable from the feed. A line the server refused
+  // stays on screen marked unsent — losing what somebody typed is worse than
+  // watching it sit there — and "Try again" re-sends it through the one send
+  // path, slowmode hold and all.
+  const sayRef = useRef(null);
+  const onRetry = useCallback(
+    (clientId) => {
+      if (!selectedKey) return;
+      const row = retryPending(selectedKey, clientId);
+      if (row) void sayRef.current?.(clientId, row.content);
+    },
+    [selectedKey],
+  );
+
   // The map, over the top of everything, and owned HERE rather than in the
   // aside: the aside is placed twice below (the column and the drawer), and a
   // Modal inside it would be two declarations of the same overlay.
@@ -423,8 +438,9 @@ export default function ChatNext(props) {
                 newAt={selected ? (seen?.get?.(selected.placeKey) ?? null) : null}
                 placesVersion={placesVersion}
                 readOnly={Boolean(selected?.vantage)}
+                onRetry={onRetry}
               />
-              <Composer place={selected} self={self} gm={gm} roster={roster} />
+              <Composer place={selected} self={self} gm={gm} roster={roster} sayRef={sayRef} />
             </>
           )}
         </div>

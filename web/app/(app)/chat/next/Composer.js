@@ -46,6 +46,10 @@ export default function Composer({
   lettersMenu = [],
   openAction = null,
   onTyping = null,
+  // A box the shell holds so the FEED can reach this composer's send. The
+  // "Try again" on a refused line belongs beside the line, and the send it
+  // makes belongs here.
+  sayRef = null,
 }) {
   const placeKey = place?.placeKey ?? null;
   // How long this place makes everybody wait after their own last line. It is
@@ -222,6 +226,15 @@ export default function Composer({
     },
     [placeKey],
   );
+
+  // The one send path, published for the feed's "Try again" — a refused row
+  // is a line somebody typed, so retrying it must go through THIS function,
+  // with its slowmode hold, its 429 backoff and its failure mark, rather than
+  // a second fetch that knows none of them. Written in an EFFECT, never
+  // during a render: `react-hooks/refs` refuses the other version.
+  useEffect(() => {
+    if (sayRef) sayRef.current = send;
+  }, [sayRef, send]);
 
   // A scheduled retry outlives a change of place on purpose — it is still
   // carrying words somebody typed, and the send it will make names the place
