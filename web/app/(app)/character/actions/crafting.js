@@ -183,7 +183,7 @@ export async function resolveIngredientSlots(character, tag, quantity, ingredien
 }
 
 // requirementItems: most entries are SPENT `quantity` per craft (× an entry's own `count` multiplier); `keep` is a
-// hold-check instead (a body has its own lifecycle — a second Miasma bottled over the same corpse is still fine); `group` is always kept and is the only way to name a corpse written at death; `anyOf` is a spend the PLAYER picks, and the membership check here is what makes the dialog a hint, not a lock.
+// hold-check instead (a body has its own lifecycle — a second Bone Mask cut off the same corpse is still fine); `group` is always kept and is the only way to name a corpse written at death; `anyOf` is a spend the PLAYER picks, and the membership check here is what makes the dialog a hint, not a lock.
 // A recipe with several `anyOf` pickers (Vegetable Stew, Fried Fish, Sweets — COOKING.md §A4) is answered by `ingredientPicks[entry.pickerIndex]`; `ingredientChoice` is the single-picker channel every recipe used before multi-picker existed (plus the Death Mask's corpse pick, a different use of the same field) and is read as picker 0's fallback so no existing recipe or dialog needs to change.
 function resolveRecipeItems(character, tag, quantity, ingredientChoice, ingredientPicks) {
   const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : [];

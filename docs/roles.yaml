@@ -814,7 +814,7 @@ groups:
         - >-
           With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment.
         - >-
-          If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
+          If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, or an antidote…
         - >-
           You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
       difficulty: normal
@@ -848,7 +848,7 @@ groups:
         - >-
           With science, the sky's the limit. You can brew medicines and potions, and even experiment for the good of science.
         - >-
-          If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
+          If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, or an antidote…
         - >-
           You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
       difficulty: normal

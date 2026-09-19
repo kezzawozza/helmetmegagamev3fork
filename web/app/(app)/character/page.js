@@ -359,7 +359,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         sprite: true, // TagIcon's item art; null falls back to the group glyph
         craftable: true,
         catalogVisibility: true, // a SECRET recipe's own discovery gate (M3 review, last-breath)
-        recipePublic: true, // Miasma's escape hatch — see schema.prisma#Tag.recipePublic
+        recipePublic: true, // Maggot Milk's escape hatch — see schema.prisma#Tag.recipePublic
         // The custom-item opt-in (CRAFTING.md): shows its name/description
         // fields only when this crosses, resolved against the rung below.
         customizable: true,
@@ -653,7 +653,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // reader was not sent (web/lib/recipeCatalog.js), and hidden-recipe tag
   // descriptions no longer name their ingredients. Here it keeps a recipe you
   // have no path to yet out of the picker, so a fresh crafter isn't offered
-  // Miasma before they've ever seen a corpse. An ingredient tag's own
+  // Bone Mask before they've ever seen a corpse. An ingredient tag's own
   // catalogVisibility isn't on the tagCatalog query above (it usually isn't
   // craftable/purchasable itself), so the slugs and groups a craftable
   // recipe's requirementItems name are resolved with one more targeted
@@ -692,7 +692,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const visibilityBySlug = new Map(
     ingredientVisibilityRows.map((r) => [r.slug, r.catalogVisibility]),
   );
-  // A group entry (miasma/bone-mask's corpse) is non-public the moment ANY tag wearing that group is non-ALL.
+  // A group entry (bone-mask's corpse) is non-public the moment ANY tag wearing that group is non-ALL.
   const nonAllGroupSlugs = new Set(
     ingredientVisibilityRows
       .filter((r) => r.group && r.catalogVisibility !== "ALL")

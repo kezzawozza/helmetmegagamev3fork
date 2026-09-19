@@ -98,10 +98,11 @@ through `clientTagCatalog` in `web/app/(app)/character/page.js`. Only the buy
 menus judge on `catalogVisibility` alone; the other two let holding the skill
 count, so a Forger reads their own recipe everywhere.
 
-A `group:` ingredient names no tag and hides nothing. Miasma asks for "a
+A `group:` ingredient names no tag and hides nothing. Bone Mask asks for "a
 corpse" (`{ group: items-corpse }`) and every member of that group is
-`catalog: secret` — counting groups would erase a public brew from everyone,
-GMs included, over a line that gives away nothing.
+`catalog: secret` — counting groups would erase a recipe like it from
+everyone, GMs included, over a line that gives away nothing, which is why the
+rule skips groups entirely.
 
 An `anyOf:` ingredient is softer still: the recipe is makeable with any one
 member, so an unseen member NARROWS the entry — a cook shown tea and honey

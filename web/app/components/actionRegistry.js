@@ -116,8 +116,6 @@ export const ACTION_HELP = {
   detonatecollar: "Detonate a slave collar.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
-  whisper:
-    "Drink the draught and say one thing to one person, wherever they are. They can't answer, and you are never told whether anyone heard it.",
   stepstone:
     "Break the stone and stand somewhere else. Anywhere you have been, or seen from a doorway. It costs you nothing and takes no time.",
   disguise:
@@ -605,18 +603,6 @@ export const ACTION_SECTIONS = [
         icon: BirdIcon,
         label: "Answer a letter",
         show: "hasBirdReply",
-      },
-      // A bird you drink (docs/systemdocs/BIRD.md §8). It sits here rather
-      // than under You because what it does is the Bird's job, not a potion's
-      // — and it HIDES on the same rule the seal above it follows: whether a
-      // bottle is in your bag is your own sheet's fact. No `gate`: there is
-      // no once-a-day on it, and nothing about the recipient could grey it
-      // without saying something about them.
-      {
-        mode: "whisper",
-        icon: SpeakerIcon,
-        label: "Send a message",
-        show: "hasRavenDraught",
       },
     ],
   },

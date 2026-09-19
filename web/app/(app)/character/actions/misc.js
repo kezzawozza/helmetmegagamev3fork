@@ -1,7 +1,7 @@
 // Everything not broken out into its own module: destroy/consume a tag,
 // research, claiming a Desire, changing your name, looting, bind/free/
 // crucify/torture, disguise, harm, the Godard Factory, the Bird, the
-// Raven Draught (whisper), the Stepstone, and the pointer device readout.
+// Stepstone, and the pointer device readout.
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -143,7 +143,6 @@ import {
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
-  WHISPER_MAX,
   IMPERTURBABLE_SLUG,
   TAG_CATEGORY,
 } from "@lifeweb/db/lib/constants";
@@ -695,15 +694,11 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     throw new UserError("Use the Mulligan button.");
   }
 
-  // Two more that cannot be drunk from here, for the reason the Mulligan gives:
-  // the generic path below reads `consumesInto`, and neither of these turns
-  // into a tag at all. One asks who you are whispering to, the other where you
-  // are going, so both come in through their own button on the Actions grid
-  // and spend the bottle there. Without these branches the generic path would
-  // swallow either one for nothing.
-  if (held.tag.slug === RAVEN_DRAUGHT_SLUG) {
-    throw new UserError("Use the Send Message button.");
-  }
+  // The Stepstone cannot be drunk from here, for the reason the Mulligan
+  // gives: the generic path below reads `consumesInto`, and it does not turn
+  // into a tag at all. It asks where you are going, so it comes in through
+  // its own button on the Actions grid and spends the bottle there. Without
+  // this branch the generic path would swallow it for nothing.
   if (held.tag.slug === STEPSTONE_SLUG) {
     throw new UserError("Use the Stepstone button.");
   }
@@ -3411,100 +3406,6 @@ export async function birdReplyRequestImpl({ birdMessageId, tagId }) {
   await afterInventoryChange(result.characterIds);
   revalidateAll();
   return { ok: true, line: result.line };
-}
-
-// ---- The Raven Draught ---------------------------------------------------
-//
-// The second crossing of zone isolation, after the Bird (docs/systemdocs/
-// BIRD.md). A brewed bottle, spent on one sentence to one person anywhere in
-// Ravenheart, with no guess to get right and no reply coming back.
-//
-// It is allowed to be certain where the Bird is not, and the reason is the
-// whole of BIRD.md §2: the Bird's delayed, identically-worded failure exists
-// so nobody can use it to ask "is this person alive". This asks nothing. It
-// reports "Sent." every single time — to the living, to the dead, to somebody
-// who logged off in week one — so the sender learns exactly nothing they did
-// not already know. The truth goes in the audit row, for a GM, and nowhere a
-// player can read it.
-//
-// Declared here rather than in db/lib for the reason MULLIGAN_SLUG gives: one
-// bespoke consumable, one place that names it.
-const RAVEN_DRAUGHT_SLUG = "raven-draught";
-
-// Bascinet's words, verbatim, so no dagger.
-function whisperDm(message) {
-  return `You hear a whisper in your mind: ${message}`;
-}
-
-export async function whisperRequestImpl({ recipientId, message: rawMessage }) {
-  const { session, character } = await requireCharacter({ needs: ACT });
-
-  const held = character.tags.find(
-    (ct) => ct.tag.slug === RAVEN_DRAUGHT_SLUG && ct.quantity > 0,
-  );
-  if (!held) throw new UserError("You aren't carrying a Raven Draught.");
-
-  const message = String(rawMessage ?? "").trim().slice(0, WHISPER_MAX);
-  if (!message) throw new UserError("Say something first.");
-
-  const targetId = String(recipientId ?? "");
-  if (!targetId) throw new UserError("Pick someone.");
-  if (targetId === character.id) {
-    throw new UserError("You already know what you were going to say.");
-  }
-  // Loaded WITHOUT a status filter, the way the Bird loads its recipient: a
-  // query that could only find the living would answer the question this
-  // whole action is built not to answer.
-  const recipient = await prisma.character.findUnique({
-    where: { id: targetId },
-    select: { id: true, name: true, status: true, discordUserId: true },
-  });
-  if (!recipient) throw new UserError("Nobody by that name.");
-
-  const delivered = recipient.status === "ALIVE";
-  const openTurn = await getOpenTurn();
-  const restore = {
-    tagId: held.tagId,
-    source: held.source,
-    expiresTurn: held.expiresTurn,
-    quantity: 1,
-  };
-
-  await prisma.$transaction(async (tx) => {
-    // The bottle was read outside this transaction — lock before spending it,
-    // or two submits in flight both see one draught and send two whispers.
-    await lockCharacter(tx, character.id);
-    const stillHeld = await tx.characterTag.findFirst({
-      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
-      select: { id: true },
-    });
-    if (!stillHeld) throw new UserError("You aren't carrying a Raven Draught.");
-    await dropCharacterTag(tx, character.id, held.tagId, 1);
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_whisper",
-      targetCharacterId: recipient.id,
-      turnId: openTurn?.id ?? null,
-      details: {
-        restore,
-        recipientId: recipient.id,
-        recipientName: recipient.name,
-        message,
-        // The one place the outcome is written down. The sender is never told.
-        delivered,
-      },
-    });
-  });
-
-  // Post-commit, and only to somebody alive to hear it (ARCHITECTURE.md §5).
-  if (delivered) {
-    notifyCharacter(recipient, whisperDm(message), { source: RAVEN_DRAUGHT_SLUG });
-  }
-
-  await afterInventoryChange(character.id);
-  revalidateAll();
-  // Identical either way. See the note at the top of this section.
-  return { ok: true };
 }
 
 // ---- The Stepstone -------------------------------------------------------

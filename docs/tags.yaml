@@ -5422,7 +5422,6 @@ tags:
       resourceCost: 2
       skills: [medical-skilled]
 
-  #Caused by nightshade
   choking:
     catalog: all
     name: Choking
@@ -6919,12 +6918,13 @@ tags:
     sellable: true
     sellablePrice: 52
 
-  # --- Three brewing ingredients that used to be prose ---------------------
+  # --- Two brewing ingredients that used to be prose ------------------------
   #
-  # Nightshade's "forest herb", Pure Luck's Aberrant heart and Raven Draught's
-  # raven's eye were named in their recipes and tracked by nothing. They are
-  # tags now, and their recipes SPEND them (`requirement.items`), so the
-  # ingredient is a real gate instead of an honour-system one.
+  # Pure Luck's Aberrant heart and a raven's eye were named in their recipes
+  # and tracked by nothing. They are tags now, so the ingredient is a real
+  # gate instead of an honour-system one. Aberrant heart's recipe still
+  # SPENDS it (`requirement.items`); the raven's eye no longer has a recipe
+  # to spend it, since Raven Draught left the game.
   #
   # Same shape as the Graga Sac above — an ingredient and nothing else:
   # stackable, tradeable, sellable, and NOT consumable, because the brewing
@@ -6975,47 +6975,6 @@ tags:
     # A Trinket ingredient (TRINKETS.md §3) — the priciest inlay in the
     # catalog.
     inlayValue: 10
-
-  nightshade-herb:
-    catalog: all
-    name: Nightshade Herb
-    category: items
-    group: items-gear
-    description: "A dark forest herb. Harmless."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 2
-    cooked:
-      taste: "something poisonous"
-      mood: -10
-
-  # The same shape as nightshade-herb (Chris 2026-09-05): Poppy used to be
-  # brewed out of ⬢ alone, and now spends a raw ingredient. Public like
-  # nightshade-herb, and like it, NOTHING DROPS IT YET — no table is waiting
-  # to; a GM grants them meanwhile. Coca Leaves were its twin until the coca
-  # chain left the game.
-  poppy-pods:
-    catalog: all
-    name: Poppy Pods
-    category: items
-    group: items-gear
-    description: "Seed pods weeping a milky sap."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 2
-    cooked:
-      taste: "something bitter"
-      mood: 10
 
   # Fished up by the labor loot pass. Public on purpose (Chris 2026-09-07):
   # the heart is a curiosity anyone may catch, but the White Honey link stays
@@ -14743,7 +14702,7 @@ tags:
   # it.
   #
   # `taste:` is "something bitter" for most of them, the phrasing Soporific
-  # and Poppy Pods already use — tasteLine() writes "It tastes like {taste}",
+  # already uses — tasteLine() writes "It tastes like {taste}",
   # so a bare adjective does not parse. Kzozel Yantar tastes of alcohol and
   # Ambrosia of itself.
   # ---------------------------------------------------------------------
@@ -15040,45 +14999,6 @@ tags:
   #as most of these are spent through Moves, not automatically.
 
   # --- Basic tonics — Brewing I --------------------------------------
-  miasma:
-    catalog: all
-    name: Miasma
-    category: items
-    group: items-drink
-    sprite: bottle15
-    description: "A bottle that stinks of rotting flesh. Can be uncorked to give {tag:vomiting} to everyone in a closed room."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [brewing-basic]
-      gambit: false
-      # ANY corpse, which is why this names a group rather than a slug: a
-      # person's corpse tag is written at death and is never in this file, so
-      # nothing authored here could name one. Held, not consumed — you bottle
-      # the smell, you don't use the body up.
-      items:
-        - group: items-corpse
-      # Without this, `group: items-corpse` above hides the recipe from
-      # everyone until they hold a corpse: nekker-corpse, graga-corpse and
-      # skinless-corpse are all catalog: secret (CRAFTING.md §2b), so the
-      # group is never fully public and the gate never opens on its own. A
-      # basic Brewing recipe should not need a body in hand just to learn it
-      # exists — reported by a player whose Craft menu never showed it.
-      recipePublic: true
-    sellable: true
-    sellablePrice: 5
-    cooked:
-      taste: "rotting flesh"
-      mood: -45
-
   feces:
     catalog: all
     name: Feces
@@ -15132,35 +15052,6 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  poppy:
-    catalog: all
-    name: Poppy
-    category: items
-    group: items-drink
-    sprite: bottle3
-    description: "A draught that soothes pain, but is rapidly addictive."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - opium-high
-    requirement:
-      turnsCost: 0.5
-      resourceCost: 2
-      skills: [brewing-basic]
-      gambit: false
-      items: [poppy-pods]
-    sellable: true
-    sellablePrice: 4
-    cooked:
-      taste: "something soothing"
-      mood: 0
-
   molotov-cocktail:
     catalog: all
     name: Molotov Cocktail
@@ -15186,38 +15077,6 @@ tags:
       items: [alcohol]
     sellable: true
     sellablePrice: 4
-
-  nightshade:
-    catalog: all
-    name: Nightshade
-    category: items
-    group: items-drink
-    sprite: bottle18
-    poison: true
-    description: "A draught refined from {tag:nightshade-herb}. Inflicts {tag:choking as the consumer begins to perish."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - choking
-    cooked:
-      taste: "something poisonous"
-      # A poison contributes its EFFECT and no mood. You do not enjoy or
-      # resent a taste you are dying of, and a mood swing would be a tell.
-      mood: 0
-    requirement:
-      turnsCost: 1
-      resourceCost: 3
-      skills: [brewing-basic]
-      gambit: false
-      items: [nightshade-herb]
-    sellable: true
-    sellablePrice: 7
 
   # --- Advanced tonics — Brewing II ---------------------------------
   # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
@@ -15289,38 +15148,11 @@ tags:
       turnsCost: 2
       resourceCost: 4
       skills: [brewing-skilled]
-      # The most potent poison in the game brews from poisons (Chris
-      # 2026-09-07): a bottle of Nightshade distilled further, cut with
-      # cave-fungus. Both public, so the recipe stays in the book.
-      items: [nightshade, cave-fungus]
+      # The most potent poison in the game, cut with cave-fungus. Public, so
+      # the recipe stays in the book.
+      items: [cave-fungus]
     depotPrice: 32
     sealedShipping: true
-
-  advanced-poppy:
-    catalog: all
-    name: Advanced Poppy
-    category: items
-    group: items-drink
-    sprite: bottle11
-    description: "Poppy refined into something uncannily pure. Grants {tag:pain-immunity}."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - pain-immunity
-    requirement:
-      turnsCost: 1
-      resourceCost: 4
-      skills: [brewing-skilled]
-      gambit: false
-      items: [poppy]
-    sellable: true
-    sellablePrice: 10
 
   graga-sweat:
     catalog: all
@@ -15574,30 +15406,6 @@ tags:
       taste: "something disgusting"
       mood: -30
 
-  raven-draught:
-    catalog: all
-    name: Raven Draught
-    category: items
-    group: items-drink
-    sprite: inkvdflask1
-    description: "A black draught made with a {tag:ravens-eye}. It can be consumed to send a message anywhere."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [brewing-skilled]
-      gambit: false
-      items: [ravens-eye]
-    sellable: true
-    sellablePrice: 6
-
   pure-luck:
     catalog: all
     name: Pure Luck
@@ -15675,9 +15483,6 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
-      # A real gate (Chris 2026-09-07): the mercy of the poppy is what lets
-      # someone put an event down. Public, so the recipe stays in the book.
-      items: [poppy]
     sellable: true
     sellablePrice: 18
 

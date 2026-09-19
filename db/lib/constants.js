@@ -55,8 +55,6 @@ const PACKAGE_MAX_LBS = 150;
 const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
 
-// The Raven Draught carries one sentence (BIRD.md §8a). Shared so the textarea and the server clamp can't drift.
-const WHISPER_MAX = 400;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
 // One-use stand-in (M3, TAGS.md §5c): +1 on a single medical Gambit die, spent on use, held-by-the-actor only.
 const PORTABLE_SURGICAL_PACK_SLUG = "portable-surgical-pack";
@@ -229,7 +227,6 @@ module.exports = {
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
-  WHISPER_MAX,
   SURGICAL_EQUIPMENT_SLUG,
   PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,

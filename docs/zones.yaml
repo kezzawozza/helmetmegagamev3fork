@@ -1023,7 +1023,6 @@ zones:
               items:
                 obol: 32
                 gladius: 1
-                advanced-poppy: 1
                 gladiator-helmet: 1
       forest-cliffs:
         name: Cliffs
@@ -1338,17 +1337,11 @@ zones:
                 old-coin: 9
                 work-knife: 1
                 supply-kit: 1
-          # The three plant forageables BREWING.md §4 lists as having nothing
-          # that drops them yet. A warm spring under the ice is where they grow.
           mountain-garden:
             name: Garden
             description: >-
               A warm cavern opens unexpectedly around a spring, filled with pale ferns, luminous moss, and tiny white flowers growing beneath shafts of light that descend through cracks far overhead. The air is humid and still, carrying the smell of wet earth in stark contrast to the freezing mountain outside.
             access: [caving]
-            stash:
-              items:
-                nightshade-herb: 2
-                poppy-pods: 2
 
       hills-underlocks:
         name: Underlocks
@@ -1628,7 +1621,6 @@ zones:
             stash:
               items:
                 flooded-crate: 1
-                poppy-pods: 1
           village-old-hut:
             name: Old Hut
             description: >-
@@ -1638,7 +1630,6 @@ zones:
               items:
                 obol: 2
                 rat: 1
-                poppy-pods: 1
       factory:
         name: Godard Factory
         indoors: true

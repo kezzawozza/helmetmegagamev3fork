@@ -265,7 +265,7 @@ come from.
 
 ### `into` — the half that was free
 
-White Honey, Mercy, Poppy, the Cat and the rest carry a `taste` and a `mood`
+White Honey, Mercy, the Cat and the rest carry a `taste` and a `mood`
 and **no `into`**, deliberately. They therefore contribute their own live
 `consumesInto`, read at the moment somebody eats the dish rather than frozen
 in when it was cooked. Whatever the medical pass makes a medicine *grant*, it
@@ -286,8 +286,8 @@ ingredient the cook then used. Either way the taint rides the real stack as
 `poisonedCount` / `poisonPayload`, drawn hypergeometrically when units leave,
 and the medical pass's existing marker catches it.
 
-**Cooked in.** The cook simply used something poisonous — nightshade,
-phrygian tears. This is *not* lacing: the poison rides through
+**Cooked in.** The cook simply used something poisonous — phrygian tears.
+This is *not* lacing: the poison rides through
 `mergeDishGrants` as the ingredient's own `consumesInto`, and there is no
 `poisonedCount` anywhere to notice. This route used to be invisible to Poison
 Sense, so a palate that caught a laced bowl missed a bowl that came out of the
@@ -458,17 +458,15 @@ tiers: under the old uniform draw the floor was 1/poolsize and it would have
 shipped eight times too common. (That die is gone now — `MINING.md` §3b — but
 the tier vocabulary it borrowed is still `CAVING.md` §3's.)
 
-## 12. Two catalog bugs fixed here
+## 12. A catalog bug fixed here
 
-Both were found wiring this up, and both were load-bearing for it — a poison
-ingredient has to actually poison somebody.
+Found wiring this up, and load-bearing for it — a poison ingredient has to
+actually poison somebody.
 
-- **Nightshade** promised `{tag:choking}` in its description and had **no
-  `consumesInto` at all**. Drinking one did nothing. Its description also
-  carried an unclosed `{tag:choking` token, which printed literally.
-- **Phrygian Tears** promised `{tag:phrygian-toxin}` and had the same gap, so
-  the most expensive poison a Brewer can make did nothing when drunk. Only
-  Adder's Bite and the installed poison tooth ever granted the toxin.
+- **Phrygian Tears** promised `{tag:phrygian-toxin}` and had **no
+  `consumesInto` at all**, so the most expensive poison a Brewer can make did
+  nothing when drunk. Only Adder's Bite and the installed poison tooth ever
+  granted the toxin.
 
 The Cat and the Mindbreaker Toxin also moved to `catalog: gm`, on Bascinet's
 call — they are hidden recipes the way Honey and White Honey are.

@@ -214,37 +214,6 @@ can undo is that they read it.
   description has always said it uses the Keep's messenger ravens. Only the
   mechanical tag was missing.
 
-## 8a. The Raven Draught
-
-There is a second crossing now, and it is a bottle rather than a bird. A
-character carrying a **Raven Draught** gets **Send a message** on the Actions
-grid: pick anyone in the game, type a sentence, and it is gone. No zone to
-guess, no letter to have written first, no literacy, no reply, and no once-a-day
-— the brew is the price. The recipient reads one line:
-
-» You hear a whisper in your mind: {message}
-
-**Why this is allowed to be certain when the Bird is not.** §2 above is about
-one thing: a Bird that told you plainly whether it arrived would be a machine
-for asking "is this person still alive", which is worth far more than any
-letter. The draught cannot be that machine, because **it never reports
-anything**. The sender is told "Sent." — for the living, for the dead, for
-somebody who left in week one. There is no second sentence to compare it
-against, so there is no question being answered. The oracle is closed by
-telling the sender nothing, where the Bird closes it by telling them late.
-
-The audit row is the only place the truth is written down. It carries the
-message, the recipient, and `delivered` — for a GM, on `/gm/audit`, and nowhere
-a player can reach.
-
-Two consequences worth stating:
-
-- A whisper to a dead character is silently spent. That is the cost of the rule
-  above, and it is deliberate: refunding the bottle would itself be the answer.
-- Drinking it off the tag rail refuses and spends nothing
-  (`consumeTagRequestImpl`), the way the Mulligan Potion does. The generic
-  consume path reads `consumesInto`, and a sentence to a person is not a tag.
-
 ## 9. A letter from the GM
 
 `/gm/dev?s=bulk`, the **Letter** verb. A GM types a name, ticks one living

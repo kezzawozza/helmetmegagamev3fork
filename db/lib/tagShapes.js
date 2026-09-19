@@ -231,7 +231,7 @@ function rollTagChain(normalized) {
   return slugs;
 }
 
-// requirement.items — the INGREDIENT half of a recipe. Four entry shapes: a slug (SPENT), { group: ... } (any tag in a group, KEPT — needed for Miasma, since a corpse tag is written at death and never in docs/tags.yaml), { anyOf: [...] } (player picks one, SPENT), { customOf: ... } (any mint of that recipe, SPENT — reaches a cloned custom Tag by its customOfSlug, which group/anyOf cannot).
+// requirement.items — the INGREDIENT half of a recipe. Four entry shapes: a slug (SPENT), { group: ... } (any tag in a group, KEPT — needed for Bone Mask, since a corpse tag is written at death and never in docs/tags.yaml), { anyOf: [...] } (player picks one, SPENT), { customOf: ... } (any mint of that recipe, SPENT — reaches a cloned custom Tag by its customOfSlug, which group/anyOf cannot).
 // `keep: false` on a group is refused (no single stack to decrement). `label` on each entry is DENORMALIZED on purpose: formatTagRequirement() is pure/sync and called from four surfaces, so resolving names at render time would cost a query each; the sync rewrites the label every run. `anyOf` carries `options: [{ slug, name }]` for the Craft dialog's picker.
 function joinWithOr(names) {
   if (names.length <= 1) return names[0] ?? "";

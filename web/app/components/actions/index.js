@@ -37,7 +37,6 @@ import WriteDialog from "./WriteDialog";
 import SealDialog from "./SealDialog";
 import BirdDialog from "./BirdDialog";
 import BirdReplyDialog from "./BirdReplyDialog";
-import WhisperDialog from "./WhisperDialog";
 import StepstoneDialog from "./StepstoneDialog";
 import ExamineAction from "./ExamineAction";
 import CraftAction from "./CraftAction";
@@ -157,7 +156,6 @@ export const DIALOGS = {
   seal: SealDialog,
   bird: BirdDialog,
   birdReply: BirdReplyDialog,
-  whisper: WhisperDialog,
   stepstone: StepstoneDialog,
   examine: ExamineAction,
   craft: CraftAction,

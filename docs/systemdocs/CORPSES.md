@@ -337,7 +337,7 @@ entry shapes:
   cave-fungus-recipes:
     requirement:
       items: [cave-fungus]         # a bare string is a tag slug — SPENT
-  miasma:
+  any-corpse-recipe:
     requirement:
       items:
         - group: items-corpse      # any corpse, incl. a per-character one — KEPT
@@ -375,8 +375,8 @@ for a GM tracing whose face a mask is. All in
 `anyOf` pick, costs `quantity` units per craft: three molotovs take three
 Alcohol, the same scaling ⬢ has. A `group:` entry is **kept** — a body has its
 own lifecycle, and "any member of a group" names no single stack to decrement,
-so `keep: false` on a group is refused at sync rather than guessed at. Bottling
-a second Miasma over the same corpse is still fine. `keep: true` on a slug
+so `keep: false` on a group is refused at sync rather than guessed at. Cutting
+a second Bone Mask off the same corpse is still fine. `keep: true` on a slug
 turns it back into a hold-check if a recipe ever wants one.
 
 **Spent when the work STARTS**, the rule the ⬢ already lived under. A
