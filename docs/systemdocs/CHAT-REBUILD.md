@@ -147,8 +147,23 @@ Each ends with something that runs.
    row, one QUIET rung, the coarse-pointer floor scoped to coarse pointers, and
    `--zone-ink` so the zone divider stops borrowing `--warning` (gated in
    `audit:contrast` at 8.13).
-2. **Places column** — groupings, states, **persistent folds** (below), tail
-   strip, foot slot.
+2. **Places column** ✅ — `next/PlacesColumn.js` and `next/foldStore.js`. Every
+   grouping, the mail glyph, unread, the notified badge, vantage, hover-card
+   descriptions, the tail strip and the foot slot. Bascinet's row is
+   synthesised here the way `../Chat.js` does it, so the column matches the
+   live one row for row.
+
+   **Folds persist.** Verified: fold a section, reload, still shut; a second tab
+   follows within the same session; and with `localStorage` throwing (a private
+   window with site data blocked) the column still draws every row with no page
+   error.
+
+   Two §9 collapses done: one fold control instead of `.chat-fold` and
+   `.chat-details-fold`, and one row recipe instead of `.place`,
+   `.chat-person` and `.chat-search-row`. The column also stopped threading
+   `selected`/`seen`/`notified`/`newest`/`onSelect` through every section — the
+   grouping reads each row's state once and hands sections rows that already
+   know what they are.
 3. **Feed** — every row variant, sticky scroll, backlog, search, notice cards,
    the row action bar and its touch twin. Biggest phase; expect it to overrun.
 4. **Composer** — modes, the 12 slash commands, `/` and `@` menus, chip

@@ -401,3 +401,130 @@
   image-rendering: pixelated;
   border: 1px solid var(--border-lo);
 }
+
+/* ── The places column's own parts ───────────────────────────────────────── */
+
+/* A section is a heading and its rows, with just enough air under it to say the
+   run has ended. It was --sp-3 between sections and a 12px inset per row, which
+   put more of the column into gaps than into places. */
+[data-chat-next] .chat-section {
+  margin-bottom: var(--sp-2);
+}
+
+/* A heading that is also a disclosure. Layered ONTO .sect and .zone-div rather
+   than replacing either, so a fold looks like the heading it is — and written
+   once, where chat.css grew two near-identical copies (.chat-fold for the
+   column, .chat-details-fold for the aside's drawers). */
+[data-chat-next] .fold {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  text-align: left;
+  /* ONLY the family, and this is the whole trap. A modifier layered onto .sect
+     and .zone-div must not restate a font property either of them sets, because
+     it is declared later in this file and wins: `font: inherit` here took the
+     heading's size from 10px to the body's and `text-transform: inherit` took
+     the caps off both, since what they then inherit from is the column, not the
+     base class on the same element. A button's family is the one thing the UA
+     supplies that no base class does. */
+  font-family: inherit;
+}
+
+[data-chat-next] .fold svg {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  opacity: 0.55;
+  /* Shut points right, open points down. The icon is a chevron-down, so the
+     SHUT state is the rotated one. */
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-chat-next] .fold svg {
+    transition: none;
+  }
+}
+
+[data-chat-next] .fold svg[data-open="true"] {
+  transform: none;
+}
+
+[data-chat-next] .fold:hover {
+  color: var(--text);
+}
+
+/* The mail mark. The one row in the column that carries a glyph: Bascinet is
+   mail rather than a place, and every other row is its name alone — a picture
+   per kind was a column of small images nobody read, and the section headings
+   already say what a row is. */
+[data-chat-next] .row-glyph {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--muted);
+}
+
+/* CHIP, accent-filled: something here was addressed to YOU. Not an unread mark
+   — unread is the name brightening, and this is the level above it.
+   Stamped, like every other badge (vocabulary §3). */
+[data-chat-next] .badge {
+  flex: 0 0 auto;
+  min-width: 16px;
+  padding: 0 3px;
+  border: 1px solid var(--border-lo);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  text-shadow: 0 1px 0 var(--border-lo);
+}
+
+/* A row wrapped in a HoverCard has to be a full-width block in the column's own
+   face — .tag-hover is inline-flex in mono, for chips. */
+[data-chat-next] .row-hover {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+}
+
+[data-chat-next] .tip-name {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--sp-1);
+}
+
+[data-chat-next] .tip-desc {
+  display: block;
+  color: var(--muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+}
+
+/* The tail's own stacking. `margin-top: auto` pushes it to the bottom of a
+   short column; `bottom: 0` pins it once the column overflows. */
+[data-chat-next] .chat-places-tail {
+  bottom: 0;
+  margin-top: auto;
+  padding: var(--sp-2) var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+[data-chat-next] .chat-places-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
