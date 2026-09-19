@@ -17,6 +17,7 @@ import { useOpenPlace, setOpenPlace } from "../openPlace";
 import PlacesColumn from "./PlacesColumn";
 import Feed from "./Feed";
 import Composer from "./Composer";
+import ChatAside from "./ChatAside";
 
 // THE REBUILD'S SHELL (docs/systemdocs/CHAT-REBUILD.md).
 //
@@ -45,6 +46,9 @@ export default function ChatNext(props) {
     hasCamera = false,
     speakers = null,
     roster = [],
+    // The right column's whole bag, built server-side in page.js. Null for a
+    // GM with no living character — their column is GmAside's, phase 6.
+    aside = null,
   } = props;
 
   // Seed the store DURING render, not in an effect, and exactly once. The
@@ -186,9 +190,14 @@ export default function ChatNext(props) {
 
         <div className="chat-rail" aria-hidden="true" />
 
-        <aside className="chat-aside" aria-label="You">
-          <p className="bar">You</p>
-        </aside>
+        {aside && (
+          <aside className="chat-aside" aria-label="You">
+            {/* The OPEN place, so the room block draws THIS room's storage and
+                fixtures — the whole reason the Council Room's Intercom used to
+                show up in the Kitchens. */}
+            <ChatAside {...aside} selected={selected} />
+          </aside>
+        )}
       </div>
     </div>
   );

@@ -204,8 +204,39 @@ Each ends with something that runs.
    destination), the "somebody is typing" line (the ping goes out; the readout
    does not), the GM system composer, and `lettersMenu` — the ✉ tools menu is
    built but nothing feeds it yet.
-5. **Aside** — You frame plus all eight blocks: Turn, Here, Waiting, Place,
-   Party, Room, Travel, Desires, and the Things drawer.
+5. **Aside** — `next/ChatAside.js`. The You plate over its well, then Turn,
+   Here, Waiting on you, the place card, the party, the room (only while one
+   is open), travel, and the two fold drawers — Things and Desires — with the
+   Sheet link under them.
+
+   The WIRING is `../ChatAside.js`'s, unchanged on purpose: the two polls, the
+   one `usePlaceActions` bag that owns every dialog, the fixture filter, the
+   Move dialog's `onDone` chain. Those are load-bearing and already right, and
+   rewriting them would only be a chance to lose one.
+
+   What is rebuilt is the SHAPE. The old column ran nine sections under four
+   headings — the place card, the room, travel and the party each arrived as a
+   bare body with nothing naming it, so a reader scrolling met three unlabelled
+   boxes in a row. Every framed section wears a girder head now
+   (chat-vocabulary.md §4); the two that already carry their own fold heading
+   keep it rather than being given a second.
+
+   That turned up two real duplicates, and both are fixed at the child rather
+   than hidden in CSS: `PlaceCard` and `TravelNodes` take `showTitle`, the way
+   `HereList` already did. It defaults true, so the live chat is untouched.
+   Travel's count is not a title, so it stays either way — it just stops
+   carrying the repeated word.
+
+   The CHILDREN are mounted, not rewritten. `PlaceCard` carries the fixtures
+   and the Depot / Factory / Research doors, `TravelNodes` the crossing
+   confirm, `PartyRack` the escort offers; they are deep game surfaces, and
+   the named risk here is a rewrite losing one quietly. They are restyled from
+   `chat-next.css` instead.
+
+   **Still owed:** the four handlers `../Chat.js` owns rather than this column
+   — `onPlaceChanged`, `travelPick`, `addPlace`/`onAddMember` and the map
+   overlay. Each is a piece of the stream or of a surface phase 6 and 7 build,
+   and each defaults to null, which every child already handles.
 6. **GM aside + DM pane.**
 7. **Phone** — drawers, swipe, tap floors, ⋯ sheet.
 8. **Cutover** — flip `ChatView.js`, delete the old files in one commit.
