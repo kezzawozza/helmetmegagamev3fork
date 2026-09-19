@@ -1,48 +1,68 @@
 # Rebuild /chat from the mockup's bones
 
-A skeleton, not a finished design: the phases and the checklist are the point,
-and the **Open decisions** at the bottom are unanswered on purpose. Tick items
-off here as phases close. `DESIGN-SYSTEM.md` still holds the styling rules;
-this doc is only about the rebuild of `/chat`.
+A skeleton, not a finished design: the phases and the checklist are the point.
+Tick items off here as phases close. `DESIGN-SYSTEM.md` still holds the app-wide
+styling rules; this doc is only about the rebuild of `/chat`, and its **Phase 0**
+section is where chat's own vocabulary gets written down.
+
+**Nothing is dropped.** Every feature master has is ported onto the new
+skeleton — that decision is settled, and the checklist at the bottom is what
+holds the rebuild to it.
 
 ## Context
 
 `/chat` was originally ported from `docs/design/mockups/chat/index.html` and
-still carries its class vocabulary — `.bar`, `.place`, `.sect`, `.zone-div`,
-`.block`, `.you-frame`. But the interface grew by accretion on that skeleton and
-no longer reads like it.
+still carries its class vocabulary. The interface then grew by accretion on that
+skeleton and stopped reading like it.
 
-An incremental CSS pass already landed (contrast, type scale, girder, rail
-density, composer stability). It fixed real measured defects and did not, and
-could not, fix the shape:
+A CSS pass already landed — contrast (feed↔container separation 1.01 → 1.16),
+type scale, the girder at one size, rail density, a composer that holds still.
+That fixed what CSS can fix. It did not fix the structure underneath.
 
-| | mockup | master |
-|---|---|---|
-| Aside under "You" | 3 blocks | **8**, plus a drawer and a Sheet link |
-| Places column | flat sections | fold chevrons on every heading + a tail strip |
-| Composer | `[mode] [textarea] [Send]` + one hint | tools row, in-box send, two menus |
-| | one HTML file | **51 files, ~14,100 lines** |
+**Bascinet's decisions, and they change the shape of this plan:** keep the five
+aside blocks, keep the fold chevrons *and persist them*, keep the composer's
+tools row and in-box send, keep the places tail strip. Port everything.
 
-So: **rebuild the presentation on the mockup's skeleton and port master's
-features into it**, rather than keep sanding the existing one.
+So this is not a simplification. It is the same feature set, re-expressed on
+clean bones.
+
+## The number that decides how this is done
+
+| | |
+|---|---|
+| Mockup's stylesheet | **307 lines** |
+| `chat.css` | **3,104 lines** |
+| Top-level classes ours defines that the mockup never does | **149** |
+
+**About 90% of the chat's CSS styles surfaces the mockup has no vocabulary
+for** — the composer box, tools row and command strip, the aside stack and its
+eight blocks, the tail strip, travel nodes, the things drawer, the members
+strip, search, notice cards, backlog edges. The mockup draws a places column, a
+feed, three blocks and a three-control composer. That is it.
+
+The consequence, and it is the whole plan: **copying the mockup is 10% of the
+job.** The other 90% is deriving a *design language* from those 307 lines and
+applying it deliberately to 149 surfaces that were each improvised on their own.
+If the rebuild skips that step it will improvise again and land back here.
+
+So Phase 0 is not scaffolding. It is writing the vocabulary down.
+
+**What this buys, stated honestly.** With nothing removed and the CSS pass
+already landed, the visible day-one change is moderate: consistency across those
+149 surfaces, and folds that survive a reload. The lasting gain is that the next
+surface added to chat has a rule to follow instead of a precedent to copy.
 
 ## The line: what is rebuilt, what is kept
-
-The most important decision here, and what keeps a rewrite from being reckless.
 
 **REBUILT** — every component that renders, plus `chat.css` in full. New files
 under `web/app/(app)/chat/next/` so master keeps working until cutover.
 
-**KEPT, untouched** — the game's logic and transport. `actions.js` (~2,716
-lines), `dmActions.js`, `commands.js` (a registry and dispatch contract, not
-UI), and the transport stores. None of this has a design problem.
+**KEPT, untouched** — `actions.js` (~2,716 lines), `dmActions.js`, `commands.js`
+(a registry and dispatch contract, not UI), and the transport stores.
 
-**SPLIT WITH CARE** — `Chat.js` (SSE connection, reconnect/backoff, cursor and
-gap logic — transport — tangled with all the layout) and `Feed.js` (2,408
-lines: row rendering *and* composer behaviour *and* command handling). Separate
-along the presentation/behaviour line; do not rewrite the transport halves.
-
-Measured, so the size is honest:
+**SPLIT WITH CARE** — `Chat.js` (SSE, reconnect/backoff, cursor and gap logic
+tangled with all the layout) and `Feed.js` (2,408 lines: row rendering *and*
+composer behaviour *and* command handling).
 
 | | lines | |
 |---|---|---|
@@ -50,73 +70,136 @@ Measured, so the size is honest:
 | Rebuilt | **~6,500** | Chat, Feed, PlacesColumn, both asides, the blocks |
 | Split with care | **~3,200** | hooks, dialogs, `PlacePanel.js`, `page.js` glue |
 
-**The seam already exists and is one line wide.** `ChatView.js` is a 29-line
-shim: `page.js` builds one object, `ChatView` spreads it into `<Chat>`. Swapping
-that for `<ChatNext>` leaves `page.js`, the snapshot machinery and both
-providers untouched. That one line is the whole cutover.
+**The cutover is one line.** `ChatView.js` is a 29-line shim: `page.js` builds
+one object and spreads it into `<Chat>`. Swapping that for `<ChatNext>` leaves
+`page.js`, the snapshot machinery and both providers untouched.
 
 ### Two things that are NOT chat's to rewrite
 
-- **`TranscriptLine.js` lives in `web/app/components/`, not under `chat/`**, and
-  `/archive` and the GM desk's DM thread render through it too. Rewriting it is
-  a three-surface change. Default: keep its variant contract, restyle via CSS.
+- **`TranscriptLine.js` lives in `web/app/components/`**, and `/archive` and the
+  GM desk's DM thread render through it too. Keep its variant contract; restyle
+  via CSS only.
 - **`seenStore` / `notifiedStore` hold a durable localStorage contract** —
-  cross-tab and cross-reload. Keep the read/write API and storage format; only
-  their rendering (badges, OS notifications) is presentation.
+  cross-tab, cross-reload. Keep the read/write API and storage format.
 
-## The bones
+## The bones, and what they actually give us
 
-Straight from the mockup. This is the target, not a suggestion:
+The mockup contributes a *vocabulary*, not a layout to copy wholesale:
 
 ```
-.app                    grid: 186px | 8px | 1fr | 8px | 252px
-  .places   .bar · .sect/.zone-div headings · .place rows
-  .rail     metal strip (bg.png)
-  .feed-wrap  .bar (name · crumb · spacer · count)
-              .feed (.row variants · .daybreak · .decree)
-              .composer (.say-row + .hint)
-  .rail
-  .aside    .bar "You" · .you-frame > .you-well
-            .block ×3 — Turn · Here · N · Waiting on you · N
+.app       grid: 186px | 8px | 1fr | 8px | 252px
+.bar       a girder head — 26px, bg2.png, 10px caps, --text-hi
+.rail      metal strip between columns
+.place     an indented row under a .sect heading, with active/unread states
+.block     a framed container whose h3 wears .bar
+.you-frame a sprite plate with a recessed .you-well inside it
+.feed      the lit ground; everything beside it is washed down
+.composer  a say row over a foot
 ```
 
-Three blocks in the aside. Not eight.
+**The aside will be eight blocks, not the mockup's three**, and will not match
+`screenshot.png`. That is the decision, made deliberately. The mockup's aside is
+the reference for how a block *looks*, not for how many there are.
+
+## Phase 0 — the vocabulary  ✅ done
+
+**[`docs/design/chat-vocabulary.md`](../design/chat-vocabulary.md)** — chat's
+visual language, derived rule by rule from the mockup's 307 lines. Seven rules:
+the depth ladder (well / block / column / ground / chip / control / float), the
+three edges, the three type rungs, the two kinds of heading, the canonical row,
+what is allowed to float, and the sprites.
+
+Read it before adding any surface to chat. A thing that fits no rule there is a
+decision to make in that doc first, in one line, before it is built. That is the
+whole guard against improvising these 149 surfaces a second time.
+
+Still open in this phase: bucketing each of the 149 orphan classes against those
+rules, and the three lists that fall out of it — surfaces no rule covers,
+surfaces whose current value contradicts a rule, and classes doing one job under
+two names.
+
+
+## Phases
+
+Each ends with something that runs.
+
+1. **Scaffold** — `next/` directory, grid shell, `chat.css` rewritten against
+   the Phase 0 vocabulary. Behind a flag; `/chat` untouched.
+2. **Places column** — groupings, states, **persistent folds** (below), tail
+   strip, foot slot.
+3. **Feed** — every row variant, sticky scroll, backlog, search, notice cards,
+   the row action bar and its touch twin. Biggest phase; expect it to overrun.
+4. **Composer** — modes, the 12 slash commands, `/` and `@` menus, chip
+   arguments, tools row, in-box send, drafts, slowmode, limits.
+5. **Aside** — You frame plus all eight blocks: Turn, Here, Waiting, Place,
+   Party, Room, Travel, Desires, and the Things drawer.
+6. **GM aside + DM pane.**
+7. **Phone** — drawers, swipe, tap floors, ⋯ sheet.
+8. **Cutover** — flip `ChatView.js`, delete the old files in one commit.
+
+## Persistent folds — the one new behaviour
+
+Everything else is a port. This is the only thing that changes how chat behaves.
+
+Today `PlacesColumn.js:211` holds fold state in `useState(() => new Set())`, and
+the comment above it (`:29`) explains why it is session-only: a bug where
+`.bar`'s flex-grow shorthand swallowed the column's free space once it stopped
+overflowing. **That bug is already fixed** — `.bar` pins `flex: 0 0 auto`
+longhand, which the CSS pass preserved, and the comment itself says folding no
+longer breaks the column. So persistence is safe to reinstate.
+
+Build `foldStore.js` on `asideTabStore.js` as a template — it is the same shape
+and already solves the hard parts:
+
+- `useSyncExternalStore`, **never an effect** (`react-hooks/set-state-in-effect`
+  is an error in this repo, per `DESIGN-SYSTEM.md`).
+- A stable cached snapshot, invalidated on write, or the hook spins.
+- A `storage` listener so a second tab stays in step.
+- `readServer()` returning empty, or it is a hydration mismatch.
+- Every read and write wrapped against a throwing accessor (private windows).
+
+Differences from `asideTabStore`: the value is a set of fold keys rather than one
+string, keyed per zone+section. Prune keys for places that no longer exist so the
+entry cannot grow forever.
+
+One consequence worth accepting knowingly: a folded section stays folded across
+reloads, so a new place appearing inside it is not seen until it is opened.
+Discord behaves the same way.
 
 ## Feature checklist
 
-Nothing gets dropped silently. Anything the rebuild chooses not to carry is
-listed under **Open decisions** and answered by Bascinet, not quietly left out.
+Nothing gets dropped. Every item below has to exist in the rebuild.
 
 **Places column** — Mail (DM, Deadchat) · Radio (nets, party) · per-zone groups
 in server order · zone divider only when ≥2 zones · Summary/Here/Rooms/
-Conversations/Elsewhere · "Here" vs "Locations" pluralisation · active ·
-unread · notified count badge · vantage · mail glyph · hover-card descriptions ·
-section + zone folds · tail (view-as, push bell, mark-all-read) · foot slot.
+Conversations/Elsewhere · "Here" vs "Locations" pluralisation · active · unread ·
+notified count badge · vantage · mail glyph · hover-card descriptions · **folds,
+now persistent** · tail (view-as, push bell, mark-all-read) · foot slot.
 
 **Feed rows** — speech · emote · system/ambient · shout / shout-near / muffled ·
 OOC · whisper · intercom block · decree block (blackletter) · daybreak · NEW
-divider · backlog-edge row · skeleton · empty state.
+divider · backlog edge · skeleton · empty state.
 
-**Feed interactions** — hover action bar and its touch ⋯ twin · inline edit
-(5-min window) · ArrowUp recalls last line · delete own · GM remove any · look
-at speaker · photograph · save to Notes · mentions · alias/hood handling with
-GM real-name · search (debounced, everywhere/here, jump + flash) · sticky
-scroll + "N new" pill · backlog pagination with anchor-preserving restore ·
-notice cards · run-grouping (7-min) · live-arrival fade.
+**Feed interactions** — hover action bar + touch ⋯ twin · inline edit (5-min
+window) · ArrowUp recalls last line · delete own · GM remove any · look at ·
+photograph · save to Notes · mentions · alias/hood with GM real-name · search
+(debounced, everywhere/here, jump + flash) · sticky scroll + "N new" pill ·
+backlog pagination with anchor-preserving restore · notice cards · run-grouping
+(7-min) · live-arrival fade.
 
-**Composer** — speech / command modes · voice dropdown · GM system composer ·
-`/` menu · `@` mentions · chip arguments · per-command limits + counter ·
-command answer line · refusal returns text · tools ✉ menu · drafts · slowmode
-(countdown, optimistic hold, 429 retry) · autosize · typing ping and indicator ·
-disabled states per place kind · Enter-vs-send by pointer type.
+**Composer** — speech/command modes · voice dropdown · GM system composer · `/`
+menu · `@` mentions · chip arguments · per-command limits + counter · command
+answer line · refusal returns text · **tools ✉ menu** · **in-box send** · drafts
+· slowmode (countdown, optimistic hold, 429 retry) · autosize · typing ping and
+indicator · disabled states per place kind · Enter-vs-send by pointer type.
 
 **Slash commands (12)** — `/move` `/travel` `/conceal` `/shout` `/ooc` `/roll`
 `/play` `/look` `/converse` `/decree` (GM) `/add` `/remove`.
 
-**Player aside** — You frame (mood, resources, purse, carry, StatusStrip) ·
-TurnCard · HereList + per-person menu · Waiting on you · PlaceCard (fixtures,
-Examine, Depot/Factory/Research/Map) · PartyRack · RoomPanel (stash) ·
-TravelNodes · ThingsDrawer · DesiresBlock · Sheet link.
+**Player aside (all eight blocks)** — You frame (mood, resources, purse, carry,
+StatusStrip) · TurnCard · HereList + per-person menu · Waiting on you ·
+PlaceCard (fixtures, Examine, Depot/Factory/Research/Map) · PartyRack ·
+RoomPanel (stash) · TravelNodes · ThingsDrawer · DesiresBlock · Sheet link.
 
 **GM aside** — tab strip (Place/Room/Travel/GM) · GmHereList opening the Dev
 Panel · hooded rows showing real names · zone picker rail · GmPlaceBox.
@@ -126,8 +209,8 @@ Turret · ATM · Dropbox · Depot-turret · Quest-interact · Intercom · Move �
 Decree · PhotoReadout · LookReadout · Map overlay.
 
 **DM pane** — pseudo-place, no seq · renders `DmThread` (shared with the GM
-desk) · own optimistic send with `clientNonce` · visibility-gated seen marks ·
-own length cap.
+desk) · optimistic send with `clientNonce` · visibility-gated seen marks · own
+length cap.
 
 **Realtime** — one SSE connection with reconnect/backoff and wake-on-visibility ·
 typing · deletes · places diff · gap recovery · mention detection into
@@ -138,59 +221,29 @@ notifiedStore · push notifications · row-cache instant paint · backlog prefet
 MembersStrip face-pile · Enter becomes newline · ⋯ sheet replaces hover bar ·
 map becomes a route not an overlay · nav links in the drawer foot.
 
-## Phases
-
-Each ends with something that runs; no phase leaves the tree broken.
-
-1. **Scaffold** — `next/` directory, grid shell, `chat.css` rewritten from the
-   mockup's stylesheet. Static content at the right shape, behind a flag.
-2. **Places column** — real data, groupings, states.
-3. **Feed** — every row variant, sticky scroll, backlog, search, notice cards.
-   Biggest phase; expect it to overrun.
-4. **Composer** — modes, commands, menus, drafts, slowmode, limits.
-5. **Aside** — You frame + the mockup's three blocks; survivors of the
-   decisions below go in as folds.
-6. **GM aside + DM pane.**
-7. **Phone** — drawers, swipe, tap floors, ⋯ sheet.
-8. **Cutover** — flip `ChatView.js`, delete the old files in one commit so the
-   diff shows exactly what went.
-
-## Open decisions
-
-Bascinet's, not mine — several are live game systems with docs behind them.
-Needed before Phase 5.
-
-- **The five aside blocks the mockup has no room for** — Place, Party, Room,
-  Travel, Desires, plus Things. Fold, relocate (`/character`, `/map`), or keep
-  the column long?
-- **The places tail strip** — view-as, push, mark-all-read. View-as is a GM
-  tool and needs somewhere to live.
-- **Fold chevrons** — the mockup's sections don't fold, and the state resets on
-  reload anyway.
-- **Composer tools row and in-box send** — back to the mockup's three controls?
-- **The static `.hint` line** — the mockup has one; it is also text, and the
-  standing instruction is less text.
-- **Is `TranscriptLine.js` in scope?** Restyling it touches `/archive` and the
-  GM desk.
-
 ## Risks
 
-- **A rewrite loses things quietly** — the checklist above is the mitigation.
-- **Scale** — not a one-sitting job even with the data layer kept.
+- **A rewrite loses things quietly** — the checklist is the mitigation.
+- **Phase 0 is skippable and must not be skipped.** Without it the 149 surfaces
+  get improvised a second time.
+- **Scale** — ~6,500 lines of presentation, nothing removed to offset it.
 - **Two implementations live at once** through phases 1-7.
-- Constraints from the CSS pass still hold: no new copy, no hardcoded colours,
-  no `position`/`z-index`/`transform` on the columns (traps `Modal.js`'s in-tree
-  overlay), no `overflow` on the composer box.
+- Constraints that still hold: no new copy, no hardcoded colours, no
+  `position`/`z-index`/`transform` on the columns (traps `Modal.js`'s in-tree
+  overlay), no `overflow` on the composer box, keep `.bar`'s `flex: 0 0 auto`.
 
 ## Verification
 
 Per phase: `npm run lint --workspace=web`, `npm run build --workspace=web`,
 `npm run audit:contrast --workspace=web`, `npm run dev:check`.
 
-Visual: boot the local stack and screenshot each phase beside
-`docs/design/mockups/chat/screenshot.png`. **`echo $DATABASE_URL` first** — this
-container exports a Railway one that shadows the local `.env`, along with
-`AUTH_SECRET`, `DISCORD_TOKEN` and `RAILWAY_TOKEN`; prefix with `env -u`.
+Visual: boot the local stack and screenshot each phase. **`echo $DATABASE_URL`
+first** — this container exports a Railway one that shadows the local `.env`,
+along with `AUTH_SECRET`, `DISCORD_TOKEN` and `RAILWAY_TOKEN`; prefix with
+`env -u`.
 
-At cutover: walk the whole checklist against the new build, item by item, with a
-living character and a GM seat, desktop and phone.
+Folds specifically: fold a section, reload, confirm it is still shut; open a
+second tab and confirm it agrees; check a private window does not throw.
+
+At cutover: walk the whole checklist item by item, with a living character and a
+GM seat, desktop and phone.
