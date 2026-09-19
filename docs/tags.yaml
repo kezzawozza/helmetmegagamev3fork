@@ -422,15 +422,12 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You'll get stressed if you don't regularly eat good meals. You can't take 1 point Desires, or any Desire related to something below your station."
+    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You'll get stressed if you don't regularly eat good meals. You can't take any Desire related to something below your station."
     pointCost: -2
     requiredTag: courtier
     purchasable: false
     purchasableAfterStart: false
     visible: true
-    desires:
-      locks:
-        - tiers: [1]
 
   ravenhearter:
     catalog: gm

@@ -64,11 +64,9 @@ value they were paid at, and the analytics histograms still list those tiers
 for that history. **A tier no longer implies once-per-game** — the old tier 7
 did, and its 11 entries now carry `oncePerLife: true` by hand.
 
-Two things ride on the number that were not the point of the rescale. **Mood
+One thing rides on the number that was not the point of the rescale. **Mood
 relief** is `DESIRE_RELIEF_PER_POINT` a point (`MOOD.md`), so a claim now
-settles the nerves less. And **Nobility** (`tiers: [1]`) still blocks 1-point
-Desires, which is now most of the catalog: a noble is left with the 2-point and
-better goals, each of which pays more.
+settles the nerves less.
 
 ## 2. The tier ladder + cooldowns
 
@@ -293,11 +291,7 @@ rather than changed, which is the failure the `stupidity` family was invented
 to prevent. **If you add a tag with an all-but-one lock, check it against every
 other one already in the catalog.**
 
-The grammar can't express every intent. Nobility's "closed to Desires below
-tier 1" plus "cheap standard food doesn't count" collapses to `tiers: [1]`
-in the YAML with the second half left as a GM-adjudicated prose line in the
-tag's description (Ruling R4) — the grammar has no way to except one family
-*and* keep an exception's own exception. Kleptomaniac's `families: [wealth]`
+The grammar can't express every intent. Kleptomaniac's `families: [wealth]`
 lock similarly took a one-line data fix on two unrelated desires
 (`sell-stolen-jewelry`, `pocket-60`) to drop `wealth` from their own family
 list, since a clause can't combine `families` and `exceptFamilies` in one
@@ -305,9 +299,9 @@ breath (Ruling R7).
 
 **A whole-catalog tier lock is silent in the summary.** `describeDesireLocks`
 writes a sentence for every other clause shape, but not for `tiers` outside the
-bottom slot: Nobility is the only tag carrying one, and each tier-1 template in
-the catalog already reads `Locked by Nobility` on its own row, so the summary
-line at the top of the panel was the same fact twice. The **bottom-slot** tier
+bottom slot. A whole-catalog tier lock would already show on each row it
+locks, so a summary line at the top of the panel would say the same fact twice.
+No tag carries one now. The **bottom-slot** tier
 clause keeps its sentence — an Addiction binds a slot rather than a row, and a
 slot has nowhere else to say so.
 
@@ -346,7 +340,7 @@ own two entries (`break-up-a-fight`, `stop-a-war`) demonstrate.
 | Group | Shape | Price band |
 |---|---|---|
 | `general-addictions` | `exclusive: true`, `consumable: false` drawbacks — never `removable`, since Destroy is for items (`CRAFTING.md` §5). Each shuts the **bottom slot only**, to everything outside its own family — see §3. **One Addiction at a time** — that rule is why this stayed its own group. | −4 flat |
-| `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. `Depressed` is the near-exception, and by named conflict rather than by the flag: because it locks the whole catalog it `conflictsWith` every tag here that also touches Desires, and only those — so Lazy, Insomniac, Guilt Ridden, Torturer and the phobias stay legal beside it (`TAGS.md` §3). Some members close the catalog down (`Depressed` locks everything; `Nobility` locks tier 1; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
+| `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. `Depressed` is the near-exception, and by named conflict rather than by the flag: because it locks the whole catalog it `conflictsWith` every tag here that also touches Desires, and only those — so Lazy, Insomniac, Guilt Ridden, Torturer and the phobias stay legal beside it (`TAGS.md` §3). Some members close the catalog down (`Depressed` locks everything; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
 
 `general-restrictions` and `general-interests` survive as **orphaned, empty
 groups** in `docs/taggroups.yaml` — group sync is upsert-only and never
