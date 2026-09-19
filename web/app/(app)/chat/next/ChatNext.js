@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DM_PLACE_KEY } from "../DmPane";
 import {
+  usePlaces,
   notableSeq,
   seedInitial,
   seedRows,
@@ -12,6 +13,8 @@ import {
   markHistoryLoaded,
 } from "../feedStore";
 import { useSeen, markAllSeen } from "../seenStore";
+import { useRefresh } from "@/app/components/useRefresh";
+import useFeedStream from "../useFeedStream";
 import { useNotified } from "../notifiedStore";
 import { useOpenPlace, setOpenPlace } from "../openPlace";
 import PlacesColumn from "./PlacesColumn";
@@ -78,6 +81,23 @@ export default function ChatNext(props) {
     return null;
   });
 
+  // THE LIVE STREAM (../useFeedStream.js). The one thing the rebuild could
+  // not carry until it was lifted out of ../Chat.js: 270 lines of EventSource
+  // tangled into that file's layout, and the piece the plan marked "split
+  // with care". It is the SAME hook the live chat runs — not a second copy —
+  // so a reconnect fix lands on both faces at once.
+  const selectedRef = useRef(null);
+  const streamSpokeRef = useRef(false);
+  const [refresh] = useRefresh();
+  // The seq the page was rendered at, captured ONCE: the stream opens from it
+  // and keeps its own cursor after that, so a later refresh handing down a
+  // newer one is deliberately ignored.
+  const [mountSeq] = useState(() => props.initialSeq ?? "0");
+  const [gapNonce, setGapNonce] = useState(0);
+  const [, setPlacesVersion] = useState(0);
+  const bumpPlaces = useCallback(() => setPlacesVersion((n) => n + 1), []);
+  const bumpGap = useCallback(() => setGapNonce((n) => n + 1), []);
+
   const seen = useSeen();
   const notified = useNotified();
   const wanted = useOpenPlace();
@@ -91,12 +111,18 @@ export default function ChatNext(props) {
   // and is a millisecond rather than a seq; until the pane exists there is
   // nothing to be unread of.
   const dmKey = self?.discordUserId ? DM_PLACE_KEY : null;
+  // The server's list is the first paint; the stream replaces it whole from
+  // its first `places` frame on, and once it has spoken the server props stop
+  // seeding — a refresh landing after that frame must not put the older list
+  // back.
+  const streamed = usePlaces();
+  const live = streamed.length > 0 ? streamed : places;
   const navPlaces = useMemo(() => {
     const out = [];
     if (dmKey) out.push({ placeKey: dmKey, name: "Bascinet", kind: "dm" });
-    out.push(...places);
+    out.push(...live);
     return out;
-  }, [places, dmKey]);
+  }, [live, dmKey]);
 
   const byKey = useMemo(() => new Map(navPlaces.map((p) => [p.placeKey, p])), [navPlaces]);
   // A remembered place since left falls back to the first, so a stale bookmark
@@ -104,6 +130,7 @@ export default function ChatNext(props) {
   const selectedKey =
     (wanted && byKey.has(wanted) ? wanted : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
+
 
   const onSelect = useCallback((placeKey) => setOpenPlace(placeKey), []);
   // The pseudo-place takes the whole centre: it has no feed to scroll and no
@@ -156,7 +183,26 @@ export default function ChatNext(props) {
         // Marked loaded either way, or the skeleton sits there forever.
         markHistoryLoaded(selectedKey);
       });
+  }, [selectedKey, gapNonce]);
+
+  // Kept in step for the stream's handlers, which read the open place without
+  // being a dependency of the connection — putting it in the effect's deps
+  // would tear the EventSource down on every click. Written in an EFFECT:
+  // `react-hooks/refs` is an error here, and a ref poked mid-render is
+  // exactly what it catches.
+  useEffect(() => {
+    selectedRef.current = selectedKey;
   }, [selectedKey]);
+
+  useFeedStream({
+    mountSeq,
+    self,
+    selectedRef,
+    streamSpokeRef,
+    refresh,
+    bumpPlacesVersion: bumpPlaces,
+    onGap: bumpGap,
+  });
 
   const onMarkAllSeen = useCallback(
     () => markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) }))),

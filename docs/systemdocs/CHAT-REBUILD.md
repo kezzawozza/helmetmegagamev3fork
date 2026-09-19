@@ -258,6 +258,25 @@ Each ends with something that runs.
    girder head for every place. `drawers` went with that head — the phone's
    controls live on it, and that is phase 7's. Verified end to end: a line
    sends, the box clears, and it is still there after a reload.
+6a. **The live stream** — `useFeedStream.js`, and the plan's own "split with
+   care". It was 270 lines of EventSource sitting in the middle of
+   `../Chat.js`'s layout: the tab's one connection, its reconnect and backoff,
+   the session probe that tells an expired login from a dropped network, the
+   wake on visibility, mention detection, typing, deletes, the places diff and
+   gap recovery.
+
+   Lifted out WHOLE rather than rewritten. Every paragraph of comment in it is
+   an outage or a page-jump somebody chased down, and the point of the lift is
+   that both chats now run the SAME hook — a reconnect fix lands on both faces
+   instead of drifting into two copies. What it takes is what it could not
+   reach from a module: the mount seq, who is reading, the ref holding the
+   open place, the ref saying whether the stream has announced a list yet, the
+   shared refresh, and two callbacks.
+
+   Verified in two browsers at once, both ways: a line typed in the live chat
+   appears in the rebuilt one with no reload, and a line typed in the rebuilt
+   one appears in the live chat. The rebuilt feed is live now — it was seeded
+   history and backward paging until this landed.
 7. **Phone** — drawers, swipe, tap floors, ⋯ sheet.
 8. **Cutover** — flip `ChatView.js`, delete the old files in one commit.
 
