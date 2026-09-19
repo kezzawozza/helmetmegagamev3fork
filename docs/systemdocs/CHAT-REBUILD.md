@@ -277,7 +277,29 @@ Each ends with something that runs.
    appears in the rebuilt one with no reload, and a line typed in the rebuilt
    one appears in the live chat. The rebuilt feed is live now — it was seeded
    history and backward paging until this landed.
-7. **Phone** — drawers, swipe, tap floors, ⋯ sheet.
+7. **Phone** — the two drawers, Discord's way round: under 900px the right
+   column has nowhere to stand and comes in from the right, under 720px the
+   places column goes the same way from the left. Both are `Modal`s, so
+   Escape, the backdrop, the focus trap and the ✕ are the shared dialog's; the
+   swipe that closes one is the gesture that opened it. `ChatHead` replaces
+   the girder in the centre column, which is what puts ≡ and the people
+   button on the bar. The app's own links ride the left drawer's foot, since
+   the bottom bar is hidden on this page. The map NAVIGATES to /map on a
+   folded viewport rather than opening — a full-bleed board inside a drawer is
+   a dialog inside a dialog on the smallest screen there is.
+
+   `usePlaceMembers.js` came out of `../Feed.js` the way the stream did, and
+   for the same reason: the strip draws it and `/remove`'s picker is the same
+   list, so one fetch answers both, on both faces.
+
+   The defect this turned up was the grid. Its five tracks are a LIST, so a
+   column that stops MOUNTING does not stop taking its width — on a 390px
+   phone the two flanks and their rails went on reserving 454px of it and the
+   scene was squeezed into what was left. The template is restated at each
+   breakpoint now, naming exactly the tracks still mounted there, at the same
+   two numbers `useAsideFolded.js` and `useNarrow.js` use. A disagreement of
+   one pixel between them is a band of window holding a track for a column
+   that is not there.
 8. **Cutover** — flip `ChatView.js`, delete the old files in one commit.
 
 ## Persistent folds — the one new behaviour

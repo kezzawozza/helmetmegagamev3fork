@@ -280,6 +280,49 @@
    ONLY a coarse pointer. Applying it at every width is what made the places
    column read half again as loose as it should: a 32px minimum over a 21.6px
    row filled the space of fifteen rows with eleven. A mouse can hit 21px. */
+/* ── THE FOLD (CHAT-REBUILD.md phase 7) ──────────────────────────────────
+   The grid's five tracks are a LIST, so a column that stops mounting does not
+   stop taking its width: on a 390px phone the two flanks and their rails went
+   on reserving 454px of it, and the scene was squeezed into what was left.
+   So the template is restated at each breakpoint, and each one names exactly
+   the tracks that are still mounted there.
+
+   These two numbers are not free choices. 56.25rem is ../(app)/chat/
+   useAsideFolded.js's query and 720px is useNarrow.js's — CSS decides the
+   width, those hooks decide what MOUNTS, and a disagreement of one pixel is a
+   band of window with a track for a column that is not there, or a column
+   with nowhere to stand. */
+@media (max-width: 56.25rem) {
+  [data-chat-next] .chat-body {
+    grid-template-columns: var(--chat-rail) 8px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  [data-chat-next] .chat-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The plate art is drawn for its own ~240px box and stretched to fit with
+     `background-size: 100% 100%`. In the right-hand drawer that box is most
+     of a phone's width, so the riveted border smears sideways and the hole
+     cut into the art stops sitting under the well laid over it. Capped at the
+     width it was painted at, centred — the drawer is wider than the column
+     the mockup built it for, and that is the one place the difference shows.
+     `margin-inline: auto` after the cap, because .chat-aside-stack gives it a
+     -6px inline margin to cancel a double inset that is not there here. */
+  [data-chat-next] .chat-drawer .you-frame {
+    max-width: 252px;
+    margin-inline: auto;
+  }
+  /* The head is the whole top of the screen here, the way Discord's channel
+     bar is, so it carries a thumb's worth of height rather than the girder's
+     26px. */
+  [data-chat-next] .chat-head {
+    height: 48px;
+    min-height: 48px;
+  }
+}
+
 @media (pointer: coarse) {
   [data-chat-next] .row-line {
     min-height: var(--tap-sm);

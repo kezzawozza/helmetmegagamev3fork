@@ -9,6 +9,8 @@ import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
 import { formatTurnLabel } from "@/lib/turnFormat";
 import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
+import MembersStrip from "../MembersStrip";
+import usePlaceMembers from "../usePlaceMembers";
 import {
   useFeed,
   useHistoryState,
@@ -217,10 +219,18 @@ export default function Feed({
   // The seq this place was at when it was last read, so the NEW rule lands in
   // the right gap. Null means everything here has been read.
   newAt = null,
+  // Bumped on every `places` frame — a key turning, or somebody else's /add.
+  // The members strip re-reads on it.
+  placesVersion = 0,
+  // A street being watched from somewhere else: read, never written to
+  // (db/lib/vantages.js). The guest-list buttons are a thing you do with your
+  // hands in the room.
+  readOnly = false,
   handlers = {},
 }) {
   const placeKey = place?.placeKey ?? null;
   const rows = useFeed(placeKey);
+  const members = usePlaceMembers(place, placesVersion);
   const historyState = useHistoryState(placeKey);
   const backlog = useBacklog(placeKey);
 
@@ -394,6 +404,13 @@ export default function Feed({
 
   return (
     <div className="chat-feed-wrap">
+      {/* Who is in this conversation or private room, and the two buttons
+          that change it. Only those two kinds of place have one, and the
+          strip draws nothing when placeMembers() answers with no list. On a
+          phone it folds to one row of faces until tapped (MembersStrip.js). */}
+      {members.hasMembers && !readOnly && (
+        <MembersStrip placeKey={placeKey} data={members.data} onChanged={members.reload} />
+      )}
       <ul className="chat-feed" ref={scrollerRef} onScroll={onScroll}>
         {/* The top edge, while a page is on the wire. Nothing when there is
             nothing more to fetch — a permanent "no more" line at the head of
