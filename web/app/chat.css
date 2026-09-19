@@ -31,7 +31,20 @@
      nothing above it ever noticing there was an overflow to scroll. This is
      what lets `.chat-aside`'s `min-height: 0` below mean anything at all. */
   grid-template-rows: minmax(0, 1fr);
+  /* THE GROUND UNDER ALL FIVE TRACKS, and the mockup gives it to `.app` for a
+     reason: the flanking columns are a translucent black wash (--sunk-wash),
+     so whatever is behind them is what they darken. With only a flat colour
+     here there was nothing to darken and the rail read as flat black paint
+     instead of metal in shadow — the texture was reaching the feed and
+     nothing else, because .grain is suppressed on this page (globals.css).
+     Same two layers the feed itself lays down, and the same order. */
   background-color: var(--bg);
+  background-image:
+    url("/assets/chrome/chatshadow.png"),
+    url("/assets/chrome/chatbg.png");
+  background-repeat: repeat-x, repeat;
+  background-position: 0 0, 0 0;
+  background-size: auto, 512px 512px;
 }
 
 /* The metal rail between two columns (REDESIGN.md §3): bg.png, repeated down
@@ -78,7 +91,14 @@
   /* A scroll that reaches the end of a column stays in it — on a phone the
      alternative is pull-to-refresh, or the page behind a drawer moving. */
   overscroll-behavior: none;
-  border-right: 1px solid var(--border);
+  /* A column is SUNK below the scene, not raised above it — the mockup's own
+     `.places` figure, and the whole of what --sunk-wash was added for on
+     2026-09-18 and then never wired to anything. Translucent, so .grain and
+     the rail's metal still read through it. The edge is --border-lo rather
+     than --border for the same reason: the mockup separates its columns with
+     hard black, and a mid-grey hairline here is a seam, not a cut. */
+  background: var(--sunk-wash);
+  border-right: 1px solid var(--border-lo);
   /* NO bottom padding, and that is load-bearing: the tail below is sticky, and
      a sticky box cannot leave its containing block — which ends at this
      column's CONTENT box. Bottom padding here parked the foot that far above
@@ -90,7 +110,9 @@
 .chat-aside {
   /* The panel inside does the scrolling now, not the column. */
   overflow: hidden;
-  border-left: 1px solid var(--border);
+  /* Sunk and hard-edged, the same as the places column opposite. */
+  background: var(--sunk-wash);
+  border-left: 1px solid var(--border-lo);
   padding: var(--sp-3);
 }
 
@@ -195,8 +217,21 @@
   align-items: center;
   gap: var(--sp-2);
   flex: 0 0 auto;
-  padding: 5px var(--sp-2);
+  /* A FIXED 26, not a floor, and this is the whole fix for "the girder on the
+     main box is bigger than the ones on the sides". The tile is scaled to each
+     bar's own height (`auto 100%` below), so any bar that ran taller drew a
+     bigger girder — and the feed head does run taller, because it carries a
+     crumb and a count where a block head carries one word. It was `min-height`
+     with 5px of padding and an inherited line-height: 11 x 1.3 + 10 + 2 = 26.3
+     for a bar with a .sub in it against 25.3 for one without. Height and
+     line-height together are what make all four sites agree.
+     `margin: 0` because PlacesColumn renders a <p class="bar"> and the aside
+     renders h2/h3 — both arrive with a margin of their own. */
+  margin: 0;
+  height: 26px;
   min-height: 26px;
+  padding: 0 var(--sp-2);
+  line-height: 1;
   background-image: url("/assets/chrome/bg2.png");
   background-repeat: repeat-x;
   /* Matches the mockup's own `.bar` exactly (docs/design/mockups/chat/
@@ -211,11 +246,13 @@
   image-rendering: pixelated;
   border-bottom: 1px solid var(--border-lo);
   border-top: 1px solid var(--border);
-  color: var(--text);
+  /* The mockup's `.bar` is --bone-hi, the brightest text on the page. Ours was
+     --text, so the heads were LARGER than the mockup's and dimmer at once. */
+  color: var(--text-hi);
   font-weight: 700;
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-3xs);
   text-shadow: 0 1px 0 var(--border-lo);
 }
 
@@ -240,7 +277,7 @@
   margin: var(--sp-5) var(--sp-2) 3px;
   padding: 2px var(--sp-1) 3px;
   border-bottom: 1px solid var(--border);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-3xs);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
@@ -305,7 +342,7 @@
 .sect {
   margin: 7px var(--sp-2) 2px;
   color: var(--muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-3xs);
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
@@ -366,11 +403,20 @@
   width: 100%;
   box-sizing: border-box;
   font-size: var(--fs-sm);
-  /* These are the two most-tapped rows on the page and they carried 4px of
-     vertical padding everywhere except inside the phone's ⋯ sheet, which was
-     the only place holding them to the floor the rest of this stylesheet
-     keeps. A coarse pointer gets the floor wherever it is pointing. */
-  min-height: 32px;
+}
+
+/* These are the two most-tapped rows on the page, so a COARSE pointer gets a
+   floor under them wherever it is pointing — which is what this rule always
+   meant, and is now all it does. It used to apply that floor at every width,
+   and a 32px minimum over a 21.6px row is what made the places column read as
+   half again as loose as the mockup draws it: eleven rows filled the space
+   fifteen should. A mouse can hit a 21px row; the touch floor belongs to
+   touch (DESIGN-SYSTEM.md §9). */
+@media (pointer: coarse) {
+  .place,
+  .chat-person {
+    min-height: var(--tap-sm);
+  }
 }
 
 .place:focus-visible,
@@ -390,21 +436,28 @@
 }
 
 .place {
-  /* Compressed with the sections above: 2px of leading, not 4, and the inset cut
-     to --sp-2 so a long Location name has the width to say itself. */
-  padding: 2px var(--sp-2);
-  color: var(--muted);
+  /* INDENTED UNDER ITS HEADING, which is what makes this column read as
+     sections with runs beneath them rather than one flat list. The mockup
+     insets a row to 14px against its .sect's 8px; --sp-3 plus the 3px marker
+     lands on 15 and stays on the 4px scale.
+
+     And --text, not --muted. Every row being muted is what forced :hover and
+     [data-unread] to share one brighter colour with nothing left over for the
+     row you are standing in — three states competing for two values. */
+  padding: 3px var(--sp-2) 3px var(--sp-3);
+  color: var(--text);
   border-left: 3px solid transparent;
 }
 
 /* A street walked out of earlier this turn, still watched and read-only
-   (db/lib/vantages.js, the Elsewhere section in PlacesColumn.js). ITALIC, not
-   dimmer: this column's rows are already var(--muted), and fading them any
-   further drops them under 4.5:1 in all three themes — 0.72 opacity measures
-   3.5. Italic is the same move .chat-quiet makes for prose the game is saying
-   rather than a person, and it costs no contrast at all. */
+   (db/lib/vantages.js, the Elsewhere section in PlacesColumn.js). Italic AND
+   muted now: a row used to be --muted by default, so italic alone was the
+   whole demotion and anything dimmer would have gone under 4.5:1. Rows rest
+   at --text since the rail was rebuilt, so this one has to say it. --muted
+   measures 4.51 against the column's sunk ground, which clears AA. */
 .place[data-vantage="true"] .nm {
   font-style: italic;
+  color: var(--muted);
 }
 
 /* A room row wrapped in a HoverCard so its description shows on hover
@@ -446,7 +499,7 @@
    Under :hover and [data-active] in the cascade on purpose, so hovering an
    unread row and opening one both still look like what they are. */
 .place[data-unread="true"] {
-  color: var(--text);
+  color: var(--text-hi);
 }
 
 .place[data-unread="true"] .nm {
@@ -473,20 +526,30 @@
 }
 
 
+/* --row-hover, not --surface: --surface is LIGHTER than this column's own
+   sunk wash now, so it would fight the inverted ladder and make a hovered
+   row the brightest thing in the rail. */
 .place:hover {
-  color: var(--text);
-  background: var(--surface);
+  color: var(--text-hi);
+  background: var(--row-hover);
 }
 
 /* ACTIVE: the mockup's raised gradient row and rivet left border. Token
    mapping table (the plan, §4): the gradient becomes --surface-raised, the
    rivet becomes --border-hi, and the two insets stand in for the mockup's
    own inset shadow pair. */
+/* THE ROOM YOU ARE STANDING IN. Back to the mockup's own recipe, which this
+   had drifted a long way from: a top-lit gradient rather than a flat raised
+   fill, brass down the left edge rather than a lamp, and bone-bright text.
+
+   It was --accent-text — salmon — so the open room read as an alert rather
+   than as the place you are, and --border-hi put a #c9a17f lamp line across
+   the top of the row where the mockup wants a faint warm lift. */
 .place[data-active="true"] {
-  color: var(--accent-text);
-  background: var(--surface-raised);
-  border-left-color: var(--border-hi);
-  box-shadow: inset 0 1px 0 var(--border-hi), inset 0 -1px 0 var(--border-lo);
+  color: var(--text-hi);
+  background: linear-gradient(180deg, var(--surface), var(--bg));
+  border-left-color: var(--rivet);
+  box-shadow: inset 0 1px 0 var(--border), inset 0 -1px 0 var(--border-lo);
   font-weight: 700;
 }
 
@@ -536,7 +599,7 @@
 
 /* Zone · Location, beside the open place's name — the mockup's `.crumb`. */
 .crumb {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-3xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -583,11 +646,18 @@
   color: var(--muted);
 }
 
-/* THE LOG'S OWN GROUND (REDESIGN.md §3). chatbg.png at about 0.6, against the
-   0.25 the rest of the app takes: the log is where the look lives, and the
-   gutters of a panel are not. There is no opacity to set on an element with text
-   in it, so the strength is a VEIL of the ground colour laid over the tile —
-   --feed-veil, solved per look in the theme blocks.
+/* THE LOG'S OWN GROUND (REDESIGN.md §3). chatbg.png at FULL strength, the way
+   the mockup's own `.feed` draws it (docs/design/mockups/chat/index.html) —
+   the log is where the look lives, and the gutters of a panel are not.
+
+   It used to carry a veil of the ground colour over the tile (--feed-veil, 0.40)
+   to hold the tile back to about 0.6. That veil was the larger half of what made
+   this page read as mush. It dragged the log down to L=0.0072 while .block sat
+   at L=0.0069 on --surface, so the scene and the panels beside it landed on the
+   same luminance: a separation of 1.01, against the mockup's own 1.16. The log
+   is the lightest thing on this page and everything around it is washed DOWN
+   (--sunk-wash, below). Do not veil it again.
+
    chatshadow.png repeats along the TOP, and stays there as the scene scrolls
    under it: background-attachment defaults to `scroll`, which is fixed relative
    to this element's own box, not to the content. `local` would drag it down the
@@ -622,12 +692,11 @@
     linear-gradient(var(--fade-shadow), transparent),
     linear-gradient(transparent, var(--fade-shadow)),
     url("/assets/chrome/chatshadow.png"),
-    linear-gradient(var(--feed-veil), var(--feed-veil)),
     url("/assets/chrome/chatbg.png");
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat, repeat;
-  background-position: top, bottom, top, bottom, 0 0, 0 0, 0 0;
-  background-size: 100% 28px, 100% 28px, 100% 12px, 100% 12px, auto, auto, 512px 512px;
-  background-attachment: local, local, scroll, scroll, scroll, scroll, scroll;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat;
+  background-position: top, bottom, top, bottom, 0 0, 0 0;
+  background-size: 100% 28px, 100% 28px, 100% 12px, 100% 12px, auto, 512px 512px;
+  background-attachment: local, local, scroll, scroll, scroll, scroll;
   border-top: 1px solid var(--border-lo);
 }
 
@@ -1058,7 +1127,10 @@
   border: 1px solid var(--border);
   border-top-width: 2px;
   border-bottom-width: 2px;
-  background: var(--field-bg);
+  /* The mockup's own `.decree` ground. This block stands in the CENTRE
+     column, which carries no wash of its own, so it has to state the deeper
+     value rather than compose it out of one. */
+  background: var(--sunk-wash-deep);
 }
 
 /* The PA's heading: a small micro-label in the uppercase vocabulary every other
@@ -1568,7 +1640,7 @@
 .you-role {
   margin: 0 0 var(--sp-2);
   color: var(--muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-3xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1599,7 +1671,10 @@
 .block {
   margin-bottom: var(--sp-3);
   border: 1px solid var(--border);
-  background: var(--surface);
+  /* Deeper than the column it sits in. It was --surface, which is LIGHTER
+     than --bg — so a block floated above the scene where the mockup sinks it
+     below, and the two met in the middle at a separation of 1.01. */
+  background: var(--sunk-wash-deep);
 }
 
 .block .body {
@@ -2316,6 +2391,10 @@
   /* A bigger bar on a phone, for the two drawer buttons either side of it —
      the same `.bar` a desktop gets, just tall enough for a thumb. */
   .chat-head {
+    /* `height`, not just `min-height`: .bar pins a hard 26px now so that
+       every girder on a desktop draws at one size, and a floor alone loses
+       to it. Without this line the drawer buttons get crushed into 26px. */
+    height: 48px;
     min-height: 48px;
     padding-top: var(--sp-1);
     padding-bottom: var(--sp-1);
@@ -2586,6 +2665,18 @@
   justify-content: space-between;
   gap: var(--sp-2);
   margin-top: var(--sp-1);
+  /* ONE TEXT ROW, ALWAYS, whether or not anything is in it. Everything this
+     row draws is conditional (Feed.js) — a slowmode countdown, a command's
+     character counter, a failed send — so without a reserved height the
+     composer GREW the moment one appeared and shoved the whole feed up. The
+     most obvious way to see it was picking Shout, whose /shout carries a
+     maxLength and so always has a counter.
+
+     1lh rather than a pixel count: it is one line box of this element's own
+     font, so it tracks --fs-xs instead of going stale the next time the type
+     scale moves. The row is RESERVED, not filled — nothing is written here to
+     take up the space. */
+  min-height: 1lh;
   font-size: var(--fs-xs);
   color: var(--muted);
 }

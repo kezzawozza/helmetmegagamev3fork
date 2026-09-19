@@ -1,0 +1,862 @@
+/* ---- /chat, rebuilt (CHAT-REBUILD.md) -------------------------------------
+
+   THE REBUILD, LIVING BESIDE THE OLD ONE. Everything here is scoped under
+   `[data-chat-next]`, which only ChatNext.js sets, so none of it can reach the
+   chat players actually use. `[data-chat-next] .bar` is (0,2,0) against
+   chat.css's (0,1,0) `.bar`, so where both describe a thing this file wins
+   inside the new tree and is invisible outside it.
+
+   AT CUTOVER: delete chat.css, strip the `[data-chat-next] ` prefix from every
+   selector here, rename this to chat.css. The class names are already the
+   final ones — that is the point of scoping rather than prefixing.
+
+   EVERY RULE HERE ANSWERS TO docs/design/chat-vocabulary.md. A surface that
+   fits none of its twelve rungs is a decision to make in that doc first, in
+   one line, before it is built here. That doc exists because 149 classes in
+   chat.css were each improvised on their own, and this file is the attempt not
+   to do that a second time.
+   ------------------------------------------------------------------------ */
+
+/* ── The shell ───────────────────────────────────────────────────────────── */
+
+[data-chat-next].chat-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* GROUND, and it is painted TWICE on purpose (vocabulary §1). Here, behind the
+   whole grid, so the columns' translucent washes have something to darken —
+   without it a sunk column reads as flat black paint rather than metal in
+   shadow — and again on .chat-feed, which is the scene itself. One rung, two
+   places, the same tile at full strength both times. */
+[data-chat-next] .chat-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  /* The mockup's own five tracks: place | rail | scene | rail | you. The rail
+     is 8px everywhere it appears at all — a strip of metal, not a flank that
+     breathes with the window. */
+  --chat-rail: 186px;
+  --chat-aside-w: 252px;
+  grid-template-columns: var(--chat-rail) 8px minmax(0, 1fr) 8px var(--chat-aside-w);
+  /* BOUNDED, not `auto`: grid's default sizes the row to its tallest column's
+     CONTENT, so the aside could grow past the viewport with nothing above it
+     noticing there was an overflow to scroll. This is what lets the columns'
+     own `min-height: 0` mean anything. */
+  grid-template-rows: minmax(0, 1fr);
+  background-color: var(--bg);
+  background-image:
+    url("/assets/chrome/chatshadow.png"),
+    url("/assets/chrome/chatbg.png");
+  background-repeat: repeat-x, repeat;
+  background-position: 0 0, 0 0;
+  background-size: auto, 512px 512px;
+}
+
+/* Nothing in chat scrolls sideways. Every column is locked on the x axis and
+   wraps instead; a rail that could be dragged left is how a phone layout ends
+   up with a scene nobody can reach. */
+[data-chat-next] .chat-places,
+[data-chat-next] .chat-centre,
+[data-chat-next] .chat-aside {
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* ── RAIL (vocabulary §1) ─────────────────────────────────────────────────
+   A structural member between two columns, not a surface and not an edge: it
+   holds nothing, and it is 8px of rendered metal rather than a hairline. The
+   mockup draws one and never names it, which is how it ended up with no rule
+   for three drafts.
+
+   HARD on the left, RULE on the right — the cut, then the division. Never give
+   this `position`, `z-index`, `transform` or `contain`: DeskRail.js records
+   that doing so traps Modal.js's in-tree overlay under the top bar. */
+[data-chat-next] .chat-rail {
+  background-image: url("/assets/chrome/bg.png");
+  background-repeat: repeat-y;
+  background-size: 6px auto;
+  image-rendering: pixelated;
+  border-left: 1px solid var(--border-lo);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* ── COLUMN (vocabulary §1) ───────────────────────────────────────────────
+   Sunk one step below the scene. Translucent, so the ground's texture reads
+   through it, darker — which is what makes a column look cut into the page
+   rather than painted on it. HARD on the outer edge: the mockup separates its
+   columns with black, and a mid-grey hairline there is a seam, not a cut. */
+[data-chat-next] .chat-places {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  /* A scroll that reaches the end of a column stays in it — the alternative on
+     a phone is pull-to-refresh, or the page behind a drawer moving. */
+  overscroll-behavior: none;
+  background: var(--sunk-wash);
+  border-right: 1px solid var(--border-lo);
+  /* NO bottom padding: the tail below is sticky, and a sticky box cannot leave
+     its containing block, which ends at this column's CONTENT box. Padding
+     here parks the tail that far above the window's edge. The tail supplies
+     its own. */
+  padding: var(--sp-3) 0 0;
+}
+
+[data-chat-next] .chat-aside {
+  overflow: hidden;
+  background: var(--sunk-wash);
+  border-left: 1px solid var(--border-lo);
+  padding: var(--sp-3);
+}
+
+[data-chat-next] .chat-centre {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── GIRDER (vocabulary §4) ───────────────────────────────────────────────
+   The head of a CONTAINER — a column, or a block. The bg2.png strip at a FIXED
+   26px, and fixed is the whole point: `background-size: auto 100%` scales the
+   tile to the bar's own height, so a bar that runs taller draws a bigger
+   girder. That is what made the scene's head look wrong beside the aside's.
+   Height and line-height together are what make every girder agree.
+
+   `flex: 0 0 auto` longhand, all three values pinned. The shorthand this
+   replaced set flex-grow: 1, and the one growing item in a flex column
+   swallowed any free space that appeared once the list stopped overflowing —
+   which broke the places column every time a section folded. Do not tidy this
+   back into a shorthand.
+
+   `margin: 0` because the callers render a <p> and an <h2>/<h3>, each of which
+   arrives with a margin of its own. */
+[data-chat-next] .bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  margin: 0;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 var(--sp-2);
+  line-height: 1;
+  background-image: url("/assets/chrome/bg2.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  image-rendering: pixelated;
+  border-bottom: 1px solid var(--border-lo);
+  border-top: 1px solid var(--border);
+  color: var(--text-hi);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  font-size: var(--fs-3xs);
+  /* Stamped into metal. Every girder head and every badge carries this; nothing
+     else does (vocabulary §3). */
+  text-shadow: 0 1px 0 var(--border-lo);
+}
+
+[data-chat-next] .bar .spacer {
+  flex: 1;
+}
+
+/* The quiet half of a girder's line — a count, a crumb. Rung 11, not 10: it is
+   secondary text riding a heading, not a heading. */
+[data-chat-next] .bar .sub {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+/* ── QUIET and DIVIDER (vocabulary §4) ───────────────────────────────────
+   A QUIET head marks a RUN INSIDE a container — Mail, Here, Rooms. No strip:
+   the test is "does this head a box, or a list inside a box?".
+
+   Rung 10, same as a girder. chat.css has two of these at two sizes
+   (.sect at 10, .chat-details-fold at 11) doing the same job; here there is
+   one rung and both take it. */
+[data-chat-next] .sect {
+  margin: 7px var(--sp-2) 2px;
+  color: var(--muted);
+  font-size: var(--fs-3xs);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* A DIVIDER is a quiet head with a RULE under it and a colour, marking a whole
+   zone. --zone-ink rather than --warning: the old rule borrowed a status colour
+   because no gold text token existed, which left a purely decorative heading
+   wearing the same ink as an actual warning. */
+[data-chat-next] .zone-div {
+  margin: var(--sp-5) var(--sp-2) 3px;
+  padding: 2px var(--sp-1) 3px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-3xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--zone-ink);
+  text-shadow: 0 1px 0 var(--border-lo);
+}
+
+/* ── ROW (vocabulary §5) ─────────────────────────────────────────────────
+   One recipe for every list row in chat. chat.css grew three of these — .place,
+   .chat-person and .chat-search-row — each hand-rolled; this is the one they
+   collapse into.
+
+   The marker is ALWAYS PRESENT at 3px transparent, so nothing shifts sideways
+   when it lights. The inset past it is what makes a run sit UNDER its heading
+   rather than level with it, and that indent is most of why a column reads as
+   sections rather than one flat list.
+
+   Resting at --text, NOT --muted. A row that rests muted leaves nothing in
+   reserve for hover and unread, and three states end up fighting over two
+   colours. */
+[data-chat-next] .row-line {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  cursor: pointer;
+  padding: 3px var(--sp-2) 3px var(--sp-3);
+  border-left: 3px solid transparent;
+  color: var(--text);
+  font-size: var(--fs-base);
+}
+
+/* --row-hover, not --surface: --surface is LIGHTER than the column's sunk
+   ground and would make a hovered row the brightest thing in the rail. */
+[data-chat-next] .row-line:hover,
+[data-chat-next] .row-line:focus-visible {
+  color: var(--text-hi);
+  background: var(--row-hover);
+}
+
+[data-chat-next] .row-line[data-unread="true"] {
+  color: var(--text-hi);
+}
+
+[data-chat-next] .row-line[data-unread="true"] .nm {
+  font-weight: 700;
+}
+
+/* OCCUPIED — the room you are standing in. A state of the row, not a surface
+   of its own. Brass down the left edge rather than a lamp: --border-hi is what
+   marks a thing you can press, and using it for position made the open room
+   read as an alarm. */
+[data-chat-next] .row-line[data-active="true"] {
+  color: var(--text-hi);
+  background: linear-gradient(180deg, var(--surface), var(--bg));
+  border-left-color: var(--rivet);
+  box-shadow: inset 0 1px 0 var(--border), inset 0 -1px 0 var(--border-lo);
+  font-weight: 700;
+}
+
+/* A street walked out of earlier this turn, watched and read-only. Italic AND
+   muted: rows rest at --text here, so this one has to say it. --muted measures
+   4.51 against the column's sunk ground, which clears AA. */
+[data-chat-next] .row-line[data-vantage="true"] .nm {
+  font-style: italic;
+  color: var(--muted);
+}
+
+[data-chat-next] .row-line .nm {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A coarse pointer gets a floor under the most-tapped rows on the page, and
+   ONLY a coarse pointer. Applying it at every width is what made the places
+   column read half again as loose as it should: a 32px minimum over a 21.6px
+   row filled the space of fifteen rows with eleven. A mouse can hit 21px. */
+/* ── THE FOLD (CHAT-REBUILD.md phase 7) ──────────────────────────────────
+   The grid's five tracks are a LIST, so a column that stops mounting does not
+   stop taking its width: on a 390px phone the two flanks and their rails went
+   on reserving 454px of it, and the scene was squeezed into what was left.
+   So the template is restated at each breakpoint, and each one names exactly
+   the tracks that are still mounted there.
+
+   These two numbers are not free choices. 56.25rem is ../(app)/chat/
+   useAsideFolded.js's query and 720px is useNarrow.js's — CSS decides the
+   width, those hooks decide what MOUNTS, and a disagreement of one pixel is a
+   band of window with a track for a column that is not there, or a column
+   with nowhere to stand. */
+@media (max-width: 56.25rem) {
+  [data-chat-next] .chat-body {
+    grid-template-columns: var(--chat-rail) 8px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  [data-chat-next] .chat-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The plate art is drawn for its own ~240px box and stretched to fit with
+     `background-size: 100% 100%`. In the right-hand drawer that box is most
+     of a phone's width, so the riveted border smears sideways and the hole
+     cut into the art stops sitting under the well laid over it. Capped at the
+     width it was painted at, centred — the drawer is wider than the column
+     the mockup built it for, and that is the one place the difference shows.
+     `margin-inline: auto` after the cap, because .chat-aside-stack gives it a
+     -6px inline margin to cancel a double inset that is not there here. */
+  [data-chat-next] .chat-drawer .you-frame {
+    max-width: 252px;
+    margin-inline: auto;
+  }
+  /* The head is the whole top of the screen here, the way Discord's channel
+     bar is, so it carries a thumb's worth of height rather than the girder's
+     26px. */
+  [data-chat-next] .chat-head {
+    height: 48px;
+    min-height: 48px;
+  }
+}
+
+@media (pointer: coarse) {
+  [data-chat-next] .row-line {
+    min-height: var(--tap-sm);
+  }
+}
+
+/* ── BLOCK (vocabulary §1) ───────────────────────────────────────────────
+   A framed container inside a column, sunk TWO steps. Deeper than the column
+   it sits in, which is why it needs its own value rather than a second coat of
+   --sunk-wash: 0.30 over 0.30 composites to 0.51, not 0.42.
+
+   Every block's head is a GIRDER — h3 wears .bar. chat.css has exactly one
+   block whose head is not (.tline-block-head, a bare 11px label); there is no
+   reason for two treatments and here there is one. */
+[data-chat-next] .block {
+  margin-bottom: var(--sp-3);
+  border: 1px solid var(--border);
+  background: var(--sunk-wash-deep);
+}
+
+[data-chat-next] .block > .body {
+  padding: var(--sp-2);
+}
+
+/* ── WELL (vocabulary §1) ────────────────────────────────────────────────
+   A hole you put something into. Dark PLUS an inset shadow — without the inset
+   it reads as a lighter rectangle rather than a hole, and that is the whole
+   difference between this rung and a flat fill. */
+[data-chat-next] .well {
+  background: var(--field-bg);
+  border: 1px solid var(--border-lo);
+  box-shadow: inset 0 1px 3px var(--shadow-color), 0 0 0 1px var(--border);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+/* ── CARD (vocabulary §1) ────────────────────────────────────────────────
+   Bigger than a label, smaller than a container, and clickable: a travel node
+   holds a name, a zone, a description and a cost. It is a THING, so it sits UP
+   — the only interior surface besides a chip and a control that does. */
+[data-chat-next] .card {
+  box-sizing: border-box;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+
+[data-chat-next] .card:hover {
+  background: var(--surface-raised);
+}
+
+/* ── STICKY BAR (vocabulary §1) ──────────────────────────────────────────
+   A bar pinned inside something that scrolls. Its whole job is hiding what
+   slides under it, so it is OPAQUE and it takes THE GROUND IT IS PINNED OVER.
+   Not a float: it scrolls away, and it carries no elevation shadow.
+
+   chat.css has three of these and they use three different backgrounds —
+   --surface-raised, --surface and --bg — two of them LIGHTER than the scene
+   they cover, which inverts the same ladder the rest of the page just had
+   fixed. That disagreement is what a missing rule looks like from outside. */
+[data-chat-next] .sticky-bar {
+  position: sticky;
+  z-index: 1;
+  flex: 0 0 auto;
+}
+
+/* Pinned inside a sunk column: it takes the column's own ground, composited
+   opaque, so rows cannot ghost through it. */
+[data-chat-next] .chat-places .sticky-bar,
+[data-chat-next] .chat-aside .sticky-bar {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+/* Pinned over the scene: it takes the scene's. */
+[data-chat-next] .chat-feed .sticky-bar {
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── GROUND, second coat (vocabulary §1) ─────────────────────────────────
+   The scene, and the brightest surface on the page. Full-strength tile, no
+   veil: veiling it is what dragged the log down to the same luminance as the
+   panels beside it — a separation of 1.01 against the mockup's 1.16, which is
+   what "the whole page is mush" measures as. Do not veil it again.
+
+   chatshadow.png repeats along the TOP and stays there as the scene scrolls
+   under it: background-attachment defaults to `scroll`, which is fixed to this
+   element's box rather than its content. `local` would drag it down the log. */
+[data-chat-next] .chat-feed {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  padding: var(--sp-3) var(--sp-4);
+  background-color: var(--bg);
+  background-image:
+    url("/assets/chrome/chatshadow.png"),
+    url("/assets/chrome/chatbg.png");
+  background-repeat: repeat-x, repeat;
+  background-position: 0 0, 0 0;
+  background-size: auto, 512px 512px;
+  border-top: 1px solid var(--border-lo);
+}
+
+/* ── PLATE (vocabulary §1) ───────────────────────────────────────────────
+   An ornamented frame around a well — the one place in chat that wears a whole
+   sprite rather than a strip. WELL covers the hole; this covers the metal
+   around it, and nothing else in the app needs it. */
+[data-chat-next] .plate {
+  margin: var(--sp-1);
+  padding: 26px 20px 22px;
+  background: url("/assets/chrome/stats-LFWB.png") no-repeat center;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  border: 1px solid var(--border-lo);
+}
+
+/* ── The places column's own parts ───────────────────────────────────────── */
+
+/* A section is a heading and its rows, with just enough air under it to say the
+   run has ended. It was --sp-3 between sections and a 12px inset per row, which
+   put more of the column into gaps than into places. */
+[data-chat-next] .chat-section {
+  margin-bottom: var(--sp-2);
+}
+
+/* A heading that is also a disclosure. Layered ONTO .sect and .zone-div rather
+   than replacing either, so a fold looks like the heading it is — and written
+   once, where chat.css grew two near-identical copies (.chat-fold for the
+   column, .chat-details-fold for the aside's drawers). */
+[data-chat-next] .fold {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  text-align: left;
+  /* ONLY the family, and this is the whole trap. A modifier layered onto .sect
+     and .zone-div must not restate a font property either of them sets, because
+     it is declared later in this file and wins: `font: inherit` here took the
+     heading's size from 10px to the body's and `text-transform: inherit` took
+     the caps off both, since what they then inherit from is the column, not the
+     base class on the same element. A button's family is the one thing the UA
+     supplies that no base class does. */
+  font-family: inherit;
+}
+
+[data-chat-next] .fold svg {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  opacity: 0.55;
+  /* Shut points right, open points down. The icon is a chevron-down, so the
+     SHUT state is the rotated one. */
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-chat-next] .fold svg {
+    transition: none;
+  }
+}
+
+[data-chat-next] .fold svg[data-open="true"] {
+  transform: none;
+}
+
+[data-chat-next] .fold:hover {
+  color: var(--text);
+}
+
+/* The mail mark. The one row in the column that carries a glyph: Bascinet is
+   mail rather than a place, and every other row is its name alone — a picture
+   per kind was a column of small images nobody read, and the section headings
+   already say what a row is. */
+[data-chat-next] .row-glyph {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--muted);
+}
+
+/* CHIP, accent-filled: something here was addressed to YOU. Not an unread mark
+   — unread is the name brightening, and this is the level above it.
+   Stamped, like every other badge (vocabulary §3). */
+[data-chat-next] .badge {
+  flex: 0 0 auto;
+  min-width: 16px;
+  padding: 0 3px;
+  border: 1px solid var(--border-lo);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  text-shadow: 0 1px 0 var(--border-lo);
+}
+
+/* A row wrapped in a HoverCard has to be a full-width block in the column's own
+   face — .tag-hover is inline-flex in mono, for chips. */
+[data-chat-next] .row-hover {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+}
+
+/* ── PORTALED: the one thing the scope cannot reach ──────────────────────
+   HoverCard renders its panel through createPortal into document.body, with a
+   fixed `tag-tooltip` class — so it lands OUTSIDE [data-chat-next] and every
+   scoped rule above misses it. The name and the description came out run
+   together on one line because of exactly this.
+
+   So these two are UNSCOPED, and they are safe to be: `tip-name`/`tip-desc`
+   are names chat.css does not use, so an unscoped rule here cannot reach the
+   live chat either. That is the whole trick — a portaled surface gets a name
+   nothing else has, rather than a scope it cannot inherit.
+
+   Every FLOAT in the vocabulary is portaled and has this problem: modals,
+   popovers, the / and @ menus. Each needs a name of its own until cutover,
+   when the prefix comes off and the question disappears. */
+.tip-name {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--sp-1);
+}
+
+.tip-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+  color: var(--muted);
+}
+
+/* The tail's own stacking. `margin-top: auto` pushes it to the bottom of a
+   short column; `bottom: 0` pins it once the column overflows. */
+[data-chat-next] .chat-places-tail {
+  bottom: 0;
+  margin-top: auto;
+  padding: var(--sp-2) var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+[data-chat-next] .chat-places-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* ── The scene's own parts ───────────────────────────────────────────────── */
+
+/* The scroller needs a positioned parent for the pill to hang off, and the
+   pill is the only thing that needs it — .chat-feed itself must stay
+   unpositioned so nothing inside it traps Modal.js's in-tree overlay. */
+[data-chat-next] .chat-feed-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-chat-next] .chat-feed {
+  list-style: none;
+  margin: 0;
+}
+
+/* A rule wherever the scene crosses into a new turn. The label sits IN the
+   rule rather than above it, so a long scene reads as ruled rather than
+   chaptered. */
+[data-chat-next] .daybreak {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-3xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+[data-chat-next] .daybreak::before,
+[data-chat-next] .daybreak::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Where you had read up to. One rule in the accent, no label: a word here
+   would be read once and then be in the way of every scene after it. */
+[data-chat-next] .chat-new-line {
+  height: 1px;
+  margin: var(--sp-3) 0;
+  background: var(--accent-text);
+  opacity: 0.55;
+}
+
+/* The top edge while a page is on the wire. Nothing when there is nothing
+   left to fetch — a permanent "no more" at the head of every scene says
+   something nobody asked. */
+[data-chat-next] .chat-backlog-edge {
+  padding: var(--sp-2) 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Somebody spoke while the reader was further up. A pill they press, never a
+   jump: moving the scene under somebody mid-sentence is the one thing a live
+   feed must not do.
+
+   FLOAT (vocabulary §6) — it is the one thing in the scene that sits above
+   it, and it earns that by being the only control that appears unasked. */
+[data-chat-next] .chat-pill {
+  position: absolute;
+  left: 50%;
+  bottom: var(--sp-3);
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 3px var(--sp-3);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: var(--e-2);
+  color: var(--text-hi);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-chat-next] .chat-pill:hover {
+  border-color: var(--accent-text);
+}
+
+/* The shape of a scene rather than a spinner, so the column does not jump
+   when the real thing lands. */
+[data-chat-next] .chat-skeleton {
+  padding: var(--sp-3) var(--sp-4);
+}
+
+[data-chat-next] .chat-skeleton-line {
+  padding: 3px 0;
+}
+
+[data-chat-next] .chat-skeleton-bar {
+  display: block;
+  height: 10px;
+  width: 60%;
+  background: var(--row-hover);
+}
+
+[data-chat-next] .chat-skeleton-line:nth-child(2) .chat-skeleton-bar {
+  width: 85%;
+}
+
+[data-chat-next] .chat-skeleton-line:nth-child(3) .chat-skeleton-bar {
+  width: 45%;
+}
+
+/* A send that came back refused. The line STAYS — losing what somebody typed
+   is worse than leaving it on screen marked unsent — so this is what has to
+   say it went nowhere. */
+[data-chat-next] .chat-unsent {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin: 2px 0 0;
+  color: var(--danger);
+  font-size: var(--fs-xs);
+}
+
+/* ── The composer ────────────────────────────────────────────────────────── */
+
+[data-chat-next] .chat-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  flex-shrink: 0;
+}
+
+/* The say row and the foot under it, as one flex item the bar above can
+   place. */
+[data-chat-next] .chat-say-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  flex: 1;
+  min-width: 0;
+}
+
+/* The voice picker beside the well, level with its BOTTOM edge so the two stay
+   aligned as the box grows to six lines. */
+[data-chat-next] .chat-say-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+[data-chat-next] .chat-mode-select {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  width: 5.25rem;
+}
+
+/* WELL (vocabulary §1), and the composer's is the canonical one: the mockup's
+   say box is a hole, not a raised panel.
+
+   NEVER give this `overflow`. The / and @ menus are positioned against it and
+   hang off the TOP — clipping them is how the command list becomes invisible
+   the moment it has more than one entry. */
+[data-chat-next] .chat-composer-box {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+[data-chat-next] .chat-composer-box:focus-within {
+  border-color: var(--accent);
+}
+
+/* The one row inside: your hands, the words, the send. flex-end so the
+   controls stay level with the LAST line as the box grows. */
+[data-chat-next] .chat-composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+[data-chat-next] .say {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  resize: none;
+  color: var(--speech);
+  font: inherit;
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+}
+
+[data-chat-next] .say:focus-visible {
+  outline: none;
+}
+
+/* Frameless at rest, like the ⋯ on a feed row: the frame comes back under the
+   pointer and the ring under the keyboard. A glyph, not a fill — the fill
+   belongs on the phone, where it is the thing a thumb aims at. */
+[data-chat-next] .chat-composer-send,
+[data-chat-next] .chat-composer-tools .icon-btn {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+[data-chat-next] .chat-composer-send:not(:disabled) {
+  color: var(--accent-text);
+}
+
+[data-chat-next] .chat-composer-send:hover:not(:disabled),
+[data-chat-next] .chat-composer-tools .icon-btn:hover {
+  color: var(--text);
+  background: var(--row-hover);
+  border-color: var(--accent-text);
+}
+
+[data-chat-next] .chat-composer-send:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+[data-chat-next] .chat-composer-tools,
+[data-chat-next] .chat-tool-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* ONE TEXT ROW, ALWAYS, whether or not anything is in it. Everything this row
+   draws is conditional — a countdown, a counter, a refusal, a command's answer
+   — so without a reserved height the composer GREW the moment one appeared and
+   shoved the whole feed up. The most obvious way to see it was picking Shout,
+   whose /shout carries a maxLength and so always has a counter.
+
+   1lh rather than a pixel count: one line box of this element's own font, so
+   it follows the type scale instead of going stale the next time it moves. The
+   row is RESERVED, not filled — nothing is written here to take up space. */
+[data-chat-next] .chat-composer-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 1lh;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+[data-chat-next] .chat-composer-error {
+  color: var(--danger);
+}
+
+[data-chat-next] .chat-composer-count[data-over="true"] {
+  color: var(--danger);
+}
+
+/* What a place refuses, and why — a street is not speech, a vantage is
+   somewhere you are watching rather than standing. Subtext, because it is the
+   room talking rather than a refusal aimed at you. */
+[data-chat-next] .chat-quiet-line {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+}

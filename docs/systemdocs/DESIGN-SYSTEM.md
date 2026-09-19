@@ -32,8 +32,13 @@ variable on `<html>`:
 declared on `:root` in `globals.css`, not downloaded fonts:
 
 - `--font-sans` — `system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
-  13px body, 12px in tables and chips. This is the tool register described
-  above: it should read like output, not like a brand.
+  12px body, 11px in tables and chips. This is the tool register described
+  above: it should read like output, not like a brand. Body was 13px until
+  both mockups were read side by side and found to agree on 12 — the whole
+  scale had drifted a step above them. The HEADINGS deliberately did not come
+  down with it and stay at 15/16/18, so the jump off body text is wider here
+  than either mockup draws it. `--fs-3xs` (10px) is below the scale proper and
+  belongs to chat's girder caps alone — never prose.
 - `--font-serif` — `"Times New Roman", Times, "Liberation Serif", serif`.
   `h1`/`h2`/`h3`, `.panel-header` and `.section-title` pick this up from one
   rule in `globals.css` and nothing else changes — every heading in the app is
@@ -68,10 +73,32 @@ Three things about the token set are load-bearing and easy to undo by accident:
   take it, not `--text` — the mockup draws every heading a shade brighter
   than a paragraph, so a panel title still reads as a title beside its own
   body copy rather than as merely bigger, bolder body text. Gated at AA like
-  `--text`; measures 10.11 against `--surface`.
-- **The surface ladder is `--bg` → `--surface` → `--surface-raised`**, a step
-  of about 1.06 each. `.panel` sits on `--surface`; modals, tooltips,
-  sticky table headers and the turn chip sit on `--surface-raised`.
+  `--text`; measures 11.19 against `--surface`. It was the character mockup's
+  own `#c6bfb2` until the body face came down to 12px, at which point the lift
+  had more work to do and the value moved to the one the CHAT mockup gives its
+  `--bone-hi`. The two mockups disagree on this one colour.
+- **There are two vocabularies, and a container picks one.** A thing that is
+  CUT INTO the page takes a wash — `--sunk-wash` (0.30) or `--sunk-wash-deep`
+  (0.42), translucent black over the ground, so the texture reads through it,
+  darker. `.panel` is the main one, with `.archive`, `.desk-card`, the desk
+  tray and chat's own columns. A thing that genuinely FLOATS takes the raised
+  ladder `--bg` → `--surface` → `--surface-raised`, a step of about 1.06 each:
+  modals, popovers, tooltips, the mention menu, sticky table headers, chips,
+  paper, a filled equip cell, and the two map overlays (opaque on purpose —
+  a translucent control would show terrain through itself).
+
+  `.panel` used to sit on `--surface`, which is *lighter* than `--bg`, and
+  measured **1.028** against the ground a page actually shows. That is what
+  made every container in the app read as drab. Sunk on a fully-lit ground it
+  measures **1.16**. Lightening the panel instead reaches 1.126 but *costs*
+  text contrast — `--muted` falls to 3.79 and `--blackletter` to 2.02, both
+  under their floors, and `--border` vs the panel drops under its 1.4 gate.
+  Darkening gains contrast on every token at once. Do not flip this back.
+
+  Note that `audit:contrast` measures the ladder against bare `--bg`, not
+  against `--bg` plus `.grain` — the ground a reader actually sees. The gate
+  is still worth keeping for the raised family, but a passing ladder is not
+  by itself evidence that a container reads.
   `--field-bg` is *recessed below* the surface, so inputs read as cut into a
   panel rather than as another panel stacked on it. **A panel is told from the
   ground by its 1px rule and its shadow, not by the lightness of its fill** —
@@ -207,9 +234,10 @@ palette, unmodified. `globals.css` now declares its colour tokens once, on
 `web/app/components/LampTick.js` and the `BASCINET_THEME` env var are gone.
 
 A handful of tokens the mockup never names — `--speech`, the six `--role-*`,
-`--zone-*`, `--map-river`, `--chart-*`, `--row-hover`, `--shadow-color`,
-`--feed-veil` — kept the value the retired dusk look carried, since dusk was
-the look actually being matched before this. Everything the mockup does name
+`--zone-*`, `--map-river`, `--chart-*`, `--row-hover`, `--shadow-color` — kept
+the value the retired dusk look carried, since dusk was the look actually being
+matched before this. (`--feed-veil` was one of these and is now gone; see
+§3a.) Everything the mockup does name
 was taken verbatim, including two values that sit under their old gate:
 `--muted` (4.16 against `--surface`, was gated at AA's 4.5) and
 `--blackletter` (2.22, was gated at the 3.0 large-text floor). Rather than
@@ -235,8 +263,27 @@ folder's `ATTRIBUTION.md` (CC BY-SA 3.0) and again in the handbook's credits.
 Anything derived from them (a recolour, a crop) carries the same license; CSS
 that only references them does not.
 
-- **`.grain`** tiles `chatbg.png` under every page at `opacity: 0.35`, the
-  mockup's own figure — texture, not a subject. It sits at `z-index: -1` (not
+- **Chat inverts the surface ladder, on purpose.** Everywhere else a
+  container is drawn *above* the ground on `--surface`. On `/chat` the scene
+  is the lightest surface on the page and everything beside it is washed
+  *down*: `.chat-places` and `.chat-aside` take `--sunk-wash`, `.block` and
+  the decree block take `--sunk-wash-deep`, and `.chat-body` carries the
+  texture so those washes have something to darken. The feed itself wears
+  `chatbg.png` at full strength. This is the chat mockup's own arrangement,
+  and the numbers are the reason it is written down: the feed used to carry a
+  `--feed-veil` over its tile while `.block` sat on the lighter `--surface`,
+  which put the scene at L=0.0072 and the panels beside it at L=0.0069 — a
+  separation of **1.01**, against the mockup's **1.16**. That is what "the
+  whole page is a blend mush" measures as. `--feed-veil` is retired; do not
+  veil the log again.
+
+- **`.grain`** tiles `chatbg.png` under every page at `opacity: 1` — the same
+  tile at the same strength `.chat-feed` draws it at, so the app and the one
+  page people look at longest stand on the same ground. It was 0.35 (the
+  character mockup's figure) while panels were opaque and lighter than the
+  ground; both halves of that changed together. How sunk a panel reads is set
+  by how lit the ground is, and at 0.35 a panel separates by 1.065 however
+  black it goes — pure black tops out at 1.107. Texture, not a subject. It sits at `z-index: -1` (not
   0) so it paints behind in-flow content rather than as a film over it, is
   `fixed` and `pointer-events: none` so it costs no paint on scroll, and it
   never gets a `backdrop-filter` or a per-frame or full-viewport animation —
@@ -313,7 +360,7 @@ Use these instead of rolling one-off markup.
 | Class | For |
 |---|---|
 | `.panel` | Any card/section container — `border`, `background`, `border-radius: 0`, and (as of the primitives pass, 2026-09-18) its own `padding: 8px`, matching the mockup's `.panel{padding:8px}` exactly. `.panel + .panel` gets `margin-top: 8px` too. A card **with** a heading is `Panel`, which writes the `.panel-header` for you on top of that padding. `.panel.table-scroll` (`DataTable.js`) is the one deliberate exception — it zeroes the padding back out so the table runs flush to the panel's own border, header row included. |
-| `.panel-header` | Its heading — serif `--fs-lg`, a flex row over a 1px `border-bottom`, with `.note` for a quiet right-aligned aside. See §3a — the metal strip it used to carry is retired. |
+| `.panel-header` | Its heading — serif `--fs-lg`, **uppercase at `--ls-wide`**, a flex row over a bevelled rule (a 1px `border-bottom` with a 1px `box-shadow` in `--border-lo` under it), with `.note` for a quiet right-aligned aside. `.note` resets the case and tracking, and every non-heading child of a `.panel-header` in this app carries it — a status pill, a quiet button, a plain span — so a new child without `.note` will be shouted. The metal strip it used to carry stays retired (§3a); the small caps are what replaced "make the headings louder". |
 | `.section-title` | A heading that is a **flex child beside something else** — a modal title next to its close button, a desk's page title next to its turn chip. As of the primitives pass it is the mockup's own small recipe: uppercase, bold, `--fs-2xs` (11px), `--accent-text`, `margin: 0 0 4px` — no longer the serif `.panel-header` face. It reads as a quiet running head, not a page banner; that is the point of the retro chrome this pass matches. |
 | `.btn` | Solid primary button. |
 | `.btn-secondary` | Outline. |

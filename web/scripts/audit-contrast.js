@@ -188,7 +188,7 @@ function auditLook(t) {
 
   gate("--muted on surface", contrast(composite(parseColor(t["--muted"]), surface), surface), MUTED_MIN);
 
-  for (const token of ["--text", "--text-hi", "--speech", "--accent-text", "--danger", "--positive", "--warning"]) {
+  for (const token of ["--text", "--text-hi", "--speech", "--accent-text", "--danger", "--positive", "--warning", "--zone-ink"]) {
     gate(`${token} on surface`, contrast(composite(parseColor(t[token]), surface), surface), AA);
   }
 

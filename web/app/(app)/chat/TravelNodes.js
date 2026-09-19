@@ -29,7 +29,10 @@ function titleFor(option, via) {
 // `pick` is `/travel` reaching in from the composer: { locationId, at }, `at`
 // a timestamp so picking the same node twice re-opens the strip. It only ever
 // SELECTS — Go still moves anybody's feet.
-export default function TravelNodes({ onDone, pick = null }) {
+// `showTitle` false where the container already says the word — the rebuilt
+// aside heads this block "Travel" (next/ChatAside.js). The COUNT is not a
+// title, so it stays either way; it just stops carrying the repeated word.
+export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
   // Catalog + held tags from the root layout (web/lib/referenceData.js) — openedBy always resolves.
   const { tagsBySlug } = useTags();
   // A move changes the whole column (place card, HERE, rooms) as server props
@@ -68,7 +71,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (!data) {
     return (
       <div className="chat-travel">
-        <p className="group-label chat-section-title">Travel</p>
+        {showTitle && <p className="group-label chat-section-title">Travel</p>}
         <p className="chat-quiet-line">Reading the road…</p>
       </div>
     );
@@ -76,7 +79,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   if (!data.ok) {
     return (
       <div className="chat-travel">
-        <p className="group-label chat-section-title">Travel</p>
+        {showTitle && <p className="group-label chat-section-title">Travel</p>}
         <FormError>{data.error}</FormError>
       </div>
     );
@@ -120,7 +123,7 @@ export default function TravelNodes({ onDone, pick = null }) {
   return (
     <div className="chat-travel">
       <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
-        Travel · {data.freeLeft} available
+        {showTitle ? `Travel · ${data.freeLeft} available` : `${data.freeLeft} available`}
       </p>
 
       {/* Held where they stand (INTERCEPT.md). List stays up, every way drawn shut. */}

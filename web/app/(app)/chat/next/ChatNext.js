@@ -1,0 +1,852 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { DM_PLACE_KEY } from "../DmPane";
+import {
+  usePlaces,
+  useFeed,
+  notableSeq,
+  seedInitial,
+  seedRows,
+  historyLoaded,
+  markHistoryLoading,
+  markHistoryLoaded,
+} from "../feedStore";
+import NoticeCards from "../NoticeCards";
+import GmSystemComposer from "../GmSystemComposer";
+import LookReadout from "@/app/components/LookReadout";
+import { ConverseDialog } from "../PlacePanel";
+import DecreeDialog from "../DecreeDialog";
+import { useRequestActions } from "@/app/components/RequestActionsProvider";
+import { lookAt, lookAtRow } from "../actions";
+import { SearchIcon } from "@/app/components/icons";
+import IconButton from "@/app/components/IconButton";
+import { retryPending } from "../feedStore";
+import usePlaceMembers from "../usePlaceMembers";
+import { useSeen, markAllSeen, seedSeenIfFresh } from "../seenStore";
+import { seedCachedRows, startRowCache } from "../rowCache";
+import { seedNewestOutbound } from "../dmStore";
+import { useRefresh } from "@/app/components/useRefresh";
+import useFeedStream from "../useFeedStream";
+import { useNotified, clearNotified } from "../notifiedStore";
+import { useOpenPlace, setOpenPlace } from "../openPlace";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import Modal from "@/app/components/Modal";
+import MapBoard from "../../map/MapBoard";
+import { ICONS, SignOutIcon } from "@/app/components/icons";
+import { signOutOfDiscord } from "@/app/actions";
+import { describeTurn } from "@/lib/turnFormat";
+import { isUnread } from "../seenStore";
+import { usePushState, initPush, togglePush } from "../pushStore";
+import { useStreamState } from "../streamStore";
+import ChatHead from "../ChatHead";
+import useNarrow from "../useNarrow";
+import useAsideFolded from "../useAsideFolded";
+import useSwipeOpen from "../useSwipeOpen";
+import { addMember, setChatViewAs } from "../actions";
+import PlacesColumn from "./PlacesColumn";
+import Feed from "./Feed";
+import Composer from "./Composer";
+import ChatAside from "./ChatAside";
+import GmAside from "./GmAside";
+import DmPane from "./DmPane";
+
+// THE REBUILD'S SHELL (docs/systemdocs/CHAT-REBUILD.md).
+//
+// It takes the SAME props object ../Chat.js does — page.js#FreshChat builds one
+// serialisable thing and ChatView spreads it — so the server half, the snapshot
+// machinery and both providers never learn a second implementation exists.
+// Swapping which component ChatView mounts is the whole cutover.
+//
+// It also reads the SAME stores. Those are transport, not presentation, and the
+// rebuild keeps them: seen watermarks and notified counts are a durable
+// localStorage contract shared across tabs, and reimplementing either would
+// mean two browsers disagreeing about what you had read.
+//
+// Phase 2 draws the places column in full. The scene is phase 3, the composer
+// 4, the aside 5. `data-chat-next` on the root is what scopes chat-next.css;
+// nothing else sets it, so none of that stylesheet can reach the live chat.
+// One ping per this long while somebody keeps typing. The other end holds
+// the indicator for six seconds (../typingStore.js), so anything under that
+// is a ping nobody sees the effect of.
+const TYPING_PING_MS = 4000;
+
+// How many places a player's chat warms in the background before it stops.
+const PREFETCH_LIMIT = 12;
+
+export default function ChatNext(props) {
+  // ../Chat.js's own prop names, verbatim — this exists to be swappable with it.
+  const {
+    initialPlaces: places = [],
+    initialPlace = null,
+    initialRows = [],
+    self = null,
+    gm = false,
+    ghost = false,
+    hasCamera = false,
+    // speakerKey -> real name, GM seat only (web/lib/gmSpeakers.js). It is
+    // what lets a hooded line read as "A young man (Greeblus)" without the
+    // row ever carrying the name. Spelled `gmSpeakers` by page.js.
+    gmSpeakers: speakers = null,
+    roster = [],
+    // The right column's whole bag, built server-side in page.js. Null for a
+    // GM with no living character — their column is GmAside's, phase 6.
+    aside = null,
+    // The GM's "Zones I see" picker. It rides the right column because it is a
+    // control rather than a place, and because that is where the same picker
+    // sits on every GM desk. Never set in the player seat, so `aside` and
+    // `gmZones` can never both exist — which is what makes the two asides an
+    // either/or below rather than a stack of both.
+    gmZones = null,
+    // A GM who also plays somebody: which seat this page is read from.
+    viewAs = null,
+    // The app's own nav, for the foot of the phone's places drawer. The
+    // bottom bar is hidden on /chat under 720px so the scene has the whole
+    // screen, and these are the rows it carried.
+    navItems = [],
+    // The composer's paperwork gates (web/lib/selfPools.js). Hints — every
+    // one of the four dialogs re-checks its own.
+    letters = null,
+    autocorrect = false,
+    // The newest thing Bascinet said by DM, as epoch ms, for the Messages
+    // row's dot before the pane has opened. The store takes over from the
+    // first stream frame on.
+    dmNewestMs = null,
+    // Whether there is anything over this character's face, and what it reads
+    // as. A hint — db/lib/conceal.js asks its own three questions.
+    conceal = null,
+  } = props;
+
+  // Seed the store DURING render, not in an effect, and exactly once. The
+  // first paint has to show the scene the server already sent — an effect
+  // would paint one frame of empty first, and on a phone that frame is what a
+  // reader sees every time they open the page. `react-hooks/set-state-in-effect`
+  // is an error here for the same reason.
+  // A useState initialiser rather than a ref poked during render: React runs
+  // it exactly once per mount and `react-hooks/refs` refuses the ref version
+  // outright. An EFFECT would be wrong for a different and worse reason — it
+  // runs after the first paint, so the reader gets a frame of empty scene
+  // every time they open the page.
+  useState(() => {
+    try {
+      // What this tab held last time, painted BEFORE the fetches land: the
+      // scene a reader comes back to is the one they left, not a skeleton.
+      seedCachedRows();
+    } catch {
+      // A refused localStorage costs a skeleton, nothing more.
+    }
+    try {
+      seedInitial({ places, place: initialPlace, rows: initialRows });
+    } catch {
+      // A store that refused costs a skeleton, nothing more.
+    }
+    try {
+      seedNewestOutbound(dmNewestMs);
+    } catch {
+      // A missing seed costs a dot, nothing more.
+    }
+    try {
+      // A first visit starts READ rather than with every place lit. Only
+      // where nothing is stored yet — seedSeenIfFresh never moves a mark a
+      // reader has already earned.
+      seedSeenIfFresh([
+        ...places.map((entry) => ({ placeKey: entry.placeKey, seq: entry.newestSeq })),
+        ...(dmNewestMs !== null && dmNewestMs !== undefined
+          ? [{ placeKey: DM_PLACE_KEY, seq: String(dmNewestMs) }]
+          : []),
+      ]);
+    } catch {
+      // Same: a missing seed costs a dot.
+    }
+    return null;
+  });
+
+  // THE LIVE STREAM (../useFeedStream.js). The one thing the rebuild could
+  // not carry until it was lifted out of ../Chat.js: 270 lines of EventSource
+  // tangled into that file's layout, and the piece the plan marked "split
+  // with care". It is the SAME hook the live chat runs — not a second copy —
+  // so a reconnect fix lands on both faces at once.
+  const selectedRef = useRef(null);
+  const streamSpokeRef = useRef(false);
+  const [refresh] = useRefresh();
+  // The seq the page was rendered at, captured ONCE: the stream opens from it
+  // and keeps its own cursor after that, so a later refresh handing down a
+  // newer one is deliberately ignored.
+  const [mountSeq] = useState(() => props.initialSeq ?? "0");
+  const [gapNonce, setGapNonce] = useState(0);
+  const [placesVersion, setPlacesVersion] = useState(0);
+  const bumpPlaces = useCallback(() => setPlacesVersion((n) => n + 1), []);
+  const bumpGap = useCallback(() => setGapNonce((n) => n + 1), []);
+
+  const seen = useSeen();
+  const notified = useNotified();
+
+  const wanted = useOpenPlace();
+
+  // Bascinet's row is not in `initialPlaces` and never will be: the DM is a
+  // pseudo-place with no seq and no archive (CHAT.md §2b), so ../Chat.js
+  // synthesises it client-side and this does the same. Deadchat, by contrast,
+  // IS a real place and arrives with the rest.
+  //
+  // Phase 3 owes this the DM's own unread watermark, which lives in ../dmStore
+  // and is a millisecond rather than a seq; until the pane exists there is
+  // nothing to be unread of.
+  const dmKey = self?.discordUserId ? DM_PLACE_KEY : null;
+  // The server's list is the first paint; the stream replaces it whole from
+  // its first `places` frame on, and once it has spoken the server props stop
+  // seeding — a refresh landing after that frame must not put the older list
+  // back.
+  const streamed = usePlaces();
+  const live = streamed.length > 0 ? streamed : places;
+  const navPlaces = useMemo(() => {
+    const out = [];
+    if (dmKey) out.push({ placeKey: dmKey, name: "Bascinet", kind: "dm" });
+    out.push(...live);
+    return out;
+  }, [live, dmKey]);
+
+  const byKey = useMemo(() => new Map(navPlaces.map((p) => [p.placeKey, p])), [navPlaces]);
+  // A remembered place since left falls back to the first, so a stale bookmark
+  // opens the street rather than a blank column.
+  const selectedKey =
+    (wanted && byKey.has(wanted) ? wanted : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
+  const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
+
+
+  const onSelect = useCallback((placeKey) => setOpenPlace(placeKey), []);
+
+  // What clears a notified count: opening the place, or bringing the tab back
+  // to one already open. Discord clears on read and so does this — a count
+  // you have to dismiss is a second chore. Nothing here sets state;
+  // clearNotified writes localStorage and notifies its own store.
+  useEffect(() => {
+    if (!selectedKey) return undefined;
+    const clear = () => {
+      if (document.visibilityState === "visible") clearNotified(selectedKey);
+    };
+    clear();
+    document.addEventListener("visibilitychange", clear);
+    return () => document.removeEventListener("visibilitychange", clear);
+  }, [selectedKey]);
+  // The pseudo-place takes the whole centre: it has no feed to scroll and no
+  // composer that could ever say a line into a room (CHAT.md §2b).
+  const isDm = selectedKey === DM_PLACE_KEY;
+
+  // What an unread mark compares against: the newest thing said here that was
+  // ABOUT this viewer, not merely the newest thing said. A place used to light
+  // for scenery — somebody lifting a stamp off a table — which is how an unread
+  // mark stops meaning anything (feedStore.js#isNotableRow).
+  //
+  // The LARGER of two answers, never the first: the server's watermark covers
+  // everything before this tab connected, the live one everything since, and
+  // taking the tab's would hide a mention that landed while the page was shut.
+  const selfCharacterId = self?.characterId ?? null;
+  const selfSpeakerKey = self?.speakerKey ?? null;
+  const newest = useCallback(
+    (place) => {
+      const live = notableSeq(place.placeKey, selfCharacterId, selfSpeakerKey);
+      const seeded = place.notableSeq ?? null;
+      if (live === null) return seeded;
+      if (seeded === null) return live;
+      return BigInt(live) > BigInt(seeded) ? live : seeded;
+    },
+    [selfCharacterId, selfSpeakerKey],
+  );
+
+  // What was said BEFORE the page opened, for a place the reader has just
+  // chosen. seedInitial covers the OPENING place only, and the stream carries
+  // what happens next — so without this, walking into a room for the first
+  // time draws an empty scene until somebody speaks.
+  useEffect(() => {
+    // The pseudo-place has no feed to load; DmPane fetches its own page.
+    if (!selectedKey || selectedKey === DM_PLACE_KEY || historyLoaded(selectedKey)) return;
+    // "loading" first, so the feed draws its skeleton rather than the empty
+    // state while this is out. It is also what stops a second fetch:
+    // historyLoaded() is true for both of the non-idle states.
+    markHistoryLoading(selectedKey);
+    fetch(`/api/feed/history?place=${encodeURIComponent(selectedKey)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        // NOT gated on a cancelled flag. The rows belong to a PLACE, not to a
+        // render, and the store is keyed by place — dropping them because the
+        // reader moved on left that place marked "loading" for the life of the
+        // tab, so walking back into it drew the skeleton forever.
+        if (data?.rows) seedRows(selectedKey, data.rows);
+        markHistoryLoaded(selectedKey);
+      })
+      .catch(() => {
+        // Marked loaded either way, or the skeleton sits there forever.
+        markHistoryLoaded(selectedKey);
+      });
+  }, [selectedKey, gapNonce]);
+
+  // Kept in step for the stream's handlers, which read the open place without
+  // being a dependency of the connection — putting it in the effect's deps
+  // would tear the EventSource down on every click. Written in an EFFECT:
+  // `react-hooks/refs` is an error here, and a ref poked mid-render is
+  // exactly what it catches.
+  useEffect(() => {
+    selectedRef.current = selectedKey;
+  }, [selectedKey]);
+
+  useFeedStream({
+    mountSeq,
+    self,
+    selectedRef,
+    streamSpokeRef,
+    refresh,
+    bumpPlacesVersion: bumpPlaces,
+    onGap: bumpGap,
+  });
+
+  // ---- The phone --------------------------------------------------------
+  //
+  // Two drawers, Discord's way round. Under 900px the right column has
+  // nowhere to stand, so it comes in from the right over the scene — the same
+  // component, not a second one. Under 720px the places column goes the same
+  // way, from the left. Both are Modals, so Escape, the backdrop, the focus
+  // trap and the ✕ are the shared dialog's rather than a drawer's own.
+  const narrow = useNarrow();
+  const asideFolded = useAsideFolded();
+  const [placesOpen, setPlacesOpen] = useState(false);
+  const [asideOpen, setAsideOpen] = useState(false);
+  const openPlaces = useCallback(() => setPlacesOpen(true), []);
+  const closePlaces = useCallback(() => setPlacesOpen(false), []);
+  const openAside = useCallback(() => setAsideOpen(true), []);
+  const closeAside = useCallback(() => setAsideOpen(false), []);
+  // Choosing from the drawer closes it: the tap was for the place, and a
+  // drawer left over the scene you just chose is a second tap.
+  const onSelectFromDrawer = useCallback((placeKey) => {
+    setOpenPlace(placeKey);
+    setPlacesOpen(false);
+  }, []);
+  // Swipe the scene right for the places, left for the people — Discord's
+  // gestures. Only where the drawers exist: on a desktop both columns are
+  // already on the page and a swipe would mean nothing.
+  const centreRef = useRef(null);
+  useSwipeOpen(centreRef, {
+    onRight: narrow ? openPlaces : null,
+    onLeft: aside && asideFolded ? openAside : null,
+  });
+
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // The composer's send, reachable from the feed. A line the server refused
+  // stays on screen marked unsent — losing what somebody typed is worse than
+  // watching it sit there — and "Try again" re-sends it through the one send
+  // path, slowmode hold and all.
+  const sayRef = useRef(null);
+  const publishSay = useCallback((fn) => {
+    sayRef.current = fn;
+  }, []);
+  // The other direction: the feed's editor, so ArrowUp on an empty box opens
+  // the last line's rather than being a second way of changing a line.
+  const editRef = useRef(null);
+  const publishEdit = useCallback((fn) => {
+    editRef.current = fn;
+  }, []);
+
+  // Searching what was said. The BUTTON is on the head this component draws,
+  // so the open flag is this component's; the box itself and the rule that
+  // forces it back open on a hit that turned out to be gone are the feed's.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  // A hit somebody clicked. The window around the seq is loaded FIRST — the
+  // store usually holds the newest hundred, and a hit from three days ago is
+  // not in it — and only then is the place opened and the seq handed down to
+  // scroll to. Rows merge by seq, so a window overlapping what is already
+  // held costs nothing.
+  const [jump, setJump] = useState(null);
+  const onJump = useCallback((placeKey, seq) => {
+    if (!placeKey || !seq) return;
+    const go = () => {
+      setJump({ placeKey, seq: String(seq), at: Date.now() });
+      setOpenPlace(placeKey);
+    };
+    fetch(`/api/feed/history?place=${encodeURIComponent(placeKey)}&around=${encodeURIComponent(seq)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.rows) seedRows(placeKey, data.rows);
+        markHistoryLoaded(placeKey);
+        go();
+      })
+      // The place still opens. A hit whose window would not load is better
+      // answered by the newest hundred than by nothing happening at all.
+      .catch(go);
+  }, []);
+
+  // The noticeboard cards at the top of a street, and the counter that makes
+  // them re-read. The aside's Noticeboard dialog pins to the SAME board, so
+  // the two share a signal or a pin leaves the street showing the old papers.
+  const [boardVersion, setBoardVersion] = useState(0);
+  const bumpBoard = useCallback(() => setBoardVersion((n) => n + 1), []);
+
+  // ---- What a slash command reaches for ----------------------------------
+  //
+  // Three of them end in something this component owns rather than in a
+  // server action: `/travel` picks a node in the aside's grid, `/converse`
+  // and `/decree` open dialogs. They are mounted HERE and not in the aside
+  // because on a phone the aside is not mounted at all.
+  const [travelPick, setTravelPick] = useState(null);
+  const [converseOn, setConverseOn] = useState(false);
+  const [decreeOn, setDecreeOn] = useState(false);
+  const onTravelPick = useCallback((locationId) => setTravelPick({ locationId, at: Date.now() }), []);
+  const onConverse = useCallback(() => setConverseOn(true), []);
+  const onDecree = useCallback(() => setDecreeOn(true), []);
+
+  // ONE readout for two doors: `/look <somebody>` resolves a name or a hood,
+  // the eye on a row resolves a SEQ — the server decides who said it, whether
+  // they were hooded at the time, and whether this reader may see the place
+  // (db/lib/examineRow.js), which is what lets the eye sit on a hooded line
+  // and answer for the hood worn when the words were said. Same dialog either
+  // way; two of them could never both be open anyway.
+  const [look, setLook] = useState(null);
+  const readLook = useCallback((run) => {
+    setLook({ loading: true });
+    run()
+      .then((res) => setLook(res?.ok ? { readout: res.readout } : { error: res?.error ?? "You can't see them." }))
+      .catch(() => setLook({ error: "You can't see them." }));
+  }, []);
+  const onLookUp = useCallback((ref) => readLook(() => lookAt(ref)), [readLook]);
+  const onLookRow = useCallback((seq) => (seq ? readLook(() => lookAtRow(seq)) : undefined), [readLook]);
+
+  // `/conceal` changes the name every row this composer writes will wear, and
+  // that name is a SERVER prop, so the page has to re-read itself.
+  const commandCtx = useMemo(
+    () => ({ travelTo: onTravelPick, converse: onConverse, lookAt: onLookUp, openDecree: onDecree, refresh }),
+    [onTravelPick, onConverse, onLookUp, onDecree, refresh],
+  );
+
+  // The ✉ menu. `birdSentToday` DISABLES rather than hides: it is a thing you
+  // have and have already used today, and saying so is better than a button
+  // that vanishes overnight.
+  const openAction = useRequestActions()?.open ?? null;
+  const lettersMenu = useMemo(() => {
+    if (!letters || !openAction) return [];
+    const rows = [];
+    if (letters.canWrite) rows.push({ mode: "write", label: "Write" });
+    if (letters.canSeal) rows.push({ mode: "seal", label: "Seal" });
+    if (letters.hasBird) {
+      rows.push({
+        mode: "bird",
+        label: letters.birdSentToday ? "Sent today" : "Send by bird",
+        disabled: Boolean(letters.birdSentToday),
+      });
+    }
+    if (letters.hasBirdReply) rows.push({ mode: "birdReply", label: "Answer a letter" });
+    return rows;
+  }, [letters, openAction]);
+
+  // Somebody is writing. Rate-limited to one ping per interval, never sent
+  // where this character cannot speak, and held for six seconds on the other
+  // end (../typingStore.js).
+  // The guest list for the open place, fetched ONCE here: the feed's strip
+  // draws it and `/remove`'s picker is the same list.
+  const members = usePlaceMembers(selected, placesVersion);
+  const lastTypedAt = useRef(0);
+  // The open place's rows, for the composer's slowmode: how long ago THIS
+  // character last spoke here is a fact about the feed, not about the box.
+  const rows = useFeed(selectedKey);
+  const onTyping = useCallback(() => {
+    if (!selectedKey || !selected?.canSpeak) return;
+    const now = Date.now();
+    if (now - lastTypedAt.current < TYPING_PING_MS) return;
+    lastTypedAt.current = now;
+    fetch("/api/feed/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place: selectedKey }),
+    }).catch(() => {});
+  }, [selectedKey, selected?.canSpeak]);
+  const onRetry = useCallback(
+    (clientId) => {
+      if (!selectedKey) return;
+      const row = retryPending(selectedKey, clientId);
+      if (row) void sayRef.current?.(clientId, row.content);
+    },
+    [selectedKey],
+  );
+
+  // The map, over the top of everything, and owned HERE rather than in the
+  // aside: the aside is placed twice below (the column and the drawer), and a
+  // Modal inside it would be two declarations of the same overlay.
+  //
+  // On a folded viewport it NAVIGATES instead of opening. A full-bleed board
+  // inside the drawer would be a dialog inside a dialog on the smallest
+  // screen there is, and /map is a real route precisely so the phone has
+  // somewhere to go.
+  const [mapOpen, setMapOpen] = useState(false);
+  const openMap = useCallback(() => {
+    setAsideOpen(false);
+    if (asideFolded) router.push("/map");
+    else setMapOpen(true);
+  }, [asideFolded, router]);
+
+  // Switching seats is a RELOAD, not a re-render: the server decides the
+  // whole page off the cookie this writes — which places exist, whether there
+  // is an `aside` at all — so nothing short of asking again is honest.
+  const onChangeViewAs = useCallback(
+    (mode) => {
+      if (!viewAs || mode === viewAs.mode) return;
+      setChatViewAs(mode)
+        .then((res) => {
+          if (res?.ok) window.location.reload();
+        })
+        .catch(() => {});
+    },
+    [viewAs],
+  );
+  const push = usePushState();
+  const stream = useStreamState();
+  useEffect(() => {
+    initPush();
+  }, []);
+  // Keeps the stored window in step with the store, coarsely. Sets no state
+  // of its own, which is what lets it live in an effect at all.
+  useEffect(() => startRowCache(), []);
+
+  // PREFETCH. After the first paint, every OTHER place's backlog is fetched
+  // one at a time, so opening a room is instant rather than a skeleton and a
+  // round trip. One at a time on purpose: firing six requests at once would
+  // compete with the thing the reader is actually looking at.
+  //
+  // NOT FOR A GM, AND NOT FOR A GHOST. A player's list is a Location, its
+  // rooms, their conversations and a summary — small enough to walk. A GM's
+  // is every zone, every Location and every Room they may watch, two hundred
+  // and more, each a findMany of a hundred rows plus an avatar pass. Warming
+  // a chat a GM will open one room of is a storm the database pays for and
+  // nobody sees. Even for a player it is CAPPED: past a dozen the warmth is
+  // not worth the requests.
+  useEffect(() => {
+    if (gm || ghost) return undefined;
+    let stopped = false;
+    let timer = null;
+    const queue = live
+      .map((entry) => entry.placeKey)
+      .filter(Boolean)
+      .slice(0, PREFETCH_LIMIT);
+
+    function step() {
+      if (stopped) return;
+      const next = queue.shift();
+      if (!next) return;
+      if (historyLoaded(next)) {
+        timer = setTimeout(step, 0);
+        return;
+      }
+      markHistoryLoading(next);
+      fetch(`/api/feed/history?place=${encodeURIComponent(next)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          // Landed rows are stored whatever happened to the queue. `stopped`
+          // only says "ask for no more" — reading it here left the place
+          // stuck on "loading" and its feed showing the skeleton for good.
+          if (data?.rows) seedRows(next, data.rows);
+          markHistoryLoaded(next);
+        })
+        .catch(() => markHistoryLoaded(next))
+        .finally(() => {
+          if (!stopped) timer = setTimeout(step, 0);
+        });
+    }
+
+    timer = setTimeout(step, 0);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [live, gm, ghost, gapNonce]);
+
+  // Letting somebody into the conversation or private room that is open. The
+  // list is re-read on success, which is what the members strip redraws off.
+  const addPlace =
+    selected && (selected.kind === "conv" || (selected.kind === "room" && selected.roomKind === "PRIVATE"))
+      ? { placeKey: selected.placeKey, name: selected.name }
+      : null;
+  const onAddMember = useCallback(
+    (ref) => {
+      if (!selectedKey || !ref) return Promise.resolve({ ok: false, error: "That place is gone." });
+      return addMember(selectedKey, ref)
+        .then((res) => {
+          bumpPlaces();
+          return res ?? { ok: false, error: "Something went wrong." };
+        })
+        .catch(() => ({ ok: false, error: "Could not reach the server. Nothing was changed." }));
+    },
+    [selectedKey, bumpPlaces],
+  );
+
+  const onMarkAllSeen = useCallback(
+    () => markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) }))),
+    [navPlaces, newest],
+  );
+
+  // The app's links, at the foot of the phone's drawer. The GM's zone picker
+  // does NOT ride here: it belongs to the right column, and that column has
+  // its own drawer to fold into.
+  const placesFoot =
+    narrow && navItems.length > 0 ? (
+      <nav className="chat-drawer-nav" aria-label="Main">
+        {navItems.map((item) => {
+          const Icon = ICONS[item.icon];
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="menu-item chat-drawer-item"
+              data-active={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "true" : "false"}
+            >
+              {Icon && <Icon aria-hidden="true" />}
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+        <form action={signOutOfDiscord}>
+          <button type="submit" className="menu-item chat-drawer-item">
+            <SignOutIcon aria-hidden="true" />
+            <span>Sign out</span>
+          </button>
+        </form>
+      </nav>
+    ) : null;
+
+  // Drawn ONCE and placed twice: the left column on a desktop, the ≡ drawer
+  // on a phone. Never both — mounting two would be two of every fetch under
+  // it.
+  const placesColumn = (
+    <PlacesColumn
+      places={navPlaces}
+      selected={selectedKey}
+      seen={seen}
+      notified={notified}
+      newest={newest}
+      onSelect={narrow ? onSelectFromDrawer : onSelect}
+      viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}
+      push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
+      onMarkAllSeen={onMarkAllSeen}
+      foot={placesFoot}
+    />
+  );
+
+  // What the head's two phone buttons say: a dot on ≡ when some OTHER place
+  // has something unread, and the count of people standing here on the other.
+  const unreadElsewhere = navPlaces.some(
+    (place) => place.placeKey !== selectedKey && isUnread(seen, place.placeKey, newest(place)),
+  );
+  // Null in the GM seat, deliberately: a GM's people list is fetched by the
+  // right column off whichever place is open, so this component genuinely
+  // does not know the number, and the button opens without a badge rather
+  // than lifting that fetch up here for one digit.
+  const hereCount = aside ? (aside.people?.named?.length ?? 0) + (aside.people?.concealed?.length ?? 0) : null;
+  const drawers = {
+    onOpenPlaces: narrow ? openPlaces : null,
+    onOpenAside: (aside || gmZones) && asideFolded ? openAside : null,
+    unreadElsewhere,
+    hereCount,
+  };
+  // The drawer titles are where the app header's turn chip went: the header
+  // is hidden on a phone to give the scene its 60px back.
+  const placesTitle =
+    [aside?.zone?.name ?? (gm ? "Gamemaster" : null), describeTurn(aside?.turn ?? null).label]
+      .filter(Boolean)
+      .join(" · ") || "Places";
+  const worldPlace = selected && ["loc", "room", "zone"].includes(selected.kind);
+  const asideTitle =
+    [selected?.name, worldPlace && aside?.zone?.name !== selected?.name ? aside?.zone?.name : null]
+      .filter(Boolean)
+      .join(" · ") || "Here";
+  const asidePane = aside ? (
+    <ChatAside
+              {...aside}
+              selected={selected}
+              onOpenMap={openMap}
+              onPlaceChanged={bumpBoard}
+              travelPick={travelPick}
+              addPlace={addPlace}
+              onAddMember={onAddMember}
+            />
+  ) : gmZones ? (
+    <GmAside selected={selected} gmZones={gmZones} />
+  ) : null;
+
+  return (
+    <div className="chat-shell" data-chat-next>
+      <div className="chat-body">
+        {!narrow && placesColumn}
+
+        {/* The rails are real grid tracks, not pseudo-elements pinned to a
+            column's width — a flank can fold at a breakpoint without two more
+            numbers keeping a rail in step. Each is drawn only beside the
+            column it borders, on the same condition that column mounts. */}
+        {!narrow && <div className="chat-rail" aria-hidden="true" />}
+
+        <div className="chat-centre" ref={centreRef}>
+          <ChatHead
+            name={selected?.name ?? null}
+            crumb={[aside?.zone?.name, aside?.place?.name].filter((n) => n && n !== selected?.name)}
+            {...drawers}
+            trailing={
+              <IconButton
+                icon={SearchIcon}
+                label="Search what was said"
+                size={narrow ? "lg" : "sm"}
+                aria-expanded={searchOpen}
+                onClick={() => setSearchOpen((was) => !was)}
+              />
+            }
+          />
+          {/* The stream is down. HERE rather than in the feed or a column
+              foot: this row is on screen whichever pane is open, and the
+              phone is where a connection drops most — every screen lock. The
+              first drop says nothing (../streamStore.js). */}
+          {stream === "retrying" && (
+            <p className="chat-quiet-line" role="status">
+              Reconnecting…
+            </p>
+          )}
+          {stream === "fatal" && (
+            <p className="chat-quiet-line" role="status">
+              The connection dropped. Reload to catch up.
+            </p>
+          )}
+          {isDm ? (
+            <DmPane self={self} />
+          ) : (
+            <>
+              <Feed
+                place={selected}
+            self={self}
+            gm={gm}
+            ghost={ghost}
+            hasCamera={hasCamera}
+            speakers={speakers}
+                members={members}
+                readOnly={Boolean(selected?.vantage)}
+                onRetry={onRetry}
+                publishEdit={publishEdit}
+                onLookRow={onLookRow}
+                searchOpen={searchOpen}
+                onCloseSearch={closeSearch}
+                jump={jump}
+                onJump={onJump}
+                // Only in the STREET, and only where there is a board to read:
+                // a room, a conversation and the zone summary have none, and
+                // a street you are only WATCHING is not one you can walk up
+                // to and put your hands on (db/lib/vantages.js).
+                notices={
+                  aside?.hasBoard && selected?.kind === "loc" && !selected?.vantage ? (
+                    <NoticeCards version={boardVersion} onChanged={bumpBoard} />
+                  ) : null
+                }
+              />
+              {/* A GM in the GM seat, reading a place they cannot speak in:
+                  a system line, the web twin of Discord's /gm. Minimal on
+                  the SPEAKING side — no character, no hood, no slowmode, no
+                  pending queue — but the `/` line is the player's own, minus
+                  the entries that need a body standing somewhere. */}
+              {gm && selected && !selected.canSpeak && !selected.vantage ? (
+                <GmSystemComposer
+                  key={selectedKey}
+                  placeKey={selectedKey}
+                  placeKind={selected.kind}
+                  placeName={selected.name}
+                  hasCharacter={Boolean(viewAs)}
+                  people={aside?.people ?? null}
+                  members={members.data?.members ?? []}
+                  ctx={commandCtx}
+                />
+              ) : (
+              <Composer
+                place={selected}
+                self={self}
+                gm={gm}
+                roster={roster}
+                rows={rows}
+                ctx={commandCtx}
+                lettersMenu={lettersMenu}
+                openAction={openAction}
+                onTyping={onTyping}
+                autocorrect={autocorrect}
+                concealed={Boolean(conceal?.concealed)}
+                alias={conceal?.alias ?? null}
+                editRef={editRef}
+                people={aside?.people ?? null}
+                members={members.data?.members ?? []}
+                publishSay={publishSay}
+              />
+              )}
+            </>
+          )}
+        </div>
+
+        {asidePane && !asideFolded && <div className="chat-rail" aria-hidden="true" />}
+
+        {/* ONE of these ever mounts. The CSS hides the column under 900px,
+            but hiding is not unmounting: two live copies meant two travel
+            loads, two stash reads, and two separate answers about what can be
+            worked here. The pane inside carries the OPEN place, so the room
+            block draws THIS room's storage and fixtures — the whole reason
+            the Council Room's Intercom used to show up in the Kitchens. */}
+        {asidePane && !asideFolded && (
+          <aside className="chat-aside" aria-label={aside ? "You" : "This place"}>
+            {asidePane}
+          </aside>
+        )}
+      </div>
+
+      {narrow && placesOpen && (
+        <Modal open title={placesTitle} onClose={closePlaces} panelClassName="modal-panel chat-drawer chat-drawer--left">
+          <DrawerBody onSwipeClose={closePlaces} side="left">
+            {placesColumn}
+          </DrawerBody>
+        </Modal>
+      )}
+      {asidePane && asideFolded && asideOpen && (
+        <Modal open title={asideTitle} onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
+          <DrawerBody onSwipeClose={closeAside} side="right">
+            {asidePane}
+          </DrawerBody>
+        </Modal>
+      )}
+      {/* `/converse` from the composer — the SAME dialog the right column's
+          Converse opens, mounted here because on a phone that column is not
+          on the page at all. */}
+      {aside && converseOn && (
+        <ConverseDialog
+          onClose={() => setConverseOn(false)}
+          onDone={() => {
+            setConverseOn(false);
+            refresh();
+          }}
+        />
+      )}
+      {/* `/decree`, GM only. commands.js never offers a player the entry, so
+          this gate is belt and braces — but the dialog carries none of its
+          own, which is what makes it the one that matters. */}
+      {gm && decreeOn && <DecreeDialog onClose={() => setDecreeOn(false)} />}
+      {look && <LookReadout state={look} onClose={() => setLook(null)} />}
+      {mapOpen && (
+        <Modal open title="Map" onClose={() => setMapOpen(false)} panelClassName="modal-panel map-panel">
+          <MapBoard onClose={() => setMapOpen(false)} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// A drawer closes the way it opened. The Modal already gives Escape, the
+// backdrop and the ✕; this adds the gesture, in the direction that put it
+// there.
+function DrawerBody({ side, onSwipeClose, children }) {
+  const ref = useRef(null);
+  useSwipeOpen(ref, side === "left" ? { onLeft: onSwipeClose } : { onRight: onSwipeClose });
+  return (
+    <div ref={ref} className="chat-drawer-body">
+      {children}
+    </div>
+  );
+}

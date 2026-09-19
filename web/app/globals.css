@@ -36,13 +36,25 @@
 
 :root {
   /* Type scale — the tool half of the look (REDESIGN.md §3): a plain system
-     face at 13px, 12px in tables and chips, headings the same face barely
-     larger. The old 15px-anchored modular scale is gone; the names stay so
-     the ~200 call sites and the Tailwind bridge below keep working. */
+     face at 12px, 11px in tables and chips, headings the same face a good
+     deal larger. The old 15px-anchored modular scale is gone; the names stay
+     so the ~200 call sites and the Tailwind bridge below keep working.
+
+     Body was 13 and the rungs under it 12/11 until the two mockups were read
+     side by side: both draw body at 12 (docs/design/mockups/chat/index.html
+     and .../character/index.html), and the whole app had drifted one step
+     above them. The HEADINGS deliberately did not come down with it — they
+     stay at 15/16/18, so the jump off body text is wider here than either
+     mockup draws, which is the point. */
+  /* The bottom rung, and the only one the chat mockup draws: the girder caps
+     on .bar/.sect/.zone-div/.crumb. Never prose, never a phone. It exists
+     rather than re-pointing --fs-2xs because sheet.css spends --fs-2xs on the
+     CHARACTER mockup's own micro-labels, which that mockup draws at 11. */
+  --fs-3xs: 0.625rem; /* 10px — girder caps */
   --fs-2xs: 0.6875rem; /* 11px — micro-captions */
-  --fs-xs: 0.75rem; /* 12px — tables, chips, field labels, buttons */
-  --fs-sm: 0.8125rem; /* 13px — dense table body */
-  --fs-base: 0.8125rem; /* 13px — BODY */
+  --fs-xs: 0.6875rem; /* 11px — tables, chips, field labels, buttons */
+  --fs-sm: 0.75rem; /* 12px — dense table body */
+  --fs-base: 0.75rem; /* 12px — BODY, both mockups' own figure */
   --fs-md: 0.875rem; /* 14px — lead paragraphs */
   --fs-lg: 0.9375rem; /* 15px — h3 / panel titles */
   --fs-xl: 1rem; /* 16px — h2 */
@@ -128,11 +140,16 @@
   :root {
     --fs-base: 0.875rem; /* 14px */
     --fs-sm: 0.875rem;
+    /* Both rungs under body drop a step on the desktop scale, so both are
+       restated here — left alone, an 11px label under a 14px body reads as
+       a different page's type. --fs-2xs is already 11 and needs nothing. */
+    --fs-xs: 0.75rem; /* 12px */
+    --fs-3xs: 0.6875rem; /* 11px */
     --fs-3xl: 1.75rem; /* 28px */
   }
 
   /* iOS zooms a focused control under 16px. The chat composer already does
-     this; every other control needs it now that the body face is 13px. */
+     this; every other control needs it now that the body face is 12px. */
   .field input,
   .field textarea,
   .field select,
@@ -169,6 +186,19 @@
   --border-hi: #c9a17f;
   --border-lo: #0b0907;
 
+  /* Between the two: struck brass rather than a lamp on it. The chat mockup's
+     own --rivet, and the one edge --border-hi is too bright for — it marks
+     the place you are standing in down the left of the places column, where a
+     lamp line would read as an alarm. A RULE colour, never text. */
+  --rivet: #6b5c40;
+
+  /* A zone's own mark down the places column. The chat mockup's own gold.
+     It exists because the divider had been borrowing --warning, which is a
+     STATUS colour — a heading that is only ever decorative was wearing the
+     same ink as an actual warning, for no reason but that no gold text token
+     existed. A text colour, and it owes AA like any other. */
+  --zone-ink: #c9a85c;
+
   /* The "well" — a slot with nothing in it. The mockup draws an empty cell
      as a recessed pit, not a lighter box: a darker ground than --field-bg,
      a dashed edge, and dimmer text than --muted. It never hoists these to
@@ -182,8 +212,13 @@
   --text: #b3ada2;
   /* A heading's own lift off body text — the mockup draws h1/h2/h3 and
      .panel-header a shade brighter than a paragraph, not the same colour, so
-     a panel title reads as a title. Its own value, taken as written. */
-  --text-hi: #c6bfb2;
+     a panel title reads as a title.
+
+     Raised from the character mockup's #c6bfb2 to the value the CHAT mockup
+     gives its own --bone-hi. The two mockups disagree on this one colour, and
+     with body text at 12px the lift has more work to do than it did at 13.
+     Measures 11.19 on --surface. */
+  --text-hi: #cfc9bb;
   --muted: #7d776c;
 
   /* Dried blood, the mockup's own values exactly. --accent is a FILL and a
@@ -235,12 +270,13 @@
      names "translucent black wash", so this is new. */
   --sunk-wash: rgba(0, 0, 0, 0.3);
 
-  /* The veil over the log's own texture tile (REDESIGN.md §3). chatbg.png
-     runs at about 0.6 in the chat log against 0.25 everywhere else, and an
-     element with text in it has no opacity to set — so the strength is this
-     much of the ground laid back over the tile. 0.40 of the ground leaves
-     the tile reading at 0.60. */
-  --feed-veil: rgba(14, 12, 9, 0.4);
+  /* The deeper of the two washes, and it has to be its own value rather than
+     --sunk-wash applied twice. A .block sits INSIDE an already-washed column,
+     where 0.30 over 0.30 composites to 0.51; the decree block (.tline--block)
+     sits in the centre column, which carries no wash at all, so layering
+     reaches 0.00 there. Neither is 0.42, which is the mockup's own figure for
+     both. */
+  --sunk-wash-deep: rgba(0, 0, 0, 0.42);
 
   /* The scroll-fade's shadow layer (below, "the fade cue that replaces the
      scrollbar"). Plain black at any reasonable opacity does nothing on this
@@ -456,8 +492,10 @@ h3 {
    z-index: -1, not 0. A fixed positioned layer at z-index 0 paints ABOVE the
    in-flow content below it, which was harmless at the old 0.025 turbulence and
    would put a visible film over every page at 0.35. Negative pulls the layer
-   behind the content and above the canvas. Panels are opaque --surface, so the
-   texture shows in the gutters, exactly as the mockup draws it. */
+   behind the content and above the canvas. A panel is a translucent wash over
+   this now rather than an opaque fill, so the texture reads THROUGH a panel as
+   well as in the gutters, darker inside it — which is what makes a panel look
+   cut into the ground instead of laid on top of it. */
 .grain {
   position: fixed;
   inset: 0;
@@ -478,14 +516,24 @@ body:has(.chat-shell) .grain {
   display: none;
 }
 
-/* The ground. 0.35 app-wide, the mockup's own figure (REDESIGN.md §3); the
-   chat log takes it stronger, and that is phase 4's job, not this rule's. The
+/* The ground, and ONE ground: the same tile at the same strength the chat log
+   draws it at, so the app and the page people stare at longest finally stand
+   on the same thing. The
    tile is 512x512 and is drawn at 1:1 — sprites scale at integer multiples
    only. There is no vignette over this any more: the mockup draws none, and
    the radial gradient this app used to lay on top was the only saturated
    thing on the page eating itself back to grey. */
 .grain {
-  opacity: 0.35;
+  /* FULL STRENGTH, and it has to be. This is the same tile `.chat-feed` draws
+     at 1.0, so at 0.35 the rest of the app stood on a different, paler ground
+     than the one page everybody looks at longest. More than a mismatch: a
+     panel is sunk into this ground now, and how far it reads as sunk is set
+     by how lit the ground is. At 0.35 a panel separates by 1.065 no matter
+     how black it goes — pure black tops out at 1.107. At 1.0 the same panel
+     measures 1.16, which is chat's own figure.
+     If this ever wants dialling back, it is this one number, and the
+     separation figures above move with it. */
+  opacity: 1;
   background-image: url("/assets/chrome/chatbg.png");
   background-repeat: repeat;
   background-size: 512px 512px;
@@ -508,8 +556,23 @@ body:has(.chat-shell) .grain {
    a `padding` here would silently beat the p-* the call sites pass rather than
    losing to it. */
 .panel {
+  /* A PANEL IS CUT INTO THE GROUND, not stacked on it (§2, the ladder note).
+     It sat on --surface, which is lighter than --bg, and measured 1.028
+     against the ground a page actually shows — the grain-lit #13100a, not the
+     bare --bg the audit compares against. 1.028 is no separation at all, and
+     it is why every container in this app read as drab.
+
+     Sunk, on a ground carrying its full texture, the same figure is 1.16:
+     the number the chat feed already gets beside its own washed columns.
+     Lightening the panel instead was tried on paper and is strictly worse —
+     it costs text contrast, dropping --muted to 3.79 and --blackletter to
+     2.02, both under their floors. Darkening gains it.
+
+     --surface has NOT moved. It still means "raised", and the things that
+     genuinely float still take it: modals, popovers, tooltips, sticky table
+     heads, chips, paper, a filled cell. Two vocabularies, both real. */
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-radius: var(--r);
   padding: 8px;
 }
@@ -536,11 +599,20 @@ body:has(.chat-shell) .grain {
   gap: var(--sp-2);
   margin: 0 0 var(--sp-1);
   padding-bottom: 4px;
+  /* A bevelled rule, not a thicker grey one: a lit hairline with a black one
+     under it, the same idiom .btn and .field already use for an edge. Two 1px
+     lines read as struck metal where one 2px line reads as a heavier border. */
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--border-lo);
   font-family: var(--font-serif);
   font-size: var(--fs-lg);
   font-weight: 700;
   line-height: var(--lh-heading);
+  /* Small caps. A panel title is a label on a fixture, not a sentence — and
+     with body text at 12px the old treatment (same face, same case, one shade
+     brighter) left a panel reading as an unbroken column of prose. */
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
   color: var(--text-hi);
 }
 
@@ -548,6 +620,12 @@ body:has(.chat-shell) .grain {
   font-family: var(--font-sans);
   font-size: var(--fs-xs);
   font-weight: normal;
+  /* The note is a sentence standing beside the title, not part of it, so the
+     small caps above stop here. Every non-heading child of a .panel-header in
+     this app carries .note — a status pill, a quiet button, a plain span — so
+     this one reset is what keeps any of them from being shouted. */
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--muted);
 }
 
@@ -567,7 +645,10 @@ body:has(.chat-shell) .grain {
   align-items: baseline;
   gap: var(--sp-2);
   padding-bottom: 4px;
+  /* The row owns the rule when a control stands beside the title, so it
+     carries the bevel under it too. */
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--border-lo);
 }
 
 .panel-header-row .panel-header {
@@ -575,6 +656,8 @@ body:has(.chat-shell) .grain {
   margin: 0;
   padding-bottom: 0;
   border-bottom: none;
+  /* ...and the title inside it draws neither, or the seam is doubled. */
+  box-shadow: none;
 }
 
 /* The desk's column heads no longer wear the sprite strip either (see the
@@ -1508,7 +1591,7 @@ input[type="radio"]:disabled {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
 }
 
 .archive-day {
@@ -1534,7 +1617,7 @@ input[type="radio"]:disabled {
   align-items: baseline;
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-left: 3px solid var(--border);
   font-size: var(--fs-2xs);
   letter-spacing: 0.06em;
@@ -4181,7 +4264,7 @@ body:has(.map-shell) .app-shell {
 /* The desk card is a .panel-shaped surface without adopting .panel's role as
    a page-flow card — it fills the column. */
 .desk-card {
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border: 1px solid var(--border);
   border-radius: 0;
   padding: 1rem;
@@ -4773,7 +4856,7 @@ label.chip {
   top: 0;
   z-index: 1;
   padding: var(--sp-2) var(--sp-3);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-bottom: 1px solid var(--border);
   font-size: var(--fs-2xs);
   letter-spacing: 0.08em;
@@ -4903,7 +4986,7 @@ label.chip {
   flex-direction: column;
   gap: var(--sp-2);
   padding: var(--sp-3);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
   border-bottom: 1px solid var(--border);
 }
 
@@ -4993,7 +5076,7 @@ label.chip {
    bottom edge. Capped so it never swallows the desk. */
 .desk-tray {
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
 }
 
 .desk-tray-bar {
@@ -5201,7 +5284,7 @@ label.chip {
   gap: 0.375rem;
   padding: 0.625rem 1rem 0.75rem;
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--sunk-wash-deep);
 }
 
 /* The box itself: a textarea that grows with the draft (ConversationPane's
@@ -6581,6 +6664,9 @@ label.chip {
   position: absolute;
   top: var(--sp-2);
   left: var(--sp-2);
+  /* Opaque, and NOT the sunk wash the page containers take: this floats
+     over the map canvas, so a translucent ground would show terrain through
+     the control. Same reasoning as a tooltip. */
   background: var(--surface);
 }
 
@@ -6594,6 +6680,9 @@ label.chip {
   padding: 2px var(--sp-2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
+  /* Opaque, and NOT the sunk wash the page containers take: this floats
+     over the map canvas, so a translucent ground would show terrain through
+     the control. Same reasoning as a tooltip. */
   background: var(--surface);
 }
 

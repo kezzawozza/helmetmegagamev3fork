@@ -1,0 +1,321 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
+import EmptyState from "@/app/components/EmptyState";
+import GmZoneRail from "@/app/components/GmZoneRail";
+import DevPanelModal, { prefetchDevPanel } from "@/app/components/DevPanelModal";
+import TagChip from "@/app/components/TagChip";
+import PlaceCard from "../PlaceCard";
+import GmPlaceBox from "../GmPlaceBox";
+import { useAsideTab } from "../asideTabStore";
+import { setPlaces } from "../feedStore";
+import { gmPlaceView } from "../actions";
+
+// THE GM's RIGHT COLUMN, rebuilt (CHAT-REBUILD.md phase 6).
+//
+// SAME SHAPE as the player's on purpose, which is the rule it already
+// followed (CHAT.md §8) and the reason it is rebuilt in the same beat: the
+// player's column now heads every framed section with a girder, so this one
+// does too. What was a `.chat-card` with a `.chat-section-title` inside it is
+// a `.block` with an `h3.bar` over it — the same readouts, named the same
+// words, on the vocabulary's own container (chat-vocabulary.md §1, §4).
+//
+// The TAB STRIP stays. It is on the feature checklist, and it is doing real
+// work here that it was not doing on the player's column: a GM's Place tab
+// alone can run to every room in a Location with every room's stash under it,
+// and four of those stacked is a column nobody reaches the bottom of.
+//
+// Everything else is ../GmAside.js's, unchanged: the one server action, the
+// stamped answer that refuses to render under the wrong name, the zone rail's
+// refresh and why it has to fetch rather than trust a revalidate.
+
+// A room's contents, as chips — shared by Place and Room tabs. Real TagChips,
+// same as the player's column; unlike the player's, nothing here is a button.
+function Things({ things, resources }) {
+  if (!things?.length && !resources) return <p className="chat-quiet-line">Empty.</p>;
+  return (
+    <div className="chip-row">
+      {resources > 0 && <span className="chip mono">{resources} ⬢</span>}
+      {things.map((thing) => (
+        <TagChip key={thing.tagId} tag={thing.tag} quantity={thing.quantity} />
+      ))}
+    </div>
+  );
+}
+
+// The player's HereList is not reused on purpose: its menu is request dialogs
+// (heal, loot, bind) a GM has no body to do. A name opens the Dev Panel instead.
+// Every row is real — a hood hides somebody from the room, not the host, so
+// a hooded person reads as what the room sees with the name behind it in
+// brackets: "a young man (Greeblus)". Same form the scene beside this column
+// prints on a hooded line (Feed.js), and the one /archive has always used.
+// It used to be the real name with "showing as a young man" on a second quiet
+// line under it, which read as two people until you looked twice.
+function GmHereList({ people, onOpen }) {
+  if (!people?.length) return <EmptyState>Nobody is standing here.</EmptyState>;
+  return (
+    <div className="chat-here">
+      {people.map((person) => (
+        <div key={person.characterId} className="chat-person-row">
+          <button
+            type="button"
+            className="chat-person"
+            onPointerDown={() => prefetchDevPanel(person.characterId)}
+            onClick={() => onOpen(person.characterId)}
+          >
+            <span className="chat-person-name">
+              <CharacterAvatar
+                characterId={person.characterId}
+                name={person.name}
+                version={person.avatarVersion}
+                online={person.online}
+              />
+              {person.presentedAs ? `${person.presentedAs} (${person.name})` : person.name}
+              {person.online ? <span className="chat-quiet-line"> · online</span> : null}
+            </span>
+            {person.roleTitle && <span className="chat-quiet-line">{person.roleTitle}</span>}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function GmAside({ selected, gmZones }) {
+  const placeKey = selected?.placeKey ?? null;
+  // The left column, re-read after the zone picker has been answered. Silent
+  // on a failure: the picker has already said whether the write landed, and a
+  // second complaint about the same click helps nobody.
+  const refreshPlaces = useCallback(async () => {
+    try {
+      const res = await fetch("/api/feed/places", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data?.places)) setPlaces(data.places);
+    } catch {
+      // Same.
+    }
+  }, []);
+  // Answer is STAMPED with the place asked about, so a slow reply for a place
+  // already clicked past renders for nobody rather than under the wrong name.
+  const [view, setView] = useState(null);
+  const [open, setOpen] = useState(null);
+
+  const load = useCallback(() => {
+    if (!placeKey) return undefined;
+    let cancelled = false;
+    gmPlaceView(placeKey)
+      .then((res) => {
+        if (!cancelled) setView({ placeKey, ...res });
+      })
+      .catch(() => {
+        if (!cancelled) setView({ placeKey, ok: false, error: "Couldn't see in there." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [placeKey]);
+
+  useEffect(() => load(), [load]);
+
+  const fresh = view?.placeKey === placeKey ? view : null;
+  const kind = fresh?.ok ? fresh.kind : null;
+
+  // A zone summary or radio net has no Location, so gets neither Room nor Travel.
+  const placed = kind === "loc" || kind === "room" || kind === "conv";
+  const tabs = [
+    (placed || kind === "zone") && { id: "place", label: "Place" },
+    kind === "room" && { id: "room", label: "Room" },
+    placed && { id: "travel", label: "Travel" },
+    { id: "gm", label: "GM" },
+  ].filter(Boolean);
+  const [openTab, setOpenTab] = useAsideTab(
+    tabs.map((tab) => tab.id),
+    placed || kind === "zone" ? "place" : "gm",
+  );
+
+  return (
+    <div className="chat-aside-tabs">
+      <div className="tab-bar" role="tablist" aria-label="This place">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={`chat-aside-tab-${tab.id}`}
+            aria-selected={openTab === tab.id}
+            aria-controls={`chat-panel-${tab.id}`}
+            className="tab-item"
+            data-active={openTab === tab.id ? "true" : undefined}
+            onClick={() => setOpenTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className="chat-aside-panel"
+        role="tabpanel"
+        id={`chat-panel-${openTab}`}
+        aria-labelledby={`chat-aside-tab-${openTab}`}
+      >
+        {fresh && !fresh.ok && <EmptyState>{fresh.error}</EmptyState>}
+
+        {/* A zone summary: the zone and its Locations, not people or stash. */}
+        {openTab === "place" && fresh?.ok && kind === "zone" && (
+          <>
+            <section className="block">
+              <h3 className="bar">{fresh.zone.name}</h3>
+              <div className="body chat-card-text">
+                <p>{fresh.zone.description || "Nothing is written about this part of the world."}</p>
+              </div>
+            </section>
+            <section className="block">
+              <h3 className="bar">Locations · {fresh.locations.length}</h3>
+              <div className="body chip-row">
+                {fresh.locations.map((location) => (
+                  <span key={location.id} className="chip">
+                    {location.name}
+                  </span>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {openTab === "place" && fresh?.ok && placed && (
+          <>
+            <section className="block">
+              <h3 className="bar">Here · {fresh.people?.length ?? 0}</h3>
+              <div className="body">
+                <GmHereList people={fresh.people} onOpen={setOpen} />
+              </div>
+            </section>
+            {/* The player's own card, unchanged; `fixtures`/`onFixture` omitted
+                since those buttons need a body standing there. showTitle false
+                because the block's head already says the name. */}
+            <section className="block">
+              <h3 className="bar">{fresh.place?.name ?? "Place"}</h3>
+              <div className="body">
+                <PlaceCard place={fresh.place} zone={fresh.zone} lines={fresh.lines} showTitle={false} />
+              </div>
+            </section>
+
+            {fresh.members && (
+              <section className="block">
+                <h3 className="bar">In this conversation · {fresh.members.length}</h3>
+                <div className="body chip-row">
+                  {fresh.members.map((member) => (
+                    <span key={member.characterId} className="chip">
+                      {member.name}
+                      {member.presentedAs ? ` (${member.presentedAs})` : ""}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {fresh.structures.length > 0 && (
+              <section className="block">
+                <h3 className="bar">Standing here</h3>
+                <div className="body">
+                  {fresh.structures.map((structure) => (
+                    <p key={structure.id} className="chat-quiet-line">
+                      {structure.name} — {structure.status === "COMPLETE" ? "finished" : structure.status === "RUINED" ? "ruined" : `${structure.turnsDone}/${structure.turnsNeeded} built`}
+                    </p>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {fresh.rooms.length > 0 && (
+              <section className="block chat-room">
+                <h3 className="bar">Rooms · {fresh.rooms.length}</h3>
+                <div className="body">
+                {fresh.rooms.map((room) => (
+                  <div key={room.id} className="chat-card-text">
+                    <p>
+                      {room.name}
+                      {room.private ? " ▪" : ""}
+                    </p>
+                    {room.keys.length > 0 && (
+                      <p className="chat-quiet-line">opened by {room.keys.join(", ")}</p>
+                    )}
+                    <Things things={room.things} resources={room.resources} />
+                  </div>
+                ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {openTab === "room" && fresh?.ok && fresh.openRoom && (
+          <section className="block chat-room">
+            <h3 className="bar">{fresh.openRoom.name}</h3>
+            <div className="body">
+              {fresh.openRoom.keys.length > 0 && (
+                <p className="chat-quiet-line">opened by {fresh.openRoom.keys.join(", ")}</p>
+              )}
+              <Things things={fresh.openRoom.things} resources={fresh.openRoom.resources} />
+              {fresh.openRoom.fixtures.length > 0 && (
+                <p className="chat-quiet-line">
+                  On the wall: {fresh.openRoom.fixtures.map((f) => f.label).join(", ")}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {openTab === "travel" && fresh?.ok && (
+          <section className="block chat-travel">
+            <h3 className="bar">Ways out · {fresh.ways.length}</h3>
+            <div className="body">
+              {fresh.ways.length === 0 ? (
+                <EmptyState>Nowhere from here.</EmptyState>
+              ) : (
+                fresh.ways.map((way) => (
+                  <p key={way.linkId} className="chat-card-text">
+                    {way.farName}
+                    <span className="chat-quiet-line">
+                      {way.modular ? (way.isOpen ? " · open" : " · shut") : ""}
+                      {way.keyed ? (way.held ? " · keyed, held open" : " · keyed") : ""}
+                    </span>
+                  </p>
+                ))
+              )}
+            </div>
+          </section>
+        )}
+
+        {openTab === "gm" && <GmPlaceBox selected={selected} />}
+      </div>
+
+      {/* Bottom-pinned by .chat-aside-tabs > .desk-inspector-zones.
+
+          onSaved re-reads the place list, and that is not belt and braces: the
+          zones a GM picks DO filter every server path (db/lib/feedAccess.js's
+          gmPlacesFor, which both /api/feed/places and the stream go through),
+          but nothing pushes the new list at a tab that is already open. A GM's
+          stream carries no character, so it never subscribes to presence and
+          announces its places exactly once, at open; and Chat.js prefers the
+          streamed list over its server props, so the revalidatePath in
+          zoneViewActions.js cannot reach a mounted column either. So the click
+          fetches the list itself. The stream stays SUBSCRIBED to the old
+          zones' places until it reconnects — rows from a zone just unticked
+          can still arrive until then, which is worth fixing in the hub one
+          day. */}
+      {gmZones && (
+        <GmZoneRail
+          zones={gmZones.selectable}
+          selectedIds={gmZones.selectedIds}
+          onSaved={refreshPlaces}
+        />
+      )}
+
+      {open && <DevPanelModal characterId={open} onClose={() => setOpen(null)} />}
+    </div>
+  );
+}

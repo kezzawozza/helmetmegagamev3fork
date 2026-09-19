@@ -58,6 +58,10 @@ export default function PlaceCard({
   // a character with nowhere on it yet is told so by the board itself.
   onOpenMap = null,
   pending = false,
+  // False where the container already names the place — the rebuilt aside
+  // heads this block with the Location's own name (next/ChatAside.js), and
+  // the name printed twice, once in caps and once not, read as a mistake.
+  showTitle = true,
 }) {
   const [side, setSide] = useState("place");
 
@@ -68,8 +72,8 @@ export default function PlaceCard({
 
   return (
     <div className="chat-card">
-      <p className="group-label chat-section-title">{place?.name ?? "Here"}</p>
-      {zone?.name && <p className="chat-quiet-line">{zone.name}</p>}
+      {showTitle && <p className="group-label chat-section-title">{place?.name ?? "Here"}</p>}
+      {showTitle && zone?.name && <p className="chat-quiet-line">{zone.name}</p>}
 
       <div className="chip-row" role="radiogroup" aria-label="What you are reading">
         {SIDES.map((entry) => (
