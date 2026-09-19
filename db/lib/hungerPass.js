@@ -18,6 +18,7 @@ const {
 const { expiryFrom } = require("./turnFormat");
 const { applyMood } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
+const { logBatchSystemTagChange } = require("./tagAudit");
 const {
   HUNGER_MAX,
   HUNGER_DECAY_PER_TURN,
@@ -39,7 +40,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
         in: [HUNGER_SLUG, STARVING_SLUG, HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, DYING_SLUG],
       },
     },
-    select: { id: true, slug: true, defaultDurationTurns: true },
+    select: { id: true, slug: true, name: true, defaultDurationTurns: true },
   });
 
   const hungryTag = tags.find((t) => t.slug === HUNGER_SLUG);
@@ -59,7 +60,8 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
       `Hunger pass: no "${FAST_METABOLISM_SLUG}" tag — run npm run db:sync-tags. Everyone decays at the flat rate.`,
     );
   }
-  const dyingId = tags.find((t) => t.slug === DYING_SLUG)?.id ?? null;
+  const dyingTag = tags.find((t) => t.slug === DYING_SLUG) ?? null;
+  const dyingId = dyingTag?.id ?? null;
   if (!dyingId) {
     console.error(`Hunger pass: no "${DYING_SLUG}" tag — run npm run db:sync-tags. Starving to death won't grant it.`);
   }
@@ -247,6 +249,18 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
         ]
       : []),
   ]);
+
+  // One summary row per grant/drop kind this pass actually moved — never one
+  // per character, or a roster-wide band shift would flood /gm/audit.
+  await Promise.all([
+    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: hungryGrantIds, tagId: hungryTag.id, tagName: hungryTag.name, op: "add" }),
+    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: hungryDropIds, tagId: hungryTag.id, tagName: hungryTag.name, op: "remove" }),
+    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: starvingGrantIds, tagId: starvingTag.id, tagName: starvingTag.name, op: "add" }),
+    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: starvingDropIds, tagId: starvingTag.id, tagName: starvingTag.name, op: "remove" }),
+    ...(newlyDyingIds.length && dyingTag
+      ? [logBatchSystemTagChange(prisma, { system: "hunger", characterIds: newlyDyingIds, tagId: dyingTag.id, tagName: dyingTag.name, op: "add" })]
+      : []),
+  ]).catch((err) => console.error("Hunger pass: tag-change audit failed:", err.message ?? err));
 
   // Starving to death's door is frightening (docs/systemdocs/MOOD.md). These
   // ride after the transaction, the same pattern the old pass used for its

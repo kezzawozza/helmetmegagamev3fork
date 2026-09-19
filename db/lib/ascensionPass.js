@@ -85,6 +85,7 @@ async function runAscensionPass(prisma, turn) {
       turn,
       gib: true,
       content: `${character.name} burned with Ravenheart.`,
+      cause: { kind: "system", system: "ascension" },
     });
     if (!claimed) continue;
     deaths.push({

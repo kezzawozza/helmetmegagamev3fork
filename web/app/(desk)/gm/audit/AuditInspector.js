@@ -27,6 +27,14 @@ const LINKS = {
   tagId: () => "/gm/dev?s=tags",
   discordUserId: (v) => `/gm/players/${v}`,
   targetDiscordUserId: (v) => `/gm/players/${v}`,
+  // "View gambit" on a gm_staged_tag_applied row. Deliberately routed through
+  // the self-correcting history lens rather than actionId's `sel=move/${v}` —
+  // a tag-audit row is by nature read well after the fact, once the Move's
+  // turn has usually already closed and the live desk no longer has it.
+  gambitId: (v) => `/gm/turns?sel=history/${v}`,
+  gambitCharacterId: (v) => `/gm/dev/characters/${v}`,
+  stagedByDiscordUserId: (v) => `/gm/players/${v}`,
+  resolvedByDiscordUserId: (v) => `/gm/players/${v}`,
 };
 
 // "resourcesSpent" -> "Resources spent". The payload keys are camelCase

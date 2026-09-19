@@ -11,6 +11,7 @@ const { CATATONIC_SLUG } = require("./constants");
 const { formatBareName } = require("./characterName");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { alivePassCharacters } = require("./aliveCharacters");
+const { logBatchSystemTagChange } = require("./tagAudit");
 
 function catatonicDm(turns, deathTurns) {
   const deathLine =
@@ -28,7 +29,7 @@ async function runCatatonicPass(prisma, turn) {
 
   const catatonicTag = await prisma.tag.findUnique({
     where: { slug: CATATONIC_SLUG },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   if (!catatonicTag) {
     // Catalog not synced — refuse to half-run rather than silently flag or
@@ -111,6 +112,12 @@ async function runCatatonicPass(prisma, turn) {
       data: { catatonicSinceTurn: null },
     }),
   ]);
+
+  // One summary row per direction this pass actually moved — see hungerPass.js.
+  await Promise.all([
+    logBatchSystemTagChange(prisma, { system: "catatonic", characterIds: toFlag.map((c) => c.id), tagId: catatonicTag.id, tagName: catatonicTag.name, op: "add" }),
+    logBatchSystemTagChange(prisma, { system: "catatonic", characterIds: toClear.map((c) => c.id), tagId: catatonicTag.id, tagName: catatonicTag.name, op: "remove" }),
+  ]).catch((err) => console.error("Catatonic pass: tag-change audit failed:", err.message ?? err));
 
   // The personal-role renames this pass owes Discord — suffixed grey for the
   // newly flagged, bare name + hash colour back for the cleared. Returned,

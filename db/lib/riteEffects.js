@@ -29,6 +29,7 @@ const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
+const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
 // roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
 // the ⬢ and books nothing; this one records the ledger row and the CLAMP
 // shortfall. A rite minting ⬢ onto a floor is real money appearing out of
@@ -98,6 +99,7 @@ async function killByRite(db, character, { turn = null, reason = null, content =
     turn,
     gib,
     content: content ?? `${character.name} died.`,
+    cause: { kind: "system", system: "thanati_rite" },
   });
   if (!claimed) return { claimed: false, corpse: null };
   // roleId is passed rather than read off `character`, which applyDeathToRow just nulled.
@@ -215,9 +217,15 @@ const EFFECTS = {
     // An Assign by another road, so it gets the same clear-out (THREATS.md §3) — and must TELL them.
     let conflicts = null;
     await db.$transaction(async (tx) => {
-      await grantTagSlugs(tx, target.id, [THANATI_SLUG], openTurn?.number ?? null);
+      const granted = await grantTagSlugs(tx, target.id, [THANATI_SLUG], openTurn?.number ?? null);
       if (thanati) conflicts = await resolveSeatConflicts(tx, target.id, [thanati.id]);
       await fulfillObjectives(tx, { partyKey: "thanati", kinds: ["convert-character", "convert-leader"], targetCharacterId: target.id });
+      await logSystemTagChange(tx, {
+        system: "rite",
+        targetCharacterId: target.id,
+        applied: mapGrantedTags(granted),
+        extra: { rite: "conversion" },
+      });
     });
     await sendDm(
       db,
@@ -309,8 +317,14 @@ const EFFECTS = {
   async stupidity({ db, room, resolved, grantTurnNumber }) {
     const { target, holder, tag } = resolved.photograph;
     await db.$transaction(async (tx) => {
-      await grantTagSlugs(tx, target.id, [STUPID_SLUG], grantTurnNumber);
+      const granted = await grantTagSlugs(tx, target.id, [STUPID_SLUG], grantTurnNumber);
       await spendFromHolder(tx, holder, tag.id, "photograph");
+      await logSystemTagChange(tx, {
+        system: "rite",
+        targetCharacterId: target.id,
+        applied: mapGrantedTags(granted),
+        extra: { rite: "stupidity" },
+      });
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { target: target.name, characterId: target.id } };
@@ -406,8 +420,14 @@ const EFFECTS = {
   async madness({ db, room, resolved, grantTurnNumber }) {
     const { target, holder, tag } = resolved.photograph;
     await db.$transaction(async (tx) => {
-      await grantTagSlugs(tx, target.id, [MADNESS_SLUG], grantTurnNumber);
+      const granted = await grantTagSlugs(tx, target.id, [MADNESS_SLUG], grantTurnNumber);
       await spendFromHolder(tx, holder, tag.id, "photograph");
+      await logSystemTagChange(tx, {
+        system: "rite",
+        targetCharacterId: target.id,
+        applied: mapGrantedTags(granted),
+        extra: { rite: "madness" },
+      });
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
     return { result: { maddened: target.name, characterId: target.id } };

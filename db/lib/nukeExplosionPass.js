@@ -83,6 +83,7 @@ async function runNukeExplosionPass(prisma, turn) {
       turn,
       gib: true,
       content: `${character.name} died in the blast.`,
+      cause: { kind: "system", system: "nuke" },
     });
     if (!claimed) continue;
     deaths.push({

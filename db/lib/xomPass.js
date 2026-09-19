@@ -22,6 +22,7 @@ const { CATATONIC_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { grantTagSlugs, replaceLowerTiers } = require("./tagWrites");
 const { applyDeathToRow } = require("./characterDeath");
+const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
 const {
   OLD_WAYS_XOM_SLUG,
   FECES_SLUG,
@@ -96,7 +97,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
 
   const madnessTag = await prisma.tag.findUnique({
     where: { slug: MADNESS_SLUG },
-    select: { id: true, defaultDurationTurns: true },
+    select: { id: true, name: true, defaultDurationTurns: true },
   });
 
   const notices = [];
@@ -121,7 +122,15 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
   // grant would be a letter about nothing.
   const grant = async (character, slugs) => {
     const granted = await prisma
-      .$transaction((tx) => grantTagSlugs(tx, character.id, slugs, turn.number + 1))
+      .$transaction(async (tx) => {
+        const result = await grantTagSlugs(tx, character.id, slugs, turn.number + 1);
+        await logSystemTagChange(tx, {
+          system: "xom",
+          targetCharacterId: character.id,
+          applied: mapGrantedTags(result),
+        });
+        return result;
+      })
       .catch((err) => {
         console.error(`runXomPass: grant ${slugs.join(",")} failed for ${character.id}:`, err.message ?? err);
         return null;
@@ -186,6 +195,11 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
             // The ladder's own rule (TAGS.md §3): lower rungs come off, or Melee IV sits under Melee V forever.
             await replaceLowerTiers(tx, character.id, tag.id);
             const granted = await grantTagSlugs(tx, character.id, [MELEE_LEGENDARY_SLUG], turn.number + 1);
+            await logSystemTagChange(tx, {
+              system: "xom",
+              targetCharacterId: character.id,
+              applied: mapGrantedTags(granted),
+            });
             return granted.some((row) => (row.added ?? 0) > 0);
           })
           .catch((err) => {
@@ -204,6 +218,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
           turn,
           gib: true,
           content: `${character.name} came apart.`,
+          cause: { kind: "system", system: "xom" },
         }).catch((err) => {
           console.error(`runXomPass: gib failed for ${character.id}:`, err.message ?? err);
           return { claimed: false };
@@ -320,7 +335,15 @@ async function strikeTheClergy(prisma, turn, madnessTag) {
         console.error(`runXomPass: madness on ${victim.id} failed:`, err.message ?? err);
         return null;
       });
-    if (written) struck.push(victim);
+    if (written?.count) {
+      struck.push(victim);
+      await logSystemTagChange(prisma, {
+        system: "xom",
+        targetCharacterId: victim.id,
+        applied: [{ tagId: madnessTag.id, tagName: madnessTag.name, op: "add", quantity: 1 }],
+        extra: { massMadness: true },
+      }).catch((err) => console.error(`runXomPass: madness audit for ${victim.id} failed:`, err.message ?? err));
+    }
   }
   return struck;
 }

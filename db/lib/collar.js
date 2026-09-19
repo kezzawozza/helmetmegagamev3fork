@@ -260,6 +260,9 @@ async function detonateCollar(prisma, { actor, target, turn }) {
     turn,
     gib: true,
     content: `${target.name} was detonated.`,
+    cause: actor.discordUserId
+      ? { kind: "player", actorDiscordUserId: actor.discordUserId }
+      : { kind: "system", system: "collar" },
   });
   // Something else killed them between the roster load and here. The collar is
   // spent either way; nothing explodes twice.

@@ -23,11 +23,14 @@ const res = (n) => (Number.isFinite(Number(n)) ? { k: "res", v: Number(n) } : nu
 const qty = (n) => (Number(n) > 1 ? { k: "qty", v: Number(n) } : null);
 
 
-// `tags` is applyTagOpsInTx's `applied` array ({op, name, quantity}). Survives an old row with a missing name.
+// `tags` is applyTagOpsInTx's `applied` array ({op, name, quantity}), or the
+// normalized { tagId, tagName, op, quantity } shape db/lib/tagAudit.js's
+// callers use — both carry `name`/`tagName` and `op`/`quantity`, so read
+// either. Survives an old row with a missing name.
 function tagOpSummary(tags) {
   const parts = [];
   for (const op of tags.slice(0, 4)) {
-    const name = op.name ?? "a tag";
+    const name = op.name ?? op.tagName ?? "a tag";
     const n = Number(op.quantity) > 1 ? ` ×${op.quantity}` : "";
     if (op.op === "add") parts.push(`+${name}${n}`);
     else if (op.op === "remove") parts.push(`−${name}`);
@@ -36,6 +39,25 @@ function tagOpSummary(tags) {
   }
   if (tags.length > parts.length) parts.push(`+${tags.length - parts.length} more`);
   return parts.join(", ");
+}
+
+// A system pass changing a single character's tags — the shared shape for
+// every automated per-character tag change (db/lib/tagAudit.js#logSystemTagChange).
+function systemTagLine(label) {
+  return (d) => [t(label), t("changed tags on"), target(), ...(d.tags?.length ? [chip(tagOpSummary(d.tags))] : [])];
+}
+
+// The batched form — one row per pass invocation, many characters
+// (db/lib/tagAudit.js#logBatchSystemTagChange). `d.tags` always carries
+// exactly one entry for these.
+function systemBatchTagLine(label) {
+  return (d) => [
+    t(label),
+    t(d.tags?.[0]?.op === "remove" ? "cleared" : "granted"),
+    chip(d.tags?.[0]?.tagName),
+    t("for"),
+    recipients(d.characterIds?.length),
+  ];
 }
 
 // `d.from`/`d.to` are {kind, id, name} (web/app/(app)/character/requestActions.js#transferRequestImpl).
@@ -69,7 +91,9 @@ export const AUDIT_FAMILIES = {
   membership: { label: "Membership", band: "player", prefixes: ["member_", "player_"] },
   gm: { label: "GM action", band: "machine", prefixes: ["gm_"] },
   staging: { label: "Staging", band: "machine", prefixes: ["staged_", "staging_"] },
-  system: { label: "System", band: "machine", prefixes: ["turn_"] },
+  // system_tag_ covers every automated tag-change pass (db/lib/tagAudit.js) —
+  // bucketed here so the existing "System" filter chip picks them up for free.
+  system: { label: "System", band: "machine", prefixes: ["turn_", "system_tag_"] },
   superadmin: { label: "Superadmin", band: "machine", prefixes: ["superadmin_"] },
 };
 
@@ -137,6 +161,24 @@ const R = {
     ...(d.totalPoints ? [t(`for ${d.totalPoints} point${d.totalPoints === 1 ? "" : "s"}`)] : []),
   ],
   request_heal_character: (d) => [actor(), t("healed"), target(), ...effectTail(d)],
+  request_perform_miracle: (d) => [
+    actor(), t("performed a miracle on"), target(),
+    ...(d.tagName ? [t("— cured"), chip(d.tagName)] : []),
+  ],
+  request_torture_character: (d) => [
+    actor(), t("tortured"), target(),
+    ...(d.die != null ? [t("— rolled"), em(String(d.die))] : []),
+    t(d.success ? "— they broke" : "— they held out"),
+  ],
+  request_apply_collar: (d) => [actor(), t("collared"), target(), ...(d.tagName ? [chip(d.tagName, d.tagId)] : [])],
+  request_unlock_collar: (d) => [actor(), t("unlocked the collar on"), target(), ...(d.tagName ? [t("— took"), chip(d.tagName, d.tagId)] : [])],
+  request_detonate_collar: () => [actor(), t("detonated the collar on"), target()],
+  request_mutilate: (d) => [
+    actor(), t("mutilated"), target(),
+    ...(d.part ? [t("—"), em(d.part)] : []),
+    ...(d.granted ? [t(", leaving"), chip(d.granted)] : []),
+    ...(d.lethal ? [t("(lethal)")] : []),
+  ],
   // The old request_move_character line is gone; existing rows render through the fallback.
   escort_consented: (d) => [actor(), t("agreed to follow"), target(), t(`until turn ${d.untilTurn}`)],
   request_change_name: (d) => [actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name)],
@@ -240,6 +282,27 @@ const R = {
   gm_message_delivery_failed: () => [actor(), t("could NOT deliver a message to"), target()],
   gm_bulk_tag_grant: (d) => [actor(), t("granted"), chip(d.tagName, d.tagId), t("to"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
   gm_bulk_tag_revoke: (d) => [actor(), t("revoked"), chip(d.tagName, d.tagId), t("from"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
+  // The Dev Panel's own bulk-tag tool — a separate write site from the two
+  // above (web/app/(app)/gm/players' bulkTagCharacters), same batch shape.
+  gm_bulk_tag: (d) => [
+    actor(),
+    t(d.mode === "remove" ? "revoked" : "granted"),
+    chip(d.tagName),
+    t(d.mode === "remove" ? "from" : "to"),
+    recipients(d.characterIds?.length),
+  ],
+  // The turn-end push landing a GM-staged tag change from a resolved gambit —
+  // db/lib/stagedPush.js, the moment the tag actually reaches the sheet.
+  // `actor()` is the resolving GM (falling back to the staging GM); the
+  // gambit's own filer is named separately since a GM can stage an effect
+  // on someone else from within that gambit's review.
+  gm_staged_tag_applied: (d) => [
+    actor(),
+    t("resolved a gambit for"),
+    d.gambitCharacterName ? em(d.gambitCharacterName) : target(),
+    t("—"),
+    ...(d.tags?.length ? [chip(tagOpSummary(d.tags))] : []),
+  ],
   gm_bulk_move: (d) => [actor(), t("moved"), recipients(d.characterIds?.length), t("to"), zone(d.locationName ?? d.zoneName)],
   gm_heal: (d) => [actor(), t("healed"), target(), ...(d.tagNames?.length ? [t("of"), ...joinChips(d.tagNames)] : [])],
   gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name, d.tagId)],
@@ -314,6 +377,20 @@ const R = {
   caving_resolved: () => [t("The Caving Die was rolled for everyone in the Depths")],
   tag_expiry_resolved: () => [t("Expiring tags were retired for the turn")],
   access_revoke_incomplete: () => [t("A channel access revoke did not complete")],
+  // Automated tag changes db/lib/tagAudit.js's helpers write — one row per
+  // pass per turn for the batch passes, one per character for the rest.
+  system_tag_hunger: systemBatchTagLine("The hunger pass"),
+  // Catatonic is batched (db/lib/catatonicPass.js flags/clears the whole
+  // stale roster at once), the rest are per-character.
+  system_tag_catatonic: systemBatchTagLine("The catatonic pass"),
+  system_tag_turret: systemTagLine("A turret"),
+  system_tag_xom: systemTagLine("Xom's favor"),
+  system_tag_rite: systemTagLine("A Thanati rite"),
+  // A gib's tag wipe (db/lib/characterDeath.js#applyDeathToRow), branched by
+  // who/what caused the death — see the `cause` parameter each caller passes.
+  request_tag_wipe_gib: (d) => [actor(), t("gibbed"), target(), t("— every tag wiped"), ...(d.tagCount ? [em(`(${d.tagCount})`)] : [])],
+  gm_tag_wipe_gib: (d) => [actor(), t("gibbed"), target(), t("— every tag wiped"), ...(d.tagCount ? [em(`(${d.tagCount})`)] : [])],
+  system_tag_wipe_gib: (d) => [t("A gib"), t("wiped every tag on"), target(), ...(d.tagCount ? [em(`(${d.tagCount})`)] : [])],
 
   // ---- Superadmin ----
   superadmin_turn_forced: (d) => [actor(), t("FORCED turn"), em(String(d.number ?? "?")), t("open")],
@@ -347,6 +424,9 @@ const DESTRUCTIVE = new Set([
   "staged_message_deleted",
   "staged_effects_deleted",
   "member_left",
+  "request_tag_wipe_gib",
+  "gm_tag_wipe_gib",
+  "system_tag_wipe_gib",
 ]);
 
 // Something did not work — distinct from destructive: nobody chose it.

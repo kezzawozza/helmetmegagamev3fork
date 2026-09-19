@@ -58,20 +58,27 @@ async function maskWornNow(prisma, characterId) {
 // and the bomb. SEAT_TAG_SLUGS is the one load-bearing exception: the
 // end-of-game reveal reads antagonist seats off live Character rows
 // (db/lib/epilogue.js), and the bomb gibs everyone then ends the game.
+// Returns how many rows it actually wiped, so the caller can decide whether
+// the gib is worth an audit row at all (an already-bare sheet isn't).
 async function vaporizeTags(prisma, characterId) {
-  await prisma.characterTag.deleteMany({
+  const { count } = await prisma.characterTag.deleteMany({
     where: { characterId, tag: { slug: { notIn: SEAT_TAG_SLUGS } } },
   });
 
   const gibbed = await prisma.tag.findUnique({ where: { slug: GIBBED_SLUG }, select: { id: true } });
   if (!gibbed) {
     console.error(`No "${GIBBED_SLUG}" tag to stamp on ${characterId} — run npm run db:sync-tags.`);
-    return;
+    return count;
   }
   await prisma.characterTag.create({ data: { characterId, tagId: gibbed.id, source: "EVENT" } });
+  return count;
 }
 
-async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE", gib = false } = {}) {
+// `cause` names who/what is responsible for the gib's tag wipe, for the audit
+// row below: { kind: "player" | "gm" | "system", actorDiscordUserId?, system? }.
+// Optional and defaults to a generic system cause — every caller SHOULD pass
+// one for accuracy, but a caller that doesn't must not lose the wipe entirely.
+async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE", gib = false, cause = null } = {}) {
   // Read BEFORE the claim, off the database not `character` (callers pass varying shapes, and a
   // gib deletes the rows outright below).
   const reborn = await prisma.characterTag
@@ -107,9 +114,26 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
 
   // A gib deletes the tags outright; an ordinary death only drops them out of their slots.
   if (gib) {
-    await vaporizeTags(prisma, character.id).catch((err) =>
-      console.error(`Failed to vaporize tags for ${character.id}:`, err),
-    );
+    const wiped = await vaporizeTags(prisma, character.id).catch((err) => {
+      console.error(`Failed to vaporize tags for ${character.id}:`, err);
+      return 0;
+    });
+    if (wiped > 0) {
+      const kind = cause?.kind ?? "system";
+      const actionType =
+        kind === "player" ? "request_tag_wipe_gib" : kind === "gm" ? "gm_tag_wipe_gib" : "system_tag_wipe_gib";
+      const actorDiscordUserId = cause?.actorDiscordUserId ?? `system:${cause?.system ?? "death"}`;
+      await prisma.auditLog
+        .create({
+          data: {
+            actorDiscordUserId,
+            actionType,
+            targetCharacterId: character.id,
+            details: { tagCount: wiped, cause: cause?.system ?? kind },
+          },
+        })
+        .catch((err) => console.error(`Failed to audit the gib wipe for ${character.id}:`, err));
+    }
   } else {
     await prisma.characterTag
       .updateMany({

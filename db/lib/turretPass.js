@@ -21,6 +21,7 @@ const { applyDeathToRow } = require("./characterDeath");
 const { applyMood } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { addToStack } = require("./tagWrites");
+const { logSystemTagChange } = require("./tagAudit");
 
 // Everything a shot needs off a character. Shared so the sweep and arrival
 // roll judge the same sheet. Miss the armour fields and combineArmor sees
@@ -129,6 +130,11 @@ async function applyTurretShot(prisma, shot, turn, { deathContent, deathReason }
   // Non-stackable wound ladder: a second bullet doesn't become "Deep Wound
   // x2". addToStack charges the wound to mood (MOOD.md) only when the row is new.
   await addToStack(prisma, character.id, tag.id, 1, { source: "EVENT", expiresTurn, stackable: false });
+  await logSystemTagChange(prisma, {
+    system: "turret",
+    targetCharacterId: character.id,
+    applied: [{ tagId: tag.id, tagName: tag.name, op: "add", quantity: 1 }],
+  }).catch((err) => console.error(`Turret pass: tag-change audit failed for ${character.id}:`, err.message ?? err));
 
   return { kind: "hit", severity, wound: tag.name, discordUserId: character.discordUserId };
 }

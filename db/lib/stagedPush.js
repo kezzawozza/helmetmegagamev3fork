@@ -18,6 +18,7 @@ const { addResources, applyMoveEffects, describeMoveEffects } = require("./moveE
 const { formatRangeExpression } = require("./resourceDelta");
 const { settleGambitDice } = require("./gambitCutoff");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
+const { summarizeTagOps } = require("./tagAudit");
 const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
 const { addRoomResources } = require("./roomStash");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
@@ -111,7 +112,12 @@ async function applyOneStagedEffect(prisma, row, turn) {
       const { claimed, corpse } = await applyDeathToRow(
         tx,
         { id: row.targetCharacterId, name: target?.name ?? "Someone", zoneId: target?.zoneId ?? null },
-        { turn, content: `${target?.name ?? "Someone"} died — ${reason}`, gib },
+        {
+          turn,
+          content: `${target?.name ?? "Someone"} died — ${reason}`,
+          gib,
+          cause: { kind: "gm", actorDiscordUserId: row.createdByDiscordUserId },
+        },
       );
       snapshot.death = claimed ? { claimed: true, gib, reason, corpse } : { claimed: false, gib, reason };
       await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
@@ -183,6 +189,33 @@ async function applyOneStagedEffect(prisma, row, turn) {
         tagsById,
         openTurn: { ...turn, number: turn.number + 1 },
       });
+
+      // The one place a staged tag change actually lands — audit it here,
+      // atomically with the write, rather than at staging time (where the
+      // GM's edits are still just a draft) or not at all (the gap this
+      // closes). "The GM responsible" is whoever solved the Move if it was
+      // solved; a Move a GM never got to (silently closed at push) falls
+      // back to whoever staged this specific effect.
+      if (snapshot.tags?.length) {
+        const resolverId =
+          row.move?.reviewedByDiscordUserId ?? row.createdByDiscordUserId ?? "system:staged_push";
+        await tx.auditLog.create({
+          data: {
+            actorDiscordUserId: resolverId,
+            actionType: "gm_staged_tag_applied",
+            targetCharacterId: row.targetCharacterId,
+            details: {
+              tags: summarizeTagOps(snapshot.tags),
+              stagedByDiscordUserId: row.createdByDiscordUserId,
+              resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? null,
+              gambitCharacterId: row.move?.characterId ?? null,
+              gambitCharacterName: row.move?.character?.name ?? null,
+              gambitId: row.moveId ?? null,
+              moveKind: row.move?.moveKind ?? null,
+            },
+          },
+        });
+      }
     }
 
     // Raw relocation — no Action row, no Move cost, no adjacency check (same
@@ -305,6 +338,16 @@ async function runStagedPushPass(prisma, turn) {
     include: {
       targetCharacter: {
         select: { status: true, discordUserId: true, name: true, discordRoleId: true, zoneId: true },
+      },
+      // Only read for the tag-audit write above: who submitted the Gambit
+      // and which GM solved it (if it was ever solved).
+      move: {
+        select: {
+          characterId: true,
+          moveKind: true,
+          reviewedByDiscordUserId: true,
+          character: { select: { id: true, name: true } },
+        },
       },
     },
   });
