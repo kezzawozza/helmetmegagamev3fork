@@ -1,8 +1,12 @@
 import os, re, sys, struct, zlib, shutil
 from PIL import Image
 
-SRC = "/home/user/ss13-special-codebases-archive/opensourceweb"
-OUT = sys.argv[1]
+# Usage: extract-dmi.py <path-to-OpenSourceWeb-clone> <output-dir>
+if len(sys.argv) != 3:
+    sys.exit("usage: extract-dmi.py <path-to-OpenSourceWeb-clone> <output-dir>")
+SRC, OUT = sys.argv[1], sys.argv[2]
+if not os.path.isdir(os.path.join(SRC, "icons")):
+    sys.exit(f"{SRC} has no icons/ — that is not an OpenSourceWeb clone")
 
 DIRNAMES = {1:["S"],4:["S","N","E","W"],8:["S","N","E","W","SE","SW","NE","NW"]}
 
@@ -74,17 +78,24 @@ FOOD = {"food.dmi","food_ingredients.dmi","foodbs12.dmi","drinks.dmi","kitchen.d
         "cooking.dmi","harvest.dmi","seeds.dmi","hydroponics.dmi","plants.dmi",
         "stewpan.dmi","cup.dmi","cigarettes.dmi","reagentfillings.dmi","chemical.dmi"}
 
-roots = [os.path.join(SRC,"icons","obj"), os.path.join(SRC,"honk","icons","obj")]
+# The item sheets, plus the creatures. `icons/mob/` is deliberately left out:
+# it is overwhelmingly per-slot clothing overlays drawn on a human body, which
+# are useless as icons — the actual creatures live in icons/monsters/.
+ROOTS = [
+    (os.path.join(SRC, "icons", "obj"), None),
+    (os.path.join(SRC, "honk", "icons", "obj"), None),
+    (os.path.join(SRC, "icons", "monsters"), "creatures"),
+]
 sheets = splits = files = 0
-for root in roots:
+for root, forced_group in ROOTS:
+    if not os.path.isdir(root): continue
     for dirpath, _, names in os.walk(root):
         for nm in sorted(names):
             if not nm.lower().endswith(".dmi"): continue
             p = os.path.join(dirpath, nm)
             rel = os.path.relpath(p, SRC)
             base = nm[:-4]
-            isfood = nm in FOOD
-            group = "food" if isfood else "other"
+            group = forced_group or ("food" if nm in FOOD else "other")
             # sheet
             sd = os.path.join(OUT, group, "_sheets", os.path.dirname(os.path.relpath(p, root)))
             os.makedirs(sd, exist_ok=True)

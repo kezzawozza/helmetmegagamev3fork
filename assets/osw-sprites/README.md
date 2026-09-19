@@ -38,9 +38,10 @@ redistribution in its own right.
 
 OpenSourceWeb ships art as BYOND `.dmi` files — PNGs carrying a zTXt chunk
 that describes the sprite sheet packed inside. `scripts/osw/extract-dmi.py`
-reads that chunk and splits each sheet into its frames. 342 sheets yield
-25,520 frames; this folder holds the **11,239 canonical ones**, filtered down
-to one frame per subject:
+reads that chunk and splits each sheet into its frames. It walks the item
+sheets (`icons/obj/`, `honk/icons/obj/`) and the creatures
+(`icons/monsters/`); 356 sheets yield 26,134 frames, and this folder holds the
+**11,568 canonical ones**, filtered down to one frame per subject:
 
 - no `_blood` gore variants (138)
 - no animation frames past the first (10,406) — `foo_f1.png` is kept, `_f2` up is not
@@ -73,6 +74,13 @@ directories worth knowing, for a low-fantasy game:
 - `other/{items,objects,miscobjs,storage,personal}/` — the general grab-bag.
 - `other/{mining,surgery,prothesis,books,library,paper,painting}/`
 - `food/{harvest,food,cooking,seeds,drinks,kitchen}/`
+- `creatures/` — the monsters, including `critter/arl_S.png` and
+  `critter/babyarl_S_f1.png` (the arelitz, under Lifeweb's own spelling),
+  `critter/graga_cut_S.png`, rats, eelo, strygh and tzanch. `critter/` holds
+  compact single-tile icons; the per-creature folders beside it hold the
+  larger mob bodies, which make poor 16px marks.
+  `icons/mob/` is deliberately NOT extracted — it is almost entirely per-slot
+  clothing drawn on a human body, useless as an icon.
 
 Most of the rest is space-station infrastructure — pipes, doors, atmospherics,
 computers, turrets — and will not serve Ravenheart.

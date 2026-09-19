@@ -2138,10 +2138,15 @@ nobody can see is not concealment, it is a missing image. Build the files with
 
 ### `sprite`
 
-`sprite:` names the item's OWN art — a PNG under `web/public/assets/items/`,
+`sprite:` names a tag's OWN art — a PNG under `web/public/assets/items/`,
 given as a basename with no extension. It is what `TagIcon.js` draws on a chip,
 a sheet row, an item card and the items table, **instead of** the tag's
 `TagGroup` glyph.
+
+It is mostly an Items thing, and the folder is named for that, but nothing
+restricts it to that category: the arelitz and its three young are `assets`
+and carry their own art, because a mount somebody owns is as much a picture
+as a dagger is.
 
 Four things are worth knowing before adding one:
 

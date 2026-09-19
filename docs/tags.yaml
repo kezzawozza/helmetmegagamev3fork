@@ -54,7 +54,7 @@
 # can't be clobbered by a bulk overwrite.
 #
 # Per-tag fields not covered elsewhere in this file:
-#   sprite          - the item's own art: a PNG basename, no extension, under
+#   sprite          - the tag's own art: a PNG basename, no extension, under
 #                     web/public/assets/items/ (pixel art from OpenSourceWeb,
 #                     CC BY-SA 3.0 — see that folder's ATTRIBUTION.md, and
 #                     assets/osw-sprites/ for the library it is picked from).
@@ -5597,6 +5597,7 @@ tags:
     name: Arelitz
     category: assets
     group: assets-companions
+    sprite: arl
     description: "A great eight legged spider. It has been broken in, allowing it to be rode by up to two people. Riders are able to move an extra zone."
     pointCost: 9
     tradeable: true
@@ -5620,6 +5621,7 @@ tags:
     name: Unruly Arelitz
     category: assets
     group: assets-companions
+    sprite: arl
     description: "It has yet to learn to fear its masters, and will refuse any rider. This great spider must be broken in before it can be used as a mount."
     pointCost: 6
     tradeable: true
@@ -5635,6 +5637,7 @@ tags:
     name: Arelitz Hatchling
     category: assets
     group: assets-companions
+    sprite: babyarl
     description: "A small newly hatched arelitz, it is barely larger than a rat."
     pointCost: 0
     tradeable: true
@@ -5650,6 +5653,7 @@ tags:
     name: Arelitz Youngling
     category: assets
     group: assets-companions
+    sprite: babyarl
     description: "This arelitz has recently shed its carapace, its maturation slow but steady."
     pointCost: 0
     tradeable: true
@@ -5665,6 +5669,7 @@ tags:
     name: Arelitz Yearling
     category: assets
     group: assets-companions
+    sprite: arl
     description: "Nigh indistinguishable from an adult, this arelitz has almost completely matured."
     pointCost: 0
     tradeable: true
@@ -6252,6 +6257,7 @@ tags:
     name: Graga Corpse
     category: items
     group: items-corpse
+    sprite: graga-cut
     description: "The bloated corpse of a Graga. Can be butchered to produce {tag:graga-sac}."
     pointCost: 0
     weight: 75

@@ -124,7 +124,7 @@ Three things about the token set are load-bearing and easy to undo by accident:
   now. Do not give a `TagGroup` a colour. (The role group below is not that
   rule breaking: a tag group is one of dozens of shelves in a catalog, and a
   role group is one of eight estates a person belongs to.)
-- **An item may carry its OWN art, and it replaces the group glyph.**
+- **A tag may carry its OWN art, and it replaces the group glyph.**
   `Tag.sprite` names a PNG under `web/public/assets/items` (2026-09-18), and
   `TagIcon.js` draws it instead of the lucide mark. It is a third level under
   the two above, not a fourth signal: category still paints the rule, and a tag

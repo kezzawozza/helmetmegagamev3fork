@@ -2625,7 +2625,7 @@ model Tag {
   // rather than as a failed sync.
   concealSprite String?
 
-  // The item's own art on a chip, a sheet row and an item card, as a basename
+  // The tag's own art on a chip, a sheet row and an item card, as a basename
   // under web/public/assets/items (pixel art lifted from OpenSourceWeb; see
   // that folder's ATTRIBUTION.md, and assets/osw-sprites/ for the library it
   // was picked from). Null is the ordinary case and means the tag draws its
