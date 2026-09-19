@@ -129,8 +129,24 @@ sticky bars in chat today use three different backgrounds (`--surface-raised`,
 
 Each ends with something that runs.
 
-1. **Scaffold** — `next/` directory, grid shell, `chat.css` rewritten against
-   the Phase 0 vocabulary. Behind a flag; `/chat` untouched.
+1. **Scaffold** ✅ — `web/app/(app)/chat/next/ChatNext.js` and
+   `web/app/chat-next.css`, reachable at **`/chat?next=1`**. The five grid
+   tracks, both rails, a girder at the head of each column, and the places
+   column's groupings rendering real data. Measured against the mockup: girders
+   26px/10px, rows 21.6px, column at `rgba(0,0,0,.3)`.
+
+   `chat-next.css` is scoped under `[data-chat-next]`, which only `ChatNext`
+   sets — `[data-chat-next] .bar` is (0,2,0) against `chat.css`'s (0,1,0), so
+   it wins inside the new tree and is invisible outside it. Verified: live
+   `/chat` has no such root and is byte-identical in behaviour. **At cutover**,
+   strip the prefix from every selector and rename the file; the class names
+   are already final, which is why this is scoped rather than prefixed.
+
+   Fixed on the way in, from the §8 list: the girder pinned to one height, the
+   row resting at `--text`, `--row-hover` for hover, `--rivet` for the occupied
+   row, one QUIET rung, the coarse-pointer floor scoped to coarse pointers, and
+   `--zone-ink` so the zone divider stops borrowing `--warning` (gated in
+   `audit:contrast` at 8.13).
 2. **Places column** — groupings, states, **persistent folds** (below), tail
    strip, foot slot.
 3. **Feed** — every row variant, sticky scroll, backlog, search, notice cards,

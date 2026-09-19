@@ -192,6 +192,13 @@
      lamp line would read as an alarm. A RULE colour, never text. */
   --rivet: #6b5c40;
 
+  /* A zone's own mark down the places column. The chat mockup's own gold.
+     It exists because the divider had been borrowing --warning, which is a
+     STATUS colour — a heading that is only ever decorative was wearing the
+     same ink as an actual warning, for no reason but that no gold text token
+     existed. A text colour, and it owes AA like any other. */
+  --zone-ink: #c9a85c;
+
   /* The "well" — a slot with nothing in it. The mockup draws an empty cell
      as a recessed pit, not a lighter box: a darker ground than --field-bg,
      a dashed edge, and dimmer text than --muted. It never hoists these to

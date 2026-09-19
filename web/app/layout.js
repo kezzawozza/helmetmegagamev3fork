@@ -1,6 +1,9 @@
 import { UnifrakturMaguntia } from "next/font/google";
 import "./globals.css";
 import "./chat.css";
+// The rebuild, scoped under [data-chat-next] so it cannot reach the live
+// chat (docs/systemdocs/CHAT-REBUILD.md). Deleted with chat.css at cutover.
+import "./chat-next.css";
 import "./sheet.css";
 import "./shell.css";
 import { getMoveWindow } from "@/lib/turn";
