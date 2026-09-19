@@ -258,9 +258,8 @@ lives in. Costs are decimals now and that column is a ration and nothing else.
 |---|---|---|
 | `alcohol` | 0.25 | — |
 | `lavish-meal` | 0.25 | — |
-| `honeyed-cakes` | 0.25 | — |
+| `honeyed-cakes` | 0.1 | — |
 | `fine-meal` | 0.25 | — |
-| `trail-ration` | 0.25 | — |
 | `poppy` | 0.5 | — |
 | `cleaning-powder` | 0.5 | — |
 | `mercy` | 0.5 | — |

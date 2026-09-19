@@ -232,7 +232,7 @@ All verified directly against the current `docs/tags.yaml`.
 
 | slug | taste | mood | hunger | note |
 |---|---|---|---|---|
-| `wheat` | crunchy | −5 | 6 | raw is Nauseous — `consumesInto: [nauseous]`, `cooked.into: []`, same raw/cooked split as `blind-fish` |
+| `wheat` | crunchy | −5 | 6 | raw is Nauseous — `consumesInto: [nauseous]`, `cooked.into: []`, same raw/cooked split as `dustfish` below |
 | `potato` | earthy | 2 | 12 | |
 | `tomato` | acidic | 3 | 12 | |
 | `carrot` | earthy | 3 | 12 | |
@@ -249,12 +249,11 @@ a later page and out of scope here.
 | slug | taste | mood | hunger | note |
 |---|---|---|---|---|
 | `meat` | meaty | 5 | 12 | |
-| `rations` | acrid | −5 | 12 | raw/cooked split, `consumesInto: [nauseous]` |
 | `dead-rat` | meaty | −10 | 9 | raw/cooked split, `consumesInto: [nauseous]` |
 | `sugar` | sweet | 20 | 12 | |
-| `cheese` | cheesy | 15 | 12 | deliberate near-duplicate of `hard-cheese`, not a rename |
+| `cheese` | cheesy | 15 | 12 | was a deliberate near-duplicate of `hard-cheese`; `hard-cheese` was later retired |
 | `rendered-fat` | creamy | 10 | 12 | renamed from the doc's "Fat" — that slug is taken by an unrelated general trait |
-| `eel` | fishy | 7 | 15 | deliberate near-duplicate of `river-eel`, not a rename |
+| `eel` | fishy | 7 | 15 | was a deliberate near-duplicate of `river-eel`; `river-eel` was later retired |
 | `dustfish` | acidic | −15 | 15 | raw/cooked split, `consumesInto: [nauseous]` |
 | `haggar` | fishy | 5 | 15 | |
 | `tunnel-trout` | fishy | 5 | 15 | |
@@ -262,7 +261,19 @@ a later page and out of scope here.
 **Existing foodstuff tags edited in place** to carry `hunger` (and, for
 `onion`, a retuned `mood` and `tasteForm`): `onion`, `arelitz-egg`,
 `maggot-milk`, `tinned-butter`, `fish-roe`, `honey`, `crayfish`. `hard-cheese`
-and `river-eel` were deliberately left untouched.
+and `river-eel` were deliberately left untouched at the time — both were later
+retired once `cheese`/`eel` fully covered their role, along with the other
+pre-Soilery foodstuffs that never made it into the design doc's tables
+(`blind-fish`, `canned-crabmeat`, `goose-fat`, `lamprey`) and the standalone
+`rations` tin, whose `cooked` values moved onto the Ration Box's own five bad
+draws (`moldy-bread`, `grasshopper-kebab`, `jellied-meats`,
+`skinned-cave-rat`, `budget-cold-soup`) so they're finally slot-eligible
+ingredients in their own right. `boar-loin`, `flesh-of-tzchernobog`,
+`human-flesh` and `saffron` were reconciled against the design doc's
+"Ingredients which do not constitute foodstuffs" table (pages 3-4) rather
+than removed. `honeyed-cakes` was converted from a standalone craftable into
+a proper Skilled Cooking Meal (bread + honey, COOKING.md §2a); `trail-ration`
+was removed outright.
 
 **Seven seed bags** (`wheat-seed-bag` … `pigtails-seed-bag`, `group:
 items-seeds`, `depotPrice: 4`, `weight: 1`, `consumable`,

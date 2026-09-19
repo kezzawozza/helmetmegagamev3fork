@@ -242,7 +242,7 @@ zones:
             stash:
               resources: 4
               items:
-                hard-cheese: 1
+                cheese: 1
                 paper: 12
                 hatchet: 1
           square-smithery-storeroom:
@@ -293,7 +293,7 @@ zones:
             stash:
               resources: 3
               items:
-                hard-cheese: 1
+                cheese: 1
                 alcohol: 1
                 cigarette: 3
           inn-room-a:
@@ -1927,7 +1927,7 @@ zones:
                 stash:
                   resources: 4
                   items:
-                    hard-cheese: 1
+                    cheese: 1
                     obol: 10
                     cargo-crate: 1
                     paper: 6
@@ -1956,10 +1956,10 @@ zones:
                 name: Abandoned Hut
                 description: >-
                   A small structure, once built by someone exiled from Ravenheart. It now serves as a rest stop for migrants on their way through the caves.
-                # One of five wheels of Hard Cheese put away across the game's cellars and stores (docs/systemdocs/COOKING.md). A seed, not a supply: the editor's seedRoomStash (web/app/(app)/gm/dev/zones/actions.js) never tops a room up, so once these five are eaten there are no more.
+                # One of five wheels of Cheese put away across the game's cellars and stores (docs/systemdocs/COOKING.md) — retired from Hard Cheese when that tag was removed (SOILERY.md). A seed, not a supply: the editor's seedRoomStash (web/app/(app)/gm/dev/zones/actions.js) never tops a room up, so once these five are eaten there are no more.
                 stash:
                   items:
-                    hard-cheese: 1
+                    cheese: 1
               approach-mineshaft:
                 name: Old Mineshaft
                 description: >-
@@ -2083,7 +2083,7 @@ zones:
                 stash:
                   resources: 3
                   items:
-                    hard-cheese: 1
+                    cheese: 1
                     alcohol: 3
                     ravenheart-red: 1
                     moonshine: 3
