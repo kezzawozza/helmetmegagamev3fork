@@ -1,4 +1,4 @@
-// Escorting — the party you carry with you (docs/systemdocs/MAP.md §3a). The one module that knows what an escort is, the way db/lib/locationGraph.js is the one module that knows what an edge is: you attach somebody once and they come along until something breaks it. The four verdicts escortAuthority returns are the whole rule set — FORCED (a corpse or anyone helpless: attaches on the spot, no asking), CONSENTED (they already said yes to YOU and the window hasn't lapsed: attaches on the spot, the whole reason the window exists — picking the same person back up shouldn't re-ask), ASK (any other living character standing with you: files an ESCORT Offer and DMs Accept/Cancel), null (not standing with you, yourself, buried, or already following somebody else: not offered at all).
+// Escorting — the party you carry with you (docs/systemdocs/MAP.md §3a). The one module that knows what an escort is, the way db/lib/locationGraph.js is the one module that knows what an edge is: you attach somebody once and they come along until something breaks it. The four verdicts escortAuthority returns are the whole rule set — FORCED (anyone helpless: attaches on the spot, no asking), CONSENTED (they already said yes to YOU and the window hasn't lapsed: attaches on the spot, the whole reason the window exists — picking the same person back up shouldn't re-ask), ASK (any other living character standing with you: files an ESCORT Offer and DMs Accept/Cancel), null (not standing with you, yourself, dead, or already following somebody else: not offered at all — a body moves as its corpse tag, CORPSES.md).
 // Co-presence is LOCATION grain, not zone — you walk to somebody to take them. Takes `prisma` as a parameter and is deliberately NOT on the @lifeweb/db barrel (db/lib/dm.js convention); require it by path.
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 // One module owns the hold and every sentence about it (INTERCEPT.md); this
@@ -128,8 +128,10 @@ function escortAuthority(leader, target, turnNumber = null) {
   // the old canDrag, which reached across the whole zone.
   if (target.locationId !== leader.locationId) return null;
 
-  // FORCE COMES FIRST, and that ordering is the whole point of this block: a prisoner is not somebody's to keep by having asked first, so a friendly arrangement must never outrank the rope. Only a body and the helpless reach it — nobody holds a rank that walks a healthy, conscious person anywhere.
-  if (target.status === "DEAD") return "FORCED";
+  // FORCE COMES FIRST, and that ordering is the whole point of this block: a prisoner is not somebody's to keep by having asked first, so a friendly arrangement must never outrank the rope. Only the helpless reach it — nobody holds a rank that walks a healthy, conscious person anywhere.
+  // A body is never a party member. It moves as its corpse tag, carried like any
+  // other load (CORPSES.md) — escorting the sheet walked it off without the tag,
+  // and corpseFollow snapped it straight back to wherever the tag still lay.
   if (target.status !== "ALIVE") return null;
   // NO concealment refusal. A hood hides WHO somebody is, never THAT they are
   // standing there, and hauling a stranger along is one of the plainest things
@@ -158,7 +160,6 @@ function escortAuthority(leader, target, turnNumber = null) {
 
 // Why they follow, for the card under their name. Not a refusal — every candidate this is called for is already attachable.
 function escortReason(target, verdict) {
-  if (target.status === "DEAD") return "a body";
   if (verdict === "CONSENTED") return "willing";
   const stopper = target.tags?.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
   if (stopper) return stopper.tag.name.toLowerCase();
@@ -196,7 +197,7 @@ async function escortCandidates(prisma, leader, turnNumber = null) {
     where: {
       locationId: leader.locationId,
       id: { not: leader.id },
-      OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }],
+      status: "ALIVE",
     },
     select: ESCORT_SELECT,
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
@@ -282,12 +283,6 @@ function handshakeName(row) {
   if (!row) return "somebody";
   const forced = forcedNameFrom(row.tags);
   if (forced) return forced; // a forced name is not hiding (PROXYING.md §5).
-  if (row.status === "DEAD") {
-    const held = Array.isArray(row.tags) && row.deathMaskTagId
-      ? row.tags.find((ct) => ct.tagId === row.deathMaskTagId)?.tag
-      : null;
-    return held?.concealsIdentity && held?.concealSprite ? "somebody" : row.name;
-  }
   const piece = concealmentFrom(row.tags);
   return piece && (piece.forced || row.concealed) ? "somebody" : row.name;
 }

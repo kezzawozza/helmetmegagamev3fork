@@ -69,6 +69,12 @@ whole definition:
 - **No corpse is minted at all.** Not minted-then-deleted, which is what the
   two rites used to do — simply never made. So there is nothing to loot, carry,
   butcher, bury or engrave, and `corpseFollow` has no tag to follow.
+- **The sheet is not "here" for anything.** `presence.js#UNBURIED_BODY_WHERE`
+  is the one "body lying where it fell" filter — `hereWhere`, `whosHere` and
+  the @ menu all use it — and it excludes the **Gibbed** tag. Without it a gib
+  still showed on the roster and could be looted and dragged around, with
+  nothing for Mutilate or Bury to find. The curse and ghost rules read the raw
+  columns and are unaffected.
 - **Every `CharacterTag` is deleted** and one **Gibbed** tag ("Vaporized.")
   replaces them. Their goods went up with them.
 - **The sheet survives.** The row stays `DEAD` like any other, because the
@@ -138,7 +144,12 @@ as "move them to null", which would unplace every buried character on the next
 pass. The update is also filtered to `status: DEAD, buriedAt: null`, so a
 revived character never gets teleported by their own old body.
 
-**Escorting still carries corpses, and the tag is authoritative.** The
+**A body is never a party member.** You move one by picking up its tag and
+walking. Escorting used to take the dead too, and it moved the *sheet* without
+the tag — so the reconcile snapped the sheet straight back to wherever the tag
+still lay, and a body with no tag (a gib) walked around freely with nothing to
+Mutilate or Bury. `escort.js#escortAuthority` now refuses anyone not ALIVE, and
+the move's own re-check drops anybody dead who was attached before. The
 reconcile is strictly one-directional — tag position decides sheet position,
 never the reverse. Do not add a reverse sync; two movers that can disagree is
 how this gets confusing.

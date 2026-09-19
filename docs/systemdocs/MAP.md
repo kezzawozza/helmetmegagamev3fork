@@ -493,10 +493,10 @@ one answer:
 
 | Verdict | Who | On click |
 |---|---|---|
-| `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag | attaches at once |
+| `FORCED` | anyone holding an `INCAPACITATING_SLUGS` tag | attaches at once |
 | `CONSENTED` | somebody whose standing agreement to *you* has not lapsed | attaches at once |
 | `ASK` | any other living character standing with you | files an `ESCORT` `Offer` and DMs them |
-| `null` | not standing with you, yourself, buried, held in a fight, **willingly** following somebody else, or **you yourself are being brought along** | not offered |
+| `null` | not standing with you, yourself, dead (a body moves as its corpse tag, `CORPSES.md` §2), held in a fight, **willingly** following somebody else, or **you yourself are being brought along** | not offered |
 
 **A hood comes along like anybody else.** Hauling a stranger is one of the
 plainest things you can do to somebody whose name you do not know, so
@@ -510,8 +510,7 @@ with a face. Reading `presentRows` rather than deciding again is the load-bearin
 part: the resolver honours your **sighting** (`PROXYING.md` §5a), so a list that
 judged the live row instead would offer a hood under a token that then resolved
 to nobody. `hooded` on a party row is what makes the rack draw the
-question-mark plate instead of asking for a face. A body still wearing its mask is named the
-same way (`CORPSES.md` §1b).
+question-mark plate instead of asking for a face.
 
 **A hold says so now.** Being attacked holds both sides until the turn ends
 (`INTERCEPT.md`), and `escortAuthority` refuses anyone held — above the
@@ -521,10 +520,9 @@ somebody else's to walk off with. That is still the rule; what changed is that
 "You can't take them along.", so a player is told a fight is what is stopping
 them rather than left guessing.
 
-**Force beats an arrangement.** Both `FORCED` branches are reached *before*
+**Force beats an arrangement.** The `FORCED` branch is reached *before*
 the `escortedById` guard, so a captor takes their prisoner off whoever is
-holding them, and the same goes for a corpse. It read the other way round
-until a player found it:
+holding them. It read the other way round until a player found it:
 tie somebody up while they were walking with a friend, and the friend kept
 them, because asking first had won the column. `attach()` re-asserted the
 same rule in its `updateMany` WHERE, so it takes a `takeover` flag that only

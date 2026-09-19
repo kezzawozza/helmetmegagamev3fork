@@ -78,5 +78,9 @@ test("hereWhere is the NAMED half: it drops hoods and keeps the unburied dead on
 
   const withDead = hereWhere(actor, { includeDead: true });
   assert.equal(withDead.OR.length, 2);
-  assert.deepEqual(withDead.OR[1], { status: "DEAD", buriedAt: null });
+  assert.deepEqual(withDead.OR[1], {
+    status: "DEAD",
+    buriedAt: null,
+    NOT: { tags: { some: { tag: { slug: "gibbed" } } } },
+  }, "a gib left no body, so its sheet is never here");
 });

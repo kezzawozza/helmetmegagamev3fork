@@ -9,6 +9,7 @@
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
 const { aliasRow } = require("./concealedIdentity");
 const { lastSightings } = require("./sightings");
+const { UNBURIED_BODY_WHERE } = require("./presence");
 const { hoodToken } = require("./hoodToken"); // its own leaf to avoid a require cycle; re-exported below.
 const { roleGroupHue } = require("./roleGroups");
 
@@ -85,7 +86,7 @@ async function presentRows(
     where: {
       locationId: where,
       ...(includeDead
-        ? { OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }] }
+        ? { OR: [{ status: "ALIVE" }, UNBURIED_BODY_WHERE] }
         : { status: "ALIVE" }),
     },
     select: PRESENT_SELECT,

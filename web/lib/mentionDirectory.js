@@ -1,4 +1,5 @@
 import { prisma } from "@lifeweb/db";
+import { UNBURIED_BODY_WHERE } from "@lifeweb/db/lib/presence";
 import { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
 // Two lists off one query: who a `{char:<id>}` token may RESOLVE to (everybody, kept LIVE), and who the @ menu
@@ -51,7 +52,7 @@ const NAME_ORDER = [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "fir
 
 function livingWhere(includeUnburiedDead) {
   return includeUnburiedDead
-    ? { OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }] }
+    ? { OR: [{ status: "ALIVE" }, UNBURIED_BODY_WHERE] }
     : { status: "ALIVE" };
 }
 

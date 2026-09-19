@@ -43,8 +43,7 @@ const maskTag = () => ({
 
 // --- who follows ----------------------------------------------------------
 
-test("a body and the helpless come without asking", () => {
-  assert.equal(escortAuthority(leader(), person({ status: "DEAD" })), "FORCED");
+test("the helpless come without asking", () => {
   assert.equal(escortAuthority(leader(), person({ tags: [tag("bound", "Bound")] })), "FORCED");
   assert.equal(escortAuthority(leader(), person({ tags: [tag("catatonic-afk", "Catatonic")] })), "FORCED");
 });
@@ -72,6 +71,13 @@ test("consent counts, and only until its window lapses", () => {
   assert.equal(escortAuthority(leader(), willing, null), "ASK");
 });
 
+test("a body is never a party member — it travels as its corpse tag", () => {
+  assert.equal(escortAuthority(leader(), person({ status: "DEAD" })), null);
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", status: "DEAD" })), null);
+  // Already attached before this rule: the move's re-check drops them.
+  assert.equal(escortAuthority(leader(), person({ escortedById: "L", status: "DEAD" })), null);
+});
+
 test("nobody is taken from across the map, from the ground, or off a friend", () => {
   assert.equal(escortAuthority(leader(), person({ locationId: "loc-2" })), null);
   assert.equal(escortAuthority(leader(), person({ status: "DEAD", buriedAt: new Date() })), null);
@@ -88,7 +94,6 @@ test("force beats an arrangement: a captor takes their prisoner off whoever has 
   // and the friend used to keep them, because the escortedById guard ran
   // before the FORCED branches ever did.
   assert.equal(escortAuthority(leader(), person({ escortedById: "Z", tags: [tag("bound", "Bound")] })), "FORCED");
-  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", status: "DEAD" })), "FORCED");
   // Consent is not force: a standing agreement to YOU does not outrank
   // somebody who is holding them right now.
   assert.equal(
@@ -112,9 +117,8 @@ test("a passenger cannot bring anyone along themselves", () => {
   // sub-party once they walked with their own leader.
   const passenger = leader({ escortedById: "Z" });
   assert.equal(escortAuthority(passenger, person()), null);
-  // No exception for FORCED — a passenger cannot drive even a corpse, or the
-  // helpless off somebody else, while being carried themselves.
-  assert.equal(escortAuthority(passenger, person({ status: "DEAD" })), null);
+  // No exception for FORCED — a passenger cannot drive the helpless off
+  // somebody else while being carried themselves.
   assert.equal(escortAuthority(passenger, person({ tags: [tag("bound", "Bound")] })), null);
   assert.equal(escortRefusal(passenger, person()), "You're being brought along yourself.");
 });
@@ -186,7 +190,6 @@ test("with no view at all, a forced name still wins and nothing is keyed by toke
 });
 
 test("the reason says why they follow, not why they cannot", () => {
-  assert.equal(escortReason(person({ status: "DEAD" }), "FORCED"), "a body");
   assert.equal(escortReason(person({ tags: [tag("bound", "Bound")] }), "FORCED"), "bound");
   assert.equal(escortReason(person(), "CONSENTED"), "willing");
 });

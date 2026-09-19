@@ -13,6 +13,17 @@
 // /conceal column, OR a worn hood that forces it (a Cerberus Helmet hides you
 // whatever the column says). A forced name outranks both.
 const { presentedIdentity, forcedNameFrom, concealmentFrom } = require("./presentedIdentity");
+const { GIBBED_SLUG } = require("./constants");
+
+// A body lying where it fell: dead, not buried, and not gibbed. A gib leaves no
+// body (CORPSES.md §1a), so its sheet is not "here" for anything — not the
+// roster, not Loot, not the @ menu. The curse and ghost rules read the raw
+// columns instead and are unaffected.
+const UNBURIED_BODY_WHERE = {
+  status: "DEAD",
+  buriedAt: null,
+  NOT: { tags: { some: { tag: { slug: GIBBED_SLUG } } } },
+};
 
 const FORCING_HOOD = {
   equipped: true,
@@ -48,7 +59,7 @@ function hereWhere(character, { includeDead = false } = {}) {
           { tags: { some: { tag: { forcedName: { not: null } } } } },
         ],
       },
-      ...(includeDead ? [{ status: "DEAD", buriedAt: null }] : []),
+      ...(includeDead ? [UNBURIED_BODY_WHERE] : []),
     ],
   };
 }
@@ -79,4 +90,4 @@ function notHereMessage(target) {
   return target?.name ? `${target.name} isn't here.` : "They aren't here.";
 }
 
-module.exports = { hereWhere, isHere, concealedNow, HERE_FIELDS, notHereMessage };
+module.exports = { UNBURIED_BODY_WHERE, hereWhere, isHere, concealedNow, HERE_FIELDS, notHereMessage };
