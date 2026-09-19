@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DM_PLACE_KEY } from "../DmPane";
 import {
   usePlaces,
+  useFeed,
   notableSeq,
   seedInitial,
   seedRows,
@@ -13,9 +14,16 @@ import {
   markHistoryLoaded,
 } from "../feedStore";
 import NoticeCards from "../NoticeCards";
+import GmSystemComposer from "../GmSystemComposer";
+import LookReadout from "@/app/components/LookReadout";
+import { ConverseDialog } from "../PlacePanel";
+import DecreeDialog from "../DecreeDialog";
+import { useRequestActions } from "@/app/components/RequestActionsProvider";
+import { lookAt, lookAtRow } from "../actions";
 import { SearchIcon } from "@/app/components/icons";
 import IconButton from "@/app/components/IconButton";
 import { retryPending } from "../feedStore";
+import usePlaceMembers from "../usePlaceMembers";
 import { useSeen, markAllSeen } from "../seenStore";
 import { useRefresh } from "@/app/components/useRefresh";
 import useFeedStream from "../useFeedStream";
@@ -58,6 +66,11 @@ import DmPane from "./DmPane";
 // Phase 2 draws the places column in full. The scene is phase 3, the composer
 // 4, the aside 5. `data-chat-next` on the root is what scopes chat-next.css;
 // nothing else sets it, so none of that stylesheet can reach the live chat.
+// One ping per this long while somebody keeps typing. The other end holds
+// the indicator for six seconds (../typingStore.js), so anything under that
+// is a ping nobody sees the effect of.
+const TYPING_PING_MS = 4000;
+
 export default function ChatNext(props) {
   // ../Chat.js's own prop names, verbatim — this exists to be swappable with it.
   const {
@@ -85,6 +98,9 @@ export default function ChatNext(props) {
     // bottom bar is hidden on /chat under 720px so the scene has the whole
     // screen, and these are the rows it carried.
     navItems = [],
+    // The composer's paperwork gates (web/lib/selfPools.js). Hints — every
+    // one of the four dialogs re-checks its own.
+    letters = null,
   } = props;
 
   // Seed the store DURING render, not in an effect, and exactly once. The
@@ -303,6 +319,84 @@ export default function ChatNext(props) {
   // the two share a signal or a pin leaves the street showing the old papers.
   const [boardVersion, setBoardVersion] = useState(0);
   const bumpBoard = useCallback(() => setBoardVersion((n) => n + 1), []);
+
+  // ---- What a slash command reaches for ----------------------------------
+  //
+  // Three of them end in something this component owns rather than in a
+  // server action: `/travel` picks a node in the aside's grid, `/converse`
+  // and `/decree` open dialogs. They are mounted HERE and not in the aside
+  // because on a phone the aside is not mounted at all.
+  const [travelPick, setTravelPick] = useState(null);
+  const [converseOn, setConverseOn] = useState(false);
+  const [decreeOn, setDecreeOn] = useState(false);
+  const onTravelPick = useCallback((locationId) => setTravelPick({ locationId, at: Date.now() }), []);
+  const onConverse = useCallback(() => setConverseOn(true), []);
+  const onDecree = useCallback(() => setDecreeOn(true), []);
+
+  // ONE readout for two doors: `/look <somebody>` resolves a name or a hood,
+  // the eye on a row resolves a SEQ — the server decides who said it, whether
+  // they were hooded at the time, and whether this reader may see the place
+  // (db/lib/examineRow.js), which is what lets the eye sit on a hooded line
+  // and answer for the hood worn when the words were said. Same dialog either
+  // way; two of them could never both be open anyway.
+  const [look, setLook] = useState(null);
+  const readLook = useCallback((run) => {
+    setLook({ loading: true });
+    run()
+      .then((res) => setLook(res?.ok ? { readout: res.readout } : { error: res?.error ?? "You can't see them." }))
+      .catch(() => setLook({ error: "You can't see them." }));
+  }, []);
+  const onLookUp = useCallback((ref) => readLook(() => lookAt(ref)), [readLook]);
+  const onLookRow = useCallback((seq) => (seq ? readLook(() => lookAtRow(seq)) : undefined), [readLook]);
+
+  // `/conceal` changes the name every row this composer writes will wear, and
+  // that name is a SERVER prop, so the page has to re-read itself.
+  const commandCtx = useMemo(
+    () => ({ travelTo: onTravelPick, converse: onConverse, lookAt: onLookUp, openDecree: onDecree, refresh }),
+    [onTravelPick, onConverse, onLookUp, onDecree, refresh],
+  );
+
+  // The ✉ menu. `birdSentToday` DISABLES rather than hides: it is a thing you
+  // have and have already used today, and saying so is better than a button
+  // that vanishes overnight.
+  const openAction = useRequestActions()?.open ?? null;
+  const lettersMenu = useMemo(() => {
+    if (!letters || !openAction) return [];
+    const rows = [];
+    if (letters.canWrite) rows.push({ mode: "write", label: "Write" });
+    if (letters.canSeal) rows.push({ mode: "seal", label: "Seal" });
+    if (letters.hasBird) {
+      rows.push({
+        mode: "bird",
+        label: letters.birdSentToday ? "Sent today" : "Send by bird",
+        disabled: Boolean(letters.birdSentToday),
+      });
+    }
+    if (letters.hasBirdReply) rows.push({ mode: "birdReply", label: "Answer a letter" });
+    return rows;
+  }, [letters, openAction]);
+
+  // Somebody is writing. Rate-limited to one ping per interval, never sent
+  // where this character cannot speak, and held for six seconds on the other
+  // end (../typingStore.js).
+  // The guest list for the open place, fetched ONCE here: the feed's strip
+  // draws it and `/remove`'s picker is the same list.
+  const members = usePlaceMembers(selected, placesVersion);
+  const lastTypedAt = useRef(0);
+  // The open place's rows, for the composer's slowmode: how long ago THIS
+  // character last spoke here is a fact about the feed, not about the box.
+  const rows = useFeed(selectedKey);
+  const onTyping = useCallback(() => {
+    if (!selectedKey || !selected?.canSpeak) return;
+    const now = Date.now();
+    if (now - lastTypedAt.current < TYPING_PING_MS) return;
+    lastTypedAt.current = now;
+    fetch("/api/feed/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place: selectedKey }),
+    }).catch(() => {});
+  }, [selectedKey, selected?.canSpeak]);
   const onRetry = useCallback(
     (clientId) => {
       if (!selectedKey) return;
@@ -427,7 +521,13 @@ export default function ChatNext(props) {
       .filter(Boolean)
       .join(" · ") || "Here";
   const asidePane = aside ? (
-    <ChatAside {...aside} selected={selected} onOpenMap={openMap} onPlaceChanged={bumpBoard} />
+    <ChatAside
+              {...aside}
+              selected={selected}
+              onOpenMap={openMap}
+              onPlaceChanged={bumpBoard}
+              travelPick={travelPick}
+            />
   ) : gmZones ? (
     <GmAside selected={selected} gmZones={gmZones} />
   ) : null;
@@ -484,9 +584,10 @@ export default function ChatNext(props) {
             hasCamera={hasCamera}
             speakers={speakers}
                 newAt={selected ? (seen?.get?.(selected.placeKey) ?? null) : null}
-                placesVersion={placesVersion}
+                members={members}
                 readOnly={Boolean(selected?.vantage)}
                 onRetry={onRetry}
+                onLookRow={onLookRow}
                 searchOpen={searchOpen}
                 onCloseSearch={closeSearch}
                 jump={jump}
@@ -501,7 +602,38 @@ export default function ChatNext(props) {
                   ) : null
                 }
               />
-              <Composer place={selected} self={self} gm={gm} roster={roster} sayRef={sayRef} />
+              {/* A GM in the GM seat, reading a place they cannot speak in:
+                  a system line, the web twin of Discord's /gm. Minimal on
+                  the SPEAKING side — no character, no hood, no slowmode, no
+                  pending queue — but the `/` line is the player's own, minus
+                  the entries that need a body standing somewhere. */}
+              {gm && selected && !selected.canSpeak && !selected.vantage ? (
+                <GmSystemComposer
+                  key={selectedKey}
+                  placeKey={selectedKey}
+                  placeKind={selected.kind}
+                  placeName={selected.name}
+                  hasCharacter={Boolean(viewAs)}
+                  people={aside?.people ?? null}
+                  members={members.data?.members ?? []}
+                  ctx={commandCtx}
+                />
+              ) : (
+              <Composer
+                place={selected}
+                self={self}
+                gm={gm}
+                roster={roster}
+                rows={rows}
+                ctx={commandCtx}
+                lettersMenu={lettersMenu}
+                openAction={openAction}
+                onTyping={onTyping}
+                people={aside?.people ?? null}
+                members={members.data?.members ?? []}
+                sayRef={sayRef}
+              />
+              )}
             </>
           )}
         </div>
@@ -535,6 +667,23 @@ export default function ChatNext(props) {
           </DrawerBody>
         </Modal>
       )}
+      {/* `/converse` from the composer — the SAME dialog the right column's
+          Converse opens, mounted here because on a phone that column is not
+          on the page at all. */}
+      {aside && converseOn && (
+        <ConverseDialog
+          onClose={() => setConverseOn(false)}
+          onDone={() => {
+            setConverseOn(false);
+            refresh();
+          }}
+        />
+      )}
+      {/* `/decree`, GM only. commands.js never offers a player the entry, so
+          this gate is belt and braces — but the dialog carries none of its
+          own, which is what makes it the one that matters. */}
+      {gm && decreeOn && <DecreeDialog onClose={() => setDecreeOn(false)} />}
+      {look && <LookReadout state={look} onClose={() => setLook(null)} />}
       {mapOpen && (
         <Modal open title="Map" onClose={() => setMapOpen(false)} panelClassName="modal-panel map-panel">
           <MapBoard onClose={() => setMapOpen(false)} />

@@ -13,6 +13,7 @@ import MentionMenu, { mentionQueryAt, matchRoster } from "../MentionMenu";
 import useComposerCommands from "../useComposerCommands";
 import useComposerAutosize from "../useComposerAutosize";
 import { addPending, applyRow, markPendingFailed, isOwnRow } from "../feedStore";
+import CommandArgs from "../CommandArgs";
 import { readDraft, writeDraft } from "../draftStore";
 
 // THE COMPOSER: what voice you are in, your hands, the words, and the send.
@@ -46,6 +47,12 @@ export default function Composer({
   lettersMenu = [],
   openAction = null,
   onTyping = null,
+  // whosHere() WHOLE, hoods included: a command's person picker needs them,
+  // and `roster` above deliberately has none.
+  people = null,
+  // The guest list, for `/remove` — a conversation member need not be
+  // standing beside you.
+  members = [],
   // A box the shell holds so the FEED can reach this composer's send. The
   // "Try again" on a refused line belongs beside the line, and the send it
   // makes belongs here.
@@ -408,6 +415,19 @@ export default function Composer({
                 active={slash.active ?? 0}
                 onPick={(entry) => pickCommand(entry, draft)}
                 onHover={(i) => cmd.setSlash?.((prev) => (prev ? { ...prev, active: i } : prev))}
+              />
+            )}
+            {/* The arguments a command still wants, as chips under the box.
+                ONE row at a time: the first unfilled one is the question
+                being asked, and drawing all of them at once would be a form
+                rather than a command line. */}
+            {command && (
+              <CommandArgs
+                command={command}
+                people={people}
+                members={members}
+                query={draft}
+                onPick={cmd.setArg}
               />
             )}
             {mention && (

@@ -7,7 +7,6 @@ import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { Readout } from "@/app/components/ExamineDialog";
-import LookReadout from "@/app/components/LookReadout";
 import IconButton from "@/app/components/IconButton";
 import TranscriptLine from "@/app/components/TranscriptLine";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
@@ -17,7 +16,8 @@ import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
 import MembersStrip from "../MembersStrip";
 import usePlaceMembers from "../usePlaceMembers";
 import FeedSearch from "../FeedSearch";
-import { photographRow, starRow, lookAtRow } from "../actions";
+import { useTyping, typingLine } from "../typingStore";
+import { photographRow, starRow } from "../actions";
 import {
   useFeed,
   useHistoryState,
@@ -288,9 +288,10 @@ export default function Feed({
   // The seq this place was at when it was last read, so the NEW rule lands in
   // the right gap. Null means everything here has been read.
   newAt = null,
-  // Bumped on every `places` frame — a key turning, or somebody else's /add.
-  // The members strip re-reads on it.
-  placesVersion = 0,
+  // The guest list, loaded ONCE by the shell: the strip below draws it and
+  // `/remove`'s picker is the same list, so two fetches would be two answers
+  // to one question (../usePlaceMembers.js).
+  members = { hasMembers: false, data: null, reload: null },
   // A street being watched from somewhere else: read, never written to
   // (db/lib/vantages.js). The guest-list buttons are a thing you do with your
   // hands in the room.
@@ -308,6 +309,10 @@ export default function Feed({
   onJump = null,
   // The noticeboard nailed to the top of a street. Null everywhere else.
   notices = null,
+  // Looking at whoever said a LINE. The readout it opens is the shell's, so
+  // `/look <somebody>` and the eye on a row share one dialog rather than
+  // drawing two that can never both be open.
+  onLookRow = () => {},
   // The composer's own, because a retry re-SENDS and the send queue is its.
   // Null leaves a refused line sitting there marked unsent, which is still
   // better than losing the words.
@@ -315,8 +320,8 @@ export default function Feed({
 }) {
   const placeKey = place?.placeKey ?? null;
   const rows = useFeed(placeKey);
-  const members = usePlaceMembers(place, placesVersion);
   const confirm = useConfirm();
+  const typing = typingLine(useTyping(placeKey));
   // The `at` of a jump whose failure the reader has already waved away, so
   // the notice does not come back every time the scene re-renders.
   const [dismissedJump, setDismissedJump] = useState(null);
@@ -334,7 +339,6 @@ export default function Feed({
   const [rowError, setRowError] = useState(null);
   const [answer, setAnswer] = useState(null);
   const [editingSeq, setEditingSeq] = useState(null);
-  const [look, setLook] = useState(null);
   const [photo, setPhoto] = useState(null);
   // The row a tap opened the ⋯ sheet for. A touch screen has no hover, so
   // this is the one way in on a phone.
@@ -419,20 +423,6 @@ export default function Feed({
     [removeLine],
   );
 
-  // Look at, pressed against the ROW rather than the person. The browser
-  // sends a seq and nothing else; the server resolves who said it, whether
-  // they were hooded AT THE TIME, and whether this reader may see the place
-  // (db/lib/examineRow.js). That is what lets the eye sit on a hooded line at
-  // all, and what makes it answer for the hood worn when the words were said
-  // rather than the one being worn now.
-  const onLookAt = useCallback((seq) => {
-    if (!seq) return;
-    setLook({ loading: true });
-    lookAtRow(seq)
-      .then((res) => (res?.ok ? setLook({ readout: res.readout }) : setLook({ error: res?.error ?? "You can't see them." })))
-      .catch(() => setLook({ error: "You can't see them." }));
-  }, []);
-
   // The camera is not spent (db/lib/photoMint.js) and the print is deduped
   // per (photographer, row) server-side, so a second press on the same line
   // gives back the refusal the bot's 📸 does rather than a second Tag row.
@@ -466,14 +456,14 @@ export default function Feed({
       onCancelEdit,
       onSaveEdit,
       onDelete,
-      onLookAt,
+      onLookAt: onLookRow,
       onPhotograph,
       onStar,
       onRemove,
       onOpenMenu: setMenuRow,
       onRetry,
     }),
-    [onEdit, onCancelEdit, onSaveEdit, onDelete, onLookAt, onPhotograph, onStar, onRemove, onRetry],
+    [onEdit, onCancelEdit, onSaveEdit, onDelete, onLookRow, onPhotograph, onStar, onRemove, onRetry],
   );
   const historyState = useHistoryState(placeKey);
   const backlog = useBacklog(placeKey);
@@ -741,6 +731,16 @@ export default function Feed({
         </button>
       )}
 
+      {/* Who is writing something. Inside the wrap so that on a phone it can
+          sit OVER the last line of the scene rather than under it — a row of
+          its own is a row the feed does not have there. On a desktop it is a
+          line between the scene and the box, holding its height whether or
+          not anybody is writing, so the feed does not jump every time
+          somebody starts and stops. */}
+      <p className="chat-typing" aria-live="polite">
+        {typing}
+      </p>
+
       {/* What a row action said back, under the scene rather than under the
           box: the line you acted on is the thing you are looking at. */}
       {answer && <p className="chat-quiet-line">{answer}</p>}
@@ -772,7 +772,6 @@ export default function Feed({
       )}
 
       {photo && <PhotoReadout state={photo} onClose={() => setPhoto(null)} />}
-      {look && <LookReadout state={look} onClose={() => setLook(null)} />}
     </div>
   );
 }

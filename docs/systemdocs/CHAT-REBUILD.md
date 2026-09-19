@@ -200,10 +200,19 @@ Each ends with something that runs.
    picked from the dropdown beside it, because the dropdown already reads
    "Shout" and repeating it cost a whole row of the scene.
 
-   **Still owed:** chip arguments (a command that wants a person or a
-   destination), the "somebody is typing" line (the ping goes out; the readout
-   does not), the GM system composer, and `lettersMenu` — the ✉ tools menu is
-   built but nothing feeds it yet.
+   **The tail landed after phase 7.** Chip arguments came out of `../Feed.js`
+   as `CommandArgs.js`, where they sit with `CommandMenu.js` and
+   `CommandStrip.js` — the three pieces of the command line in one place,
+   drawn by whichever composer is mounted. `GmSystemComposer.js` came out the
+   same way, so a GM reading a place they cannot speak in gets the same
+   command line either way. The typing readout, `lettersMenu`, `/travel`'s
+   pick, the Converse and Decree dialogs and the one Look readout are wired.
+
+   Two things the wiring settled. The Look readout is the SHELL's, not the
+   feed's: `/look <somebody>` resolves a name, the eye on a row resolves a
+   seq, and two dialogs that could never both be open should not be two. And
+   the guest list is fetched ONCE, by the shell, because the members strip
+   draws it and `/remove`'s picker is the same list — `usePlaceMembers.js`.
 5. **Aside** — `next/ChatAside.js`. The You plate over its well, then Turn,
    Here, Waiting on you, the place card, the party, the room (only while one
    is open), travel, and the two fold drawers — Things and Desires — with the
